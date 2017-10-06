@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Test SDK Core</title>
+</head>
+<body>
+  <script src="./lib/QiscusSDKCore.js"></script>
+  <script>
+    // initiate qiscus sdk
+    qiscus = new QiscusSDKCore();
+    // init
+    qiscus.init({
+      AppId: 'sdksample',
+      options: {
+        loginSuccessCallback: function() {
+          console.info('successfully logged in');
+          qiscus.chatTarget('guest@qiscus.com').then(res => {
+            console.info('chat with guest@qiscus.com', qiscus.selected);
+          });
+        }
+      }
+    });
+    // set credentials
+    qiscus.setUser('fikri@qiscus.com', 'password', 'fikri');
+  </script>
+</body>
+</html>

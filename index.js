@@ -1,6 +1,12 @@
 import {EventEmitter} from 'events';
+import {format} from 'date-fns';
 import Comment from './lib/Comment';
 import Room from './lib/Room';
+import HttpAdapter from './lib/adapters/http';
+import UserAdapter from './lib/adapters/user';
+import RoomAdapter from './lib/adapters/room';
+import MqttAdapter from './lib/adapters/MqttAdapter';
+import MqttCallback from './lib/adapters/MqttCallback';
 
 /**
  * Qiscus Web SDK Core Class
@@ -16,27 +22,38 @@ class QiscusSDK extends EventEmitter {
    */
   constructor () {
     super();
-    this.rooms           = [];
-    this.selected        = null;
+    this.rooms                    = [];
+    this.selected                 = null;
+    this.room_name_id_map         = {};
+    this.pendingCommentId         = 0;
 
-    this.userData        = {};
+    this.userData                 = {};
     // SDK Configuration
-    this.baseURL         = null;
-    this.HTTPAdapter     = null;
-    this.realtimeAdapter = null;
-    this.isInit          = false;
-    this.isSynced        = false;
-    this.sync            = 'both'; // possible values 'socket', 'http', 'both'
+    this.baseURL                  = null;
+    this.HTTPAdapter              = null;
+    this.realtimeAdapter          = null;
+    this.isInit                   = false;
+    this.isSynced                 = false;
+    this.sync                     = 'both'; // possible values 'socket', 'http', 'both'
     this.last_received_comment_id = 0;
+    this.options                  = {
+      avatar:                       true,
+    };
 
     // UI related Properties
     this.mode            = 'widget';
+    this.avatar          = true;
     this.plugins         = [];
     this.isLogin         = false;
     this.isLoading       = false;
     this.emoji           = false;
   }
 
+  /**
+  * Initializing the SDK, set Event Listeners (callbacks)
+  * @param {any} config - Qiscus SDK Configurations
+  * @return {void}
+  */
   init (config) {
     // set AppID
     if (!config.AppId) throw new Error('Please provide valid AppId');
@@ -45,6 +62,8 @@ class QiscusSDK extends EventEmitter {
     if (config.sync) this.sync = config.sync;
     if (config.mode) this.mode = config.mode;
     if (config.emoji) this.emoji = config.emoji;
+    // Let's initialize the app based on options
+    if (config.options) this.options = Object.assign({}, this.options, config.options)
 
     // set Event Listeners
     this.setEventListeners();
@@ -74,11 +93,11 @@ class QiscusSDK extends EventEmitter {
         if (!room) return false;
         const pendingComment = new Comment(comment);
         // set comment metadata (read or delivered) based on current selected room
-        const isRoomSelected = room.isCurrentlySelected();
-        if(isRoomSelected) comment.markAsRead();
-        if(!isRoomSelected) comment.markAsDelivered();
+        const isRoomSelected = room.isCurrentlySelected(self.selected);
+        if(isRoomSelected) pendingComment.markAsRead();
+        if(!isRoomSelected) pendingComment.markAsDelivered();
         // fetch the comment inside the room
-        room.receiveComment(new Comment(comment));
+        room.receiveComment(pendingComment);
         // let's update last_received_comment_id
         self.last_received_comment_id = (comment.id > self.last_received_comment_id) ? comment.id : self.last_received_comment_id;
         // update comment status, if only self.selected isn't null and it is the correct room
@@ -94,9 +113,10 @@ class QiscusSDK extends EventEmitter {
      * Basically, it sets up necessary properties for qiscusSDK
      */
     self.on('login-success', function (response) {
+      const mqttURL = "wss://mqtt.qiscus.com:1886/mqtt";
       self.isLogin  = true;
       self.userData = response.results.user;
-      
+
       if (self.sync == 'http' || self.sync == 'both') self.activateSync();
 
       // now that we have the token, etc, we need to set all our adapters
@@ -105,9 +125,9 @@ class QiscusSDK extends EventEmitter {
       self.HTTPAdapter.setToken(self.userData.token);
 
       // ////////////// CORE BUSINESS LOGIC ////////////////////////
-      self.userAdapter  = new UserAdapter(self.HTTPAdapter);
-      self.roomAdapter  = new RoomAdapter(self.HTTPAdapter);
-      self.topicAdapter = new TopicAdapter(self.HTTPAdapter);
+      self.userAdapter     = new UserAdapter(self.HTTPAdapter);
+      self.roomAdapter     = new RoomAdapter(self.HTTPAdapter);
+      self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self);
       self.realtimeAdapter.subscribeUserChannel();
       if (self.options.loginSuccessCallback) self.options.loginSuccessCallback(response)
     })
@@ -174,14 +194,14 @@ class QiscusSDK extends EventEmitter {
 
   /**
   * Setting Up User Credentials for next API Request
-  * @param {string} email - client email (will be used for login or register)
+  * @param {string} unique_id - client unique_id (will be used for login or register)
   * @param {string} key - client unique key
   * @param {string} username - client username
   * @param {string} avatar_url - the url for chat avatar (optional)
   * @return {void}
   */
-  setUser (email, key, username, avatarURL) {
-    this.email      = email
+  setUser (unique_id, key, username, avatarURL) {
+    this.unique_id  = unique_id
     this.key        = key
     this.username   = username
     this.avatar_url = avatarURL
@@ -192,6 +212,187 @@ class QiscusSDK extends EventEmitter {
       this.isInit = true
       this.emit('login-success', response)
     })
+  }
+
+  connectToQiscus () {
+    var formData = new FormData()
+    formData.append('email', this.unique_id)
+    formData.append('password', this.key)
+    formData.append('username', this.username)
+    if (this.avatar_url) formData.append('avatar_url', this.avatar_url)
+
+    return fetch(`${this.baseURL}/api/v2/sdk/login_or_register`, {
+      method: 'POST',
+      body: formData
+    }).then((response) => response.json() , (err) => err)
+  }
+
+  // Activate Sync Feature if `http` or `both` is chosen as sync value when init
+  activateSync () {
+    const self = this
+    if (self.isSynced) return false;
+    self.isSynced = true;
+    // window.setInterval(() => self.synchronize(), 7500);
+  }
+
+  /**
+   * This method let us get new comments from server
+   * If comment count > 0 then we have new message
+   */
+  synchronize () {
+    vStore.state.mqtt.publish(`u/${qiscus.userData.email}/s`, `1:${format(new Date(), 'x')}`);
+    this.userAdapter.sync(this.last_received_comment_id)
+    .then((comments) => {
+      if (comments.length > 0) this.emit('newmessages', comments)
+    })
+  }
+
+  disconnect () {
+    this.isInit = false;
+    this.userData = {};
+    this.selected = null;
+  }
+
+  /**
+   * Chat with targetted email
+   * @param unique_id {string} - target unique_id
+   * @param options {object} - optional data sent to qiscus database
+   * @param distinct_id {string | optional} - unique string to differentiate chat room with same target
+   * @return room <Room>
+   */
+  chatTarget (unique_id, options = {}) {
+    // make sure data already loaded first (user already logged in)
+    if (this.userData.length != null) return false
+
+    const self = this
+    const initialMessage = (options) ? options.message  : null;
+    const distinctId = options.distinctId;
+
+    self.isLoading = true
+    self.isTypingStatus = ''
+
+    // We need to get room id 1st, based on room_name_id_map
+    const roomId = self.room_name_id_map[unique_id] || null
+    let room     = self.rooms.find(room => { id: roomId });
+    if (room) { // => Room is Found, just use this, no need to reload
+      // self.selected = null
+      self.selected = room
+      // make sure we always get the highest value of last_received_comment_id
+      self.last_received_comment_id = (self.last_received_comment_id < room.last_comment_id) ? room.last_comment_id : self.last_received_comment_id
+      self.isLoading = false
+      self.emit('chat-room-created', { room: room })
+      // id of last comment on this room
+      const last_comment = room.comments[room.comments.length-1];
+      if (last_comment) self.updateCommentStatus(room.id, last_comment);
+      return Promise.resolve(room)
+    }
+
+    // Create room
+    return this.roomAdapter.getOrCreateRoom(unique_id, options, distinctId)
+      .then((response) => {
+        room = new Room(response)
+        self.room_name_id_map[unique_id] = room.id
+        self.last_received_comment_id = (self.last_received_comment_id < room.last_comment_id) ? room.last_comment_id : self.last_received_comment_id
+        self.rooms.push(room)
+        self.isLoading = false
+        self.selected = room
+        // id of last comment on this room
+        const last_comment = room.comments[room.comments.length-1];
+        if (last_comment) self.updateCommentStatus(room.id, last_comment);
+        self.emit('chat-room-created', { room: room })
+
+        if (!initialMessage) return room
+        const topicId = room.id
+        const message = initialMessage
+        self.submitComment(topicId, message)
+          .then(() => console.log('Comment posted'))
+          .catch(err => {
+            console.error('Error when submit comment', err)
+          })
+        return Promise.resolve(room)
+      }, (err) => {
+        console.error('Error when creating room', err) 
+        self.isLoading = false
+        return Promise.reject(err)
+      })
+  }
+
+  /**
+   *
+   * Step of submitting:
+   * - we need to create a new comment object
+   * - attach it with negative number id, and also the uniqueId, uniqueId is used
+   *   to target this particular comment when there's response from server (sent, delivered state)
+   * @param {Int} topicId - the topic id of comment to be submitted
+   * @param {String} commentMessage - comment to be submitted
+   * @return {Promise}
+   */
+  submitComment (topicId, commentMessage, uniqueId, type = 'text', payload) {
+    var self = this
+    self.pendingCommentId--
+    var pendingCommentDate = new Date()
+    var commentData = {
+      message: commentMessage,
+      username_as: this.username,
+      username_real: this.email,
+      user_avatar_url: this.userData.avatar_url,
+      id: self.pendingCommentId,
+      type: type || 'text',
+      timestamp: format(new Date())
+    }
+    if(type != 'text') commentData.payload = JSON.parse(payload)
+    var pendingComment = self.prepareCommentToBeSubmitted(commentData)
+
+    // push this comment unto active room
+    if(type == 'reply') {
+      // change payload for pendingComment
+      // get the comment for current replied id
+      var parsedPayload = JSON.parse(payload)
+      var replied_message = self.selected.comments.find(cmt => cmt.id == parsedPayload.replied_comment_id)
+      parsedPayload.replied_comment_message = 
+        (replied_message.type == 'reply') ? replied_message.payload.text
+                                          : replied_message.message;
+      parsedPayload.replied_comment_sender_username = replied_message.username_as
+      pendingComment.payload = parsedPayload
+    }
+    self.selected.comments.push(pendingComment)
+
+    return this.userAdapter.postComment(topicId, commentMessage, pendingComment.unique_id, type, payload)
+    .then((res) => {
+      // When the posting succeeded, we mark the Comment as sent,
+      // so all the interested party can be notified.
+      pendingComment.markAsSent()
+      pendingComment.id = res.id
+      pendingComment.before_id = res.comment_before_id
+      return new Promise((resolve, reject) => resolve(self.selected))
+    }, (err) => {
+      pendingComment.markAsFailed()
+      return new Promise((resolve, reject) => reject(err))
+    })
+  }
+
+  prepareCommentToBeSubmitted (comment) {
+    var commentToBeSubmitted, uniqueId
+    commentToBeSubmitted = new Comment(comment)
+    // We're gonna use timestamp for uniqueId for now.
+    // "bq" stands for "Bonjour Qiscus" by the way.
+    uniqueId = 'bq' + Date.now()
+    if(comment.unique_id) uniqueId = comment.unique_id
+    commentToBeSubmitted.attachUniqueId(uniqueId)
+    commentToBeSubmitted.markAsPending()
+    commentToBeSubmitted.isDelivered = false
+    commentToBeSubmitted.isSent = false
+    commentToBeSubmitted.isRead = false
+    return commentToBeSubmitted
+  }
+
+  _getRoomOfTopic (topic_id) {
+    // TODO: This is expensive. We need to refactor
+    // it using some kind map of topicId as the key
+    // and roomId as its value.
+    return this.rooms.find((room) =>
+      room.topics.find(topic => topic.id === topic_id)
+    )
   }
 }
 module.exports = QiscusSDK;
