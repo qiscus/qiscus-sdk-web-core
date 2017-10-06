@@ -7,6 +7,7 @@ import UserAdapter from './lib/adapters/user';
 import RoomAdapter from './lib/adapters/room';
 import MqttAdapter from './lib/adapters/MqttAdapter';
 import MqttCallback from './lib/adapters/MqttCallback';
+import {GroupChatBuilder,scrollToBottom} from './lib/utils';
 
 /**
  * Qiscus Web SDK Core Class
@@ -384,6 +385,25 @@ class QiscusSDK extends EventEmitter {
     commentToBeSubmitted.isSent = false
     commentToBeSubmitted.isRead = false
     return commentToBeSubmitted
+  }
+
+  /**
+   * Create group chat room
+   * @param {string} name - Chat room name
+   * @param {string[]} emails - Participant to be invited
+   * @returns {Promise.<Room, Error>} - Room detail
+   */
+  createGroupRoom (name, emails, options) {
+    const self = this
+    if (!this.isLogin) throw new Error('Please initiate qiscus SDK first')
+    return new GroupChatBuilder(this.roomAdapter)
+      .withName(name)
+      .withOptions(options)
+      .addParticipants(emails)
+      .create()
+      .then((res) => {
+        self.emit('group-room-created', res)
+      })
   }
 
   _getRoomOfTopic (topic_id) {
