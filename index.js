@@ -48,6 +48,7 @@ class QiscusSDK extends EventEmitter {
     this.isLogin         = false;
     this.isLoading       = false;
     this.emoji           = false;
+    this.isTypingStatus  = '';
   }
 
   /**
@@ -316,6 +317,116 @@ class QiscusSDK extends EventEmitter {
         self.isLoading = false
         return Promise.reject(err)
       })
+  }
+
+  /**
+   * 
+   * Open a group chat or target a specific room id
+   * 
+   * @param {int} id 
+   * @returns Room <Room>
+   * @memberof QiscusSDK
+   */
+  chatGroup (id) {
+    const self = this;
+    if (!self.isInit) return
+    return self.getRoomById(id)
+    .then((response) => {
+      return Promise.resolve(response);
+    })
+  }
+
+  /**
+   * @param {int} id - Room Id
+   * @return {Room} Room data
+   */
+  getRoomById (id) {
+    const self = this
+    self.isLoading = true;
+    self.isTypingStatus = ''
+    return self.roomAdapter.getRoomById(id)
+      .then((response) => {
+        // make sure the room hasn't been pushed yet
+        let room;
+        let roomToFind = self.rooms.find(room => { id: id});
+        if (!roomToFind) {
+          let roomData = response.results.room;
+          roomData.name = roomData.room_name;
+          roomData.room_type = 'group';
+          roomData.comments = response.results.comments.reverse();
+          room = new Room(roomData);
+          self.room_name_id_map[room.name] = room.id;
+          self.rooms.push(room);
+        } else {
+          room = roomToFind;
+        } 
+        self.last_received_comment_id = (self.last_received_comment_id < room.last_comment_id) ? room.last_comment_id : self.last_received_comment_id;
+        self.selected = room || roomToFind;
+        self.isLoading = false;
+        // id of last comment on this room
+        const last_comment = room.comments[room.comments.length-1];
+        if (last_comment) self.updateCommentStatus(room.id, last_comment);
+        return Promise.resolve(room);
+      }, (error) => {
+        console.error('Error getting room by id', error);
+        return Promise.reject(error);
+      })
+  }
+
+  /**
+   * @param {int} id - Room Id
+   * @param {string} room_name
+   * @param {string} avatar_url
+   * @return {Room} Room data
+   */
+  getOrCreateRoomByUniqueId (id, room_name, avatar_url) {
+    const self = this
+    self.isLoading = true;
+    return self.roomAdapter.getOrCreateRoomByUniqueId(id, room_name, avatar_url)
+      .then((response) => {
+        // make sure the room hasn't been pushed yet
+        let room
+        let roomToFind = self.rooms.find(room => { id: id});
+        if (!roomToFind) {
+          room = new Room(response)
+          self.room_name_id_map[room.name] = room.id
+          self.rooms.push(room)
+        } else {
+          room = roomToFind
+        } 
+        self.last_received_comment_id = (self.last_received_comment_id < room.last_comment_id) ? room.last_comment_id : self.last_received_comment_id
+        self.selected = room || roomToFind
+        self.isLoading = false
+        // self.emit('group-room-created', self.selected)
+      }, (error) => {
+        console.error('Error getting room by id', error)
+      })
+  }
+
+  /**
+   * Set read status for selected comment
+   * 
+   * @param {int} room_id 
+   * @param {obj} comment 
+   * @memberof qiscusSDK
+   */
+  updateCommentStatus(room_id, comment) {
+    const self = this;
+    self.userAdapter.updateCommentStatus(room_id, comment.id, comment.id)
+    .then( res => {
+      self.sortComments()
+    })
+  }
+
+  /**
+   * TODO: This operation is heavy, let's find another way
+   * 
+   * @memberof QiscusSDK
+   */
+  sortComments () {
+    this.selected.comments.sort(function (leftSideComment, rightSideComment) {
+      return leftSideComment.id - rightSideComment.id
+    })
   }
 
   /**
