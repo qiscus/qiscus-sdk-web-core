@@ -3,6 +3,7 @@
   "version": "1.0.1",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
+  "main": "dist/QiscusSDKCore.min.js",
   "scripts": {
     "build": "WEBPACK_ENV=build webpack",
     "dev": "WEBPACK_ENV=dev webpack --progress --colors --watch",
