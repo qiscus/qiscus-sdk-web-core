@@ -1,6 +1,7 @@
 {
   "name": "qiscus-sdk-core",
   "version": "1.0.0",
+  "description": "Qiscus Web SDK Core",
   "license": "MIT",
   "scripts": {
     "build": "WEBPACK_ENV=build webpack",
