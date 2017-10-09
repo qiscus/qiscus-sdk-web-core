@@ -1,4 +1,4 @@
-import r2 from 'r2';
+import request from 'superagent'
 import {EventEmitter} from 'events';
 import {format} from 'date-fns';
 import Comment from './lib/Comment';
@@ -230,15 +230,23 @@ class QiscusSDK extends EventEmitter {
     })
   }
 
-  async connectToQiscus () {
-    let obj = {
+  connectToQiscus () {
+    let body = {
       email: this.unique_id,
       password: this.key,
       username: this.username
     }
-    if (this.avatar_url) obj.avatar_url = this.avatar_url;
-    let resp = await r2.post(`${this.baseURL}/api/v2/sdk/login_or_register`, {json: obj}).json
-    return resp
+    if (this.avatar_url) body.avatar_url = this.avatar_url;
+    // let resp = await r2.post(`${this.baseURL}/api/v2/sdk/login_or_register`, {json: obj}).json
+    // return resp
+    return new Promise((resolve, reject) => {
+      let req = request.post(`${this.baseURL}/api/v2/sdk/login_or_register`)
+      req.send(body).set('Content-Type', 'application/x-www-form-urlencoded')
+      .end((err, res) => {
+        if (err) return reject(err)
+        return resolve(res.body)
+      })
+    })
   }
 
   // Activate Sync Feature if `http` or `both` is chosen as sync value when init
