@@ -1,3 +1,4 @@
+import r2 from 'r2';
 import {EventEmitter} from 'events';
 import {format} from 'date-fns';
 import Comment from './lib/Comment';
@@ -72,6 +73,7 @@ class QiscusSDK extends EventEmitter {
   }
 
   updateCommentStatus(comment) {
+    const self = this;
     if(!self.selected || self.selected.id != comment.room_id) return false;
     self.userAdapter.updateCommentStatus(self.selected.id, comment.id, comment.id)
     .then( res => {
@@ -192,6 +194,18 @@ class QiscusSDK extends EventEmitter {
         : `Last seen ${distanceInWordsToNow(Number(payload[1]))}`
       if (self.options.presenceCallback) self.options.presenceCallback(data);
     })
+
+    self.on('typing', function(data) {
+      if (self.options.typingCallback) self.options.typingCallback(data);
+    })
+
+    self.on('comment-read', function(data) {
+      if (self.options.commentReadCallback) self.options.commentReadCallback(data);
+    })
+
+    self.on('comment-delivered', function(data) {
+      if (self.options.commentDeliveredCallback) self.options.commentDeliveredCallback(data);
+    })
   }
 
   /**
@@ -216,17 +230,15 @@ class QiscusSDK extends EventEmitter {
     })
   }
 
-  connectToQiscus () {
-    var formData = new FormData()
-    formData.append('email', this.unique_id)
-    formData.append('password', this.key)
-    formData.append('username', this.username)
-    if (this.avatar_url) formData.append('avatar_url', this.avatar_url)
-
-    return fetch(`${this.baseURL}/api/v2/sdk/login_or_register`, {
-      method: 'POST',
-      body: formData
-    }).then((response) => response.json() , (err) => err)
+  async connectToQiscus () {
+    let obj = {
+      email: this.unique_id,
+      password: this.key,
+      username: this.username
+    }
+    if (this.avatar_url) obj.avatar_url = this.avatar_url;
+    let resp = await r2.post(`${this.baseURL}/api/v2/sdk/login_or_register`, {json: obj}).json
+    return resp
   }
 
   // Activate Sync Feature if `http` or `both` is chosen as sync value when init
@@ -524,6 +536,43 @@ class QiscusSDK extends EventEmitter {
     return this.rooms.find((room) =>
       room.topics.find(topic => topic.id === topic_id)
     )
+  }
+
+  /**
+   * Upload a file to qiscus sdk server
+   * 
+   * @param {any} roomId the room id this file need to be submitted to
+   * @param {any} file you can get this from event `e.target.files || e.dataTransfer.files`
+   * @returns Promise
+   * @memberof QiscusSDK
+   */
+  uploadFile(roomId, file) {
+    const self = this;
+    return self.userAdapter.uploadFile(file)
+      .then( response => {
+        // file(s) uploaded), let's post to comment
+        var url = response.file.url
+        return self.submitComment(roomId, `[file] ${url} [/file]`);
+      });
+  }
+
+  loadComments(roomId, lastCommentId) {
+    const self = this;
+    return self.topicAdapter.loadComments(topic_id, last_comment_id)
+      .then((response) => {
+        self.selected.receiveComments(response.reverse())
+        self.sortComments()
+        return new Promise((resolve, reject) => resolve(response))
+      }, (error) => {
+        console.error('Error loading comments', error)
+        return new Promise(reject => reject(error));
+      });
+  }
+
+  sortComments () {
+    this.selected.comments.sort(function (leftSideComment, rightSideComment) {
+      return leftSideComment.id - rightSideComment.id
+    })
   }
 }
 module.exports = QiscusSDK;
