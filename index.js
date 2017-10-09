@@ -121,8 +121,6 @@ class QiscusSDK extends EventEmitter {
       self.isLogin  = true;
       self.userData = response.results.user;
 
-      if (self.sync == 'http' || self.sync == 'both') self.activateSync();
-
       // now that we have the token, etc, we need to set all our adapters
       // /////////////// API CLIENT /////////////////
       self.HTTPAdapter  = new HttpAdapter(self.baseURL);
@@ -133,6 +131,8 @@ class QiscusSDK extends EventEmitter {
       self.roomAdapter     = new RoomAdapter(self.HTTPAdapter);
       self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self);
       self.realtimeAdapter.subscribeUserChannel();
+
+      if (self.sync == 'http' || self.sync == 'both') self.activateSync();
       if (self.options.loginSuccessCallback) self.options.loginSuccessCallback(response)
     })
 
