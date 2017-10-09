@@ -575,4 +575,5 @@ class QiscusSDK extends EventEmitter {
     })
   }
 }
+
 module.exports = QiscusSDK;
