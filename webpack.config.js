@@ -1,12 +1,15 @@
 var webpack        = require('webpack');
 var path           = require('path');
 var libraryName    = 'QiscusSDKCore';
-var UglifyJsPlugin = webpack.optimize.UglifyJsPlugin;
+// var UglifyJsPlugin = webpack.optimize.UglifyJsPlugin;
 var env            = process.env.WEBPACK_ENV;
 var plugins        = [], outputFile;
+const MinifyPlugin = require("babel-minify-webpack-plugin");
 
 if (env === 'build') {
   // plugins.push(new UglifyJsPlugin({ minimize: true }));
+  plugins.push(new MinifyPlugin({}, {comments: false}));
+
   outputFile = libraryName + '.min.js';
 } else {
   outputFile = libraryName + '.js';
@@ -28,7 +31,7 @@ var config = {
         test: /(\.jsx|\.js)$/,
         loader: 'babel-loader',
         query: {
-          presets: ["es2015"]
+          presets: ["env"]
         },
         exclude: /(node_modules|bower_components)/
       },
