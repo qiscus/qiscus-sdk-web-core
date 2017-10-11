@@ -417,26 +417,14 @@ class QiscusSDK extends EventEmitter {
         self.last_received_comment_id = (self.last_received_comment_id < room.last_comment_id) ? room.last_comment_id : self.last_received_comment_id
         self.selected = room || roomToFind
         self.isLoading = false
+        return Promise.resolve(room);
         // self.emit('group-room-created', self.selected)
       }, (error) => {
         console.error('Error getting room by id', error)
+        return Promise.reject(error);
       })
   }
 
-  /**
-   * Set read status for selected comment
-   * 
-   * @param {int} room_id 
-   * @param {obj} comment 
-   * @memberof qiscusSDK
-   */
-  updateCommentStatus(room_id, comment) {
-    const self = this;
-    self.userAdapter.updateCommentStatus(room_id, comment.id, comment.id)
-    .then( res => {
-      self.sortComments()
-    })
-  }
 
   /**
    * TODO: This operation is heavy, let's find another way
