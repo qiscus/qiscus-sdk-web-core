@@ -7,7 +7,11 @@
   <title>Test SDK Core</title>
 </head>
 <body>
-  <script src="./dist/QiscusSDKCore.min.js"></script>
+  <form>
+    <input type="file" name="test" id="filename">
+    <input type="submit" value="upload" id="upload">
+  </form>
+  <script src="./dist/QiscusSDKCore.js"></script>
   <script>
     // initiate qiscus sdk
     qiscus = new QiscusSDKCore();
@@ -25,6 +29,12 @@
     });
     // set credentials
     qiscus.setUser('fikri@qiscus.com', 'password', 'Rijalul Fikri', 'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/ixIrQHwz2w/1507605797-Lifestealer_icon.png');
+    document.querySelector('form').addEventListener('submit', function(e){
+      e.preventDefault();
+      console.info(e.target[0].files[0]);
+      // return;
+      qiscus.uploadFile(qiscus.selected.id, e.target[0].files[0]);
+    });
   </script>
 </body>
 </html>

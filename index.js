@@ -544,12 +544,23 @@ class QiscusSDK extends EventEmitter {
    */
   uploadFile(roomId, file) {
     const self = this;
-    return self.userAdapter.uploadFile(file)
-      .then( response => {
-        // file(s) uploaded), let's post to comment
-        var url = response.file.url
+    console.info(roomId, file);
+    request
+      .post(`${self.HTTPAdapter.baseURL}/api/v2/sdk/upload`)
+      .field('token', self.userData.token)
+      .attach('file', file)
+      .then(res => {
+        var url = res.body.results.file.url
         return self.submitComment(roomId, `[file] ${url} [/file]`);
-      });
+      })
+      .catch(error => Promise.reject(error))
+    // debugger;
+    // return self.userAdapter.uploadFile(file)
+    //   .then( response => {
+    //     // file(s) uploaded), let's post to comment
+    //     var url = response.file.url
+    //     return self.submitComment(roomId, `[file] ${url} [/file]`);
+    //   });
   }
 
   loadComments(roomId, lastCommentId) {
