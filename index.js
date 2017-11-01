@@ -28,10 +28,13 @@ class QiscusSDK extends EventEmitter {
     this.selected                 = null;
     this.room_name_id_map         = {};
     this.pendingCommentId         = 0;
+    this.uploadedFiles            = [];
 
     this.userData                 = {};
     // SDK Configuration
+    this.AppId                    = null;
     this.baseURL                  = null;
+    this.mqttURL                  = null;
     this.HTTPAdapter              = null;
     this.realtimeAdapter          = null;
     this.isInit                   = false;
@@ -60,8 +63,11 @@ class QiscusSDK extends EventEmitter {
   init (config) {
     // set AppID
     if (!config.AppId) throw new Error('Please provide valid AppId');
+    this.AppId = config.AppId;
     this.baseURL = `https://${config.AppId}.qiscus.com`;
 
+    if (config.baseURL) this.baseURL = config.baseURL;
+    if (config.mqttURL) this.mqttURL = config.mqttURL;
     if (config.sync) this.sync = config.sync;
     if (config.mode) this.mode = config.mode;
     if (config.emoji) this.emoji = config.emoji;
@@ -109,7 +115,7 @@ class QiscusSDK extends EventEmitter {
       })
       
       // call callbacks
-      if (self.options.newMessagesCallback) self.options.newMessagesCallback(data);
+      if (self.options.newMessagesCallback) self.options.newMessagesCallback(comments);
     })
 
     /**
@@ -123,7 +129,7 @@ class QiscusSDK extends EventEmitter {
 
       // now that we have the token, etc, we need to set all our adapters
       // /////////////// API CLIENT /////////////////
-      self.HTTPAdapter  = new HttpAdapter(self.baseURL);
+      self.HTTPAdapter  = new HttpAdapter(self.baseURL, self.AppId, self.user_id);
       self.HTTPAdapter.setToken(self.userData.token);
 
       // ////////////// CORE BUSINESS LOGIC ////////////////////////
@@ -210,14 +216,14 @@ class QiscusSDK extends EventEmitter {
 
   /**
   * Setting Up User Credentials for next API Request
-  * @param {string} unique_id - client unique_id (will be used for login or register)
+  * @param {string} userId - client userId (will be used for login or register)
   * @param {string} key - client unique key
   * @param {string} username - client username
   * @param {string} avatar_url - the url for chat avatar (optional)
   * @return {void}
   */
-  setUser (unique_id, key, username, avatarURL) {
-    this.unique_id  = unique_id
+  setUser (userId, key, username, avatarURL) {
+    this.user_id    = userId
     this.key        = key
     this.username   = username
     this.avatar_url = avatarURL
@@ -232,7 +238,7 @@ class QiscusSDK extends EventEmitter {
 
   connectToQiscus () {
     let body = {
-      email: this.unique_id,
+      email: this.user_id,
       password: this.key,
       username: this.username
     }
@@ -262,7 +268,7 @@ class QiscusSDK extends EventEmitter {
    * If comment count > 0 then we have new message
    */
   synchronize () {
-    this.realtimeAdapter.publishPresence(this.unique_id);
+    this.realtimeAdapter.publishPresence(this.user_id);
     this.userAdapter.sync(this.last_received_comment_id)
     .then((comments) => {
       if (comments.length > 0) this.emit('newmessages', comments)
@@ -454,7 +460,7 @@ class QiscusSDK extends EventEmitter {
     var commentData = {
       message: commentMessage,
       username_as: this.username,
-      username_real: this.email,
+      username_real: this.user_id,
       user_avatar_url: this.userData.avatar_url,
       id: self.pendingCommentId,
       type: type || 'text',
@@ -544,23 +550,21 @@ class QiscusSDK extends EventEmitter {
    */
   uploadFile(roomId, file) {
     const self = this;
-    console.info(roomId, file);
-    request
-      .post(`${self.HTTPAdapter.baseURL}/api/v2/sdk/upload`)
-      .field('token', self.userData.token)
-      .attach('file', file)
-      .then(res => {
-        var url = res.body.results.file.url
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('token', self.userData.token);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', `${self.baseURL}/api/v2/sdk/upload`, true);
+    xhr.onload = function() {
+      if(xhr.status === 200) {
+        // file(s) uploaded), let's post to comment
+        var url = JSON.parse(xhr.response).results.file.url
         return self.submitComment(roomId, `[file] ${url} [/file]`);
-      })
-      .catch(error => Promise.reject(error))
-    // debugger;
-    // return self.userAdapter.uploadFile(file)
-    //   .then( response => {
-    //     // file(s) uploaded), let's post to comment
-    //     var url = response.file.url
-    //     return self.submitComment(roomId, `[file] ${url} [/file]`);
-    //   });
+      } else {
+        return Promise.reject(xhr)
+      }
+    }
+    xhr.send(formData);
   }
 
   loadComments(roomId, lastCommentId) {
@@ -580,6 +584,23 @@ class QiscusSDK extends EventEmitter {
     this.selected.comments.sort(function (leftSideComment, rightSideComment) {
       return leftSideComment.id - rightSideComment.id
     })
+  }
+
+  addUploadedFile(name, roomId) {
+    this.uploadedFiles.push(new FileUploaded(name, roomId));
+  }
+
+  removeUploadedFile(name, roomId) {
+    const index = this.uploadedFiles
+      .findIndex(file => file.name === name && file.roomId === roomId);
+    this.uploadedFiles.splice(index, 1);
+  }
+}
+
+class FileUploaded {
+  constructor(name, roomId) {
+    this.name = name;
+    this.roomId = roomId;
   }
 }
 

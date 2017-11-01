@@ -24,6 +24,9 @@
           qiscus.chatTarget('guest@qiscus.com').then(res => {
             console.info('chat with guest@qiscus.com', qiscus.selected);
           });
+        },
+        newMessagesCallback: function(data) {
+          console.info(data);
         }
       }
     });
