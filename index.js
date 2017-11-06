@@ -24,24 +24,25 @@ class QiscusSDK extends EventEmitter {
    */
   constructor () {
     super();
-    this.rooms                    = [];
-    this.selected                 = null;
-    this.room_name_id_map         = {};
-    this.pendingCommentId         = 0;
-    this.uploadedFiles            = [];
+    this.rooms            = [];
+    this.selected         = null;
+    this.room_name_id_map = {};
+    this.pendingCommentId = 0;
+    this.uploadedFiles    = [];
+    this.chatmateStatus   = null;
 
-    this.userData                 = {};
+    this.userData        = {};
     // SDK Configuration
-    this.AppId                    = null;
-    this.baseURL                  = null;
-    this.mqttURL                  = null;
-    this.HTTPAdapter              = null;
-    this.realtimeAdapter          = null;
-    this.isInit                   = false;
-    this.isSynced                 = false;
-    this.sync                     = 'both'; // possible values 'socket', 'http', 'both'
+    this.AppId           = null;
+    this.baseURL         = null;
+    this.mqttURL         = null;
+    this.HTTPAdapter     = null;
+    this.realtimeAdapter = null;
+    this.isInit          = false;
+    this.isSynced        = false;
+    this.sync            = 'both'; // possible values 'socket', 'http', 'both'
     this.last_received_comment_id = 0;
-    this.options                  = {
+    this.options = {
       avatar:                       true,
     };
 
@@ -281,6 +282,15 @@ class QiscusSDK extends EventEmitter {
     this.selected = null;
   }
 
+  setActiveRoom(room) {
+    // when we activate a room
+    // we need to unsubscribe from typing event
+    this.realtimeAdapter.unsubscribeTyping();
+    this.selected = room;
+    // we need to subscribe to new room typing event now
+    this.realtimeAdapter.subscribeTyping(room.id);
+  }
+
   /**
    * Chat with targetted email
    * @param unique_id {string} - target unique_id
@@ -304,7 +314,7 @@ class QiscusSDK extends EventEmitter {
     let room     = self.rooms.find(room => { id: roomId });
     if (room) { // => Room is Found, just use this, no need to reload
       // self.selected = null
-      self.selected = room
+      self.setActiveRoom(room);
       // make sure we always get the highest value of last_received_comment_id
       self.last_received_comment_id = (self.last_received_comment_id < room.last_comment_id) ? room.last_comment_id : self.last_received_comment_id
       self.isLoading = false
@@ -323,7 +333,7 @@ class QiscusSDK extends EventEmitter {
         self.last_received_comment_id = (self.last_received_comment_id < room.last_comment_id) ? room.last_comment_id : self.last_received_comment_id
         self.rooms.push(room)
         self.isLoading = false
-        self.selected = room
+        self.setActiveRoom(room);
         // id of last comment on this room
         const last_comment = room.comments[room.comments.length-1];
         if (last_comment) self.updateCommentStatus(room.id, last_comment);
@@ -387,7 +397,8 @@ class QiscusSDK extends EventEmitter {
           room = roomToFind;
         } 
         self.last_received_comment_id = (self.last_received_comment_id < room.last_comment_id) ? room.last_comment_id : self.last_received_comment_id;
-        self.selected = room || roomToFind;
+        const roomToBeActivated = room || roomFind;
+        self.setActiveRoom(roomToBeActivated);
         self.isLoading = false;
         // id of last comment on this room
         const last_comment = room.comments[room.comments.length-1];
