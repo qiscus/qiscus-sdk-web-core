@@ -81,10 +81,19 @@ class QiscusSDK extends EventEmitter {
     this.setEventListeners();
   }
 
-  updateCommentStatus(comment) {
+  readComment(commentId) {
     const self = this;
-    if(!self.selected || self.selected.id != comment.room_id) return false;
-    self.userAdapter.updateCommentStatus(self.selected.id, comment.id, comment.id)
+    if(!self.selected || self.selected.id != commentId) return false;
+    self.userAdapter.updateCommentStatus(self.selected.id, comment.id, null)
+    .then( res => {
+      self.sortComments()
+    })
+  }
+
+  receiveComment(commentId) {
+    const self = this;
+    if(!self.selected) return false;
+    self.userAdapter.updateCommentStatus(self.selected.id, null, comment.id)
     .then( res => {
       self.sortComments()
     })
@@ -116,7 +125,8 @@ class QiscusSDK extends EventEmitter {
           ? comment.id 
           : self.last_received_comment_id;
         // update comment status, if only self.selected isn't null and it is the correct room
-        self.updateCommentStatus(comment);
+        self.receiveComment(comment.id);
+        if(isRoomSelected) self.readComment(comment.id);
       })
       
       // call callbacks
@@ -141,7 +151,7 @@ class QiscusSDK extends EventEmitter {
       self.userAdapter     = new UserAdapter(self.HTTPAdapter);
       self.roomAdapter     = new RoomAdapter(self.HTTPAdapter);
       self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self);
-      self.realtimeAdapter.subscribeUserChannel();
+      // self.realtimeAdapter.subscribeUserChannel();
 
       if (self.sync == 'http' || self.sync == 'both') self.activateSync();
       if (self.options.loginSuccessCallback) self.options.loginSuccessCallback(response)
@@ -310,12 +320,12 @@ class QiscusSDK extends EventEmitter {
 
   /**
    * Chat with targetted email
-   * @param unique_id {string} - target unique_id
+   * @param userId {string} - target userId
    * @param options {object} - optional data sent to qiscus database
    * @param distinct_id {string | optional} - unique string to differentiate chat room with same target
    * @return room <Room>
    */
-  chatTarget (unique_id, options = {}) {
+  chatTarget (userId, options = {}) {
     // make sure data already loaded first (user already logged in)
     if (this.userData.length != null) return false
 
@@ -327,7 +337,7 @@ class QiscusSDK extends EventEmitter {
     self.isTypingStatus = ''
 
     // We need to get room id 1st, based on room_name_id_map
-    const roomId = self.room_name_id_map[unique_id] || null
+    const roomId = self.room_name_id_map[userId] || null
     let room     = self.rooms.find(room => { id: roomId });
     if (room) { // => Room is Found, just use this, no need to reload
       room.last_comment_id = room.comments.length <= 0 ? null : room.comments[room.comments.length-1].id
@@ -345,10 +355,10 @@ class QiscusSDK extends EventEmitter {
     }
 
     // Create room
-    return this.roomAdapter.getOrCreateRoom(unique_id, options, distinctId)
+    return this.roomAdapter.getOrCreateRoom(userId, options, distinctId)
       .then((response) => {
         room = new Room(response)
-        self.room_name_id_map[unique_id] = room.id
+        self.room_name_id_map[userId] = room.id
         self.last_received_comment_id = (self.last_received_comment_id < room.last_comment_id) ? room.last_comment_id : self.last_received_comment_id
         self.rooms.push(room)
         self.isLoading = false
@@ -361,7 +371,7 @@ class QiscusSDK extends EventEmitter {
         if (!initialMessage) return room
         const topicId = room.id
         const message = initialMessage
-        self.submitComment(topicId, message)
+        self.sendComment(topicId, message)
           .then(() => console.log('Comment posted'))
           .catch(err => {
             console.error('Error when submit comment', err)
@@ -491,6 +501,19 @@ class QiscusSDK extends EventEmitter {
       return new Room(room)
     });
   }
+  
+  loadComments (room_id, last_comment_id = 0) {
+    const self = this;
+    return self.userAdapter.loadComments(room_id, last_comment_id)
+      .then((response) => {
+        self.selected.receiveComments(response.reverse())
+        self.sortComments()
+        return new Promise((resolve, reject) => resolve(response))
+      }, (error) => {
+        console.error('Error loading comments', error)
+        return new Promise(reject => reject(error));
+      });
+  }
 
   /**
    *
@@ -532,7 +555,7 @@ class QiscusSDK extends EventEmitter {
    * @param {String} commentMessage - comment to be submitted
    * @return {Promise}
    */
-  submitComment (topicId, commentMessage, uniqueId, type = 'text', payload, extras) {
+  sendComment (topicId, commentMessage, uniqueId, type = 'text', payload, extras) {
     var self = this
     // set extra data, etc
     if (self.options.prePostCommentCallback) self.options.prePostCommentCallback(commentMessage);
@@ -608,7 +631,6 @@ class QiscusSDK extends EventEmitter {
     })
   }
 
-
   prepareCommentToBeSubmitted (comment) {
     var commentToBeSubmitted, uniqueId
     commentToBeSubmitted = new Comment(comment)
@@ -644,15 +666,6 @@ class QiscusSDK extends EventEmitter {
       })
   }
 
-  _getRoomOfTopic (topic_id) {
-    // TODO: This is expensive. We need to refactor
-    // it using some kind map of topicId as the key
-    // and roomId as its value.
-    return this.rooms.find((room) =>
-      room.topics.find(topic => topic.id === topic_id)
-    )
-  }
-
   /**
    * Upload a file to qiscus sdk server
    * 
@@ -672,7 +685,7 @@ class QiscusSDK extends EventEmitter {
       if(xhr.status === 200) {
         // file(s) uploaded), let's post to comment
         var url = JSON.parse(xhr.response).results.file.url
-        return self.submitComment(roomId, `[file] ${url} [/file]`);
+        return self.sendComment(roomId, `[file] ${url} [/file]`);
       } else {
         return Promise.reject(xhr)
       }
@@ -688,6 +701,23 @@ class QiscusSDK extends EventEmitter {
     const index = this.uploadedFiles
       .findIndex(file => file.name === name && file.roomId === roomId);
     this.uploadedFiles.splice(index, 1);
+  }
+
+  publishTyping(val) {
+    this.realtimeAdapter.publishTyping(val);
+  }
+
+  /**
+   * Params consisted of
+   * @param {room_ids} array of room ids
+   * @param {room_unique_ids} array of of room unique ids
+   * @param {show_participants} show list of participants, default true
+   * @param {show_removed} show removed room, default false
+   * @returns 
+   * @memberof QiscusSDK
+   */
+  getRoomsInfo(params) {
+    return this.userAdapter.getRoomsInfo(params);
   }
 }
 
