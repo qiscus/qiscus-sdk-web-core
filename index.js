@@ -77,12 +77,12 @@ class QiscusSDK extends EventEmitter {
     if (config.allowedFileTypes) this.allowedFileTypes = config.allowedFileTypes;
     // Let's initialize the app based on options
     if (config.options) this.options = Object.assign({}, this.options, config.options)
-    
-    // mini garbage collector
-    window.setInterval(this.clearRoomsCache, 90000);
 
     // set Event Listeners
     this.setEventListeners();
+    
+    // mini garbage collector
+    window.setInterval(this.clearRoomsCache.bind(this), 90000);
   }
 
   readComment(roomId, commentId) {
