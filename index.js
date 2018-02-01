@@ -81,19 +81,19 @@ class QiscusSDK extends EventEmitter {
     this.setEventListeners();
   }
 
-  readComment(commentId) {
+  readComment(roomId, commentId) {
     const self = this;
     if(!self.selected || self.selected.id != commentId) return false;
-    self.userAdapter.updateCommentStatus(self.selected.id, comment.id, null)
+    self.userAdapter.updateCommentStatus(roomId, comment.id, null)
     .then( res => {
       self.sortComments()
     })
   }
 
-  receiveComment(commentId) {
+  receiveComment(roomId, commentId) {
     const self = this;
     if(!self.selected) return false;
-    self.userAdapter.updateCommentStatus(self.selected.id, null, comment.id)
+    self.userAdapter.updateCommentStatus(roomId, null, comment.id)
     .then( res => {
       self.sortComments()
     })
@@ -350,7 +350,7 @@ class QiscusSDK extends EventEmitter {
       self.emit('chat-room-created', { room: room })
       // id of last comment on this room
       const last_comment = room.comments[room.comments.length-1];
-      if (last_comment) self.updateCommentStatus(room.id, last_comment);
+      if (last_comment) self.readComment(room.id, last_comment.id);
       return Promise.resolve(room)
     }
 
@@ -365,7 +365,7 @@ class QiscusSDK extends EventEmitter {
         self.setActiveRoom(room);
         // id of last comment on this room
         const last_comment = room.comments[room.comments.length-1];
-        if (last_comment) self.updateCommentStatus(room.id, last_comment);
+        if (last_comment) self.readComment(room.id, last_comment.id);
         self.emit('chat-room-created', { room: room })
 
         if (!initialMessage) return room
@@ -432,7 +432,7 @@ class QiscusSDK extends EventEmitter {
         self.isLoading = false;
         // id of last comment on this room
         const last_comment = room.comments[room.comments.length-1];
-        if (last_comment) self.updateCommentStatus(room.id, last_comment);
+        if (last_comment) self.readComment(room.id, last_comment.id);
         return Promise.resolve(room);
       }, (error) => {
         console.error('Error getting room by id', error);
