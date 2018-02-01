@@ -74,6 +74,7 @@ class QiscusSDK extends EventEmitter {
     if (config.mqttURL) this.mqttURL = config.mqttURL;
     if (config.sync) this.sync       = config.sync;
     if (config.mode) this.mode       = config.mode;
+    if (config.allowedFileTypes) this.allowedFileTypes = config.allowedFileTypes;
     // Let's initialize the app based on options
     if (config.options) this.options = Object.assign({}, this.options, config.options)
 
