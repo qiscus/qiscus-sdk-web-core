@@ -77,6 +77,9 @@ class QiscusSDK extends EventEmitter {
     if (config.allowedFileTypes) this.allowedFileTypes = config.allowedFileTypes;
     // Let's initialize the app based on options
     if (config.options) this.options = Object.assign({}, this.options, config.options)
+    
+    // mini garbage collector
+    window.setInterval(this.clearRoomsCache, 90000);
 
     // set Event Listeners
     this.setEventListeners();
@@ -719,6 +722,21 @@ class QiscusSDK extends EventEmitter {
    */
   getRoomsInfo(params) {
     return this.userAdapter.getRoomsInfo(params);
+  }
+
+  clearRoomsCache() {
+    // clear the map
+    this.room_name_id_map = {[this.selected.name]: this.selected.id};
+    // remove all room except currently selected
+    if(this.selected) {
+      // get current index and array length
+      const roomLength = this.rooms.length;
+      let curIndex = this.rooms.findIndex(room => room.id == this.selected.id);
+      if (!(curIndex+1 == roomLength)) this.rooms.splice(curIndex + 1, roomLength - (curIndex + 1));
+      // ambil ulang cur index nya, klo udah di awal ga perlu lagi kode dibawah ini
+      curIndex = this.rooms.findIndex(room => room.id == this.selected.id);
+      if (curIndex > 0 && this.rooms.length > 1) this.rooms.splice(1, this.rooms.length - 1);
+    }
   }
 }
 
