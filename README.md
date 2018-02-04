@@ -30,104 +30,181 @@ qiscus.init({
       qiscus.chatTarget('guest@qiscus.com').then(res => {
         console.info('chat with guest@qiscus.com', qiscus.selected);
       });
-    }
-  }
+    },
+    loginErrorCallback() {},
+    newMessagesCallback() {},
+    groupRoomCreatedCallback() {},
+  },
+  mode: 'widget', // widget | wide
+  mqttURL: '...', // custom mqtt URL
+  baseURL: '...', // custom base URL
 });
 ```
 
-**Parameters**
-- AppId {string} you can get this by creating a new App through https://dashboard.qiscus.com
-- options {any} contains list of callbacks
-  - loginSuccessCallback
-  - loginErrorCallback
-  - groupRoomCreatedCallback
-  - newMessagesCallback
-  - headerClickedCallback : used for header UI
-  - presenceCallback : used for online presence (online / offline)
-
-## setUser
-
+## Authentication with `UserId` and `UserKey`
 ```
-qiscus.setUser(unique_id, key, username, avatar);
+qiscus.setUser(userId, key, displayName, avatarURL); 
+// loginSuccessCallback | loginErrorCallback will be triggered by this point
 ```
 
-This method will create a new user based on the parameters provided if this user is not exist in the database then it will automatically log in, else it will directly log in.
+### Authentication with `JWT`
 
-**Parameters**
-- unique_id {string} unique identifer of user e.g.: email, user_id, etc.
-- key {string} user password
-- username {string} this is the display name for the chat UI
-- avatar {string} user's avatar url
-
-## chatTarget
-
+First we need to get nonce from the server first.
 ```
-qiscus.chatTarget(unique_id)
+let nonce;
+qiscus.getNonce().then(res => nonce = res);
 ```
 
-This method will create a 1-1 chat room with the user identified by `unique_id` that is being provided. It will return a promise containing Room Info.
-
-**Parameter**
-- unique_id {string} identifier used by user (see setUser).
-
-## chatGroup
-
+Then, we need to get identity token from server, qiscus doesn't handle this thing, it's up to client how then want to handle this. After identity token is retrieved, we need to verify the identity token to qiscus server.
 ```
-qiscus.chatGroup(room_id)
+let identityToken;
+qiscus.verifyIdentityToken(token).then(res => identityToken = res);
 ```
 
-This method will open a group chat room with the `id` provided in the params. It will return a promise containing Room Info.
-
-**Parameter**
-- room_id {string} Target Room id
-
-## submitComment
-
+Use the token to authenticate
 ```
-qiscus.submitComment(roomId, message, uniqueId, type, payload)
+qiscus.setUserWithIdentityToken(identityToken);
+// loginSuccessCallback | loginErrorCallback will be triggered by this point
 ```
 
-This method return Promise with <Comment> object response.
-
-**Parameters**
-- roomId {int} ID of the room this message will be posted to
-- message {string} message to be submitted
-- uniqueId {string} (optional) Unique ID to be attached to this comment
-- type {string} (optional) Type of comment, default to 'text'
-- payload {string} Some comment type need payload to be submitted, need a serialized JSON Object
-
-## createGroup
+## Logout
 
 ```
-qiscus.createGroupRoom(room_name, unique_id)
+qiscus.logout();
 ```
 
-This method return Promise with <Room> object response.
+## Send Messages
+```
+qiscus.sendMessage(
+  roomId:<Number>, 
+  message:<String>, 
+  uniqueId:<String>, // optional, will be automatically generated if `null`
+  type:<String>, // default to text
+  payload:<String>, // JSON.stringify(payload object)
+  extras:<Object>); // In case we need to attach extra data
+```
 
-**Parameters**
-- room_name {string} name of the room
-- unique_id {array} array of users' unique_id
+Example payload of sending carousel:
+```
+const carouselPayload = JSON.stringify({
+  cards: [{
+    image:"http://url.com/gambar.jpg",
+    title:"Atasan Blouse Tunik Wanita Baju Muslim Worie Longtop",
+    description:"Oleh sippnshop\n96% (666 feedback)\nRp 49.000.00,-\nBUY 2 GET 1 FREE!!!",
+    default_action: {
+      type:"postback",
+      postback_text:"Load more",
+      payload:{
+        url:"http://url.com/baju?id=123&track_from_chat_room=123",
+        method:"get",
+        payload:null
+      }
+    },
+    buttons:[
+      {
+        label:"button1",
+        postback_text:"Load more",
+        type:"postback",
+        payload:{
+          url:"http://somewhere.com/button1",
+          method:"get",
+          payload:null
+        }
+      },
+      {
+        label:"button2",
+        postback_text:"",
+        type:"link",
+        payload:{url:"http://somewhere.com/button2?id=123","method":"get","payload":null}
+      }
+    ]
+  }]
+});
+qiscus.sendComment(roomId, 'test carousel', null, 'carousel', carouselPayload, null);
+```
 
-## Properties
+## Load Messages
+```
+qiscus.loadComments(room_id, last_comment_id = 0, timestamp, after, limit);
+```
 
-### rooms
+# Room
+## Create Group Room
+```
+qiscus.createGroupRoom([participantsUserId], roomName);
+// return promise
+// also triggered groupRoomCreatedCallback();
+```
 
+## Get Chat Room by Id
+```
+qiscus.getRoomById(id)
+```
+
+## Get Chat Room By Channel
+```
+qiscus.getOrCreateRoomByChannel(channel);
+```
+
+## Get Currently Selected Chat Room Participants
+```
+qiscus.selected.participants
+```
+
+## Get Rooms Info
+```
+/**
+  * Params consisted of
+  * @param {room_ids} array of room ids
+  * @param {room_unique_ids} array of of room unique ids
+  * @param {show_participants} show list of participants, default true
+  * @param {show_removed} show removed room, default false
+  * @returns Promise
+  * @memberof QiscusSDK
+  */
+qiscus.getRoomsInfo(params)
+```
+
+## Get Rooms List
+```
+qiscus.loadRoomList(); // return Promise
+```
+
+## Update Room (WIP)
+
+# Statuses
+## Publish Start Typing
+```
+qiscus.publishTyping(1); 
+```
+
+## Publish Stop Typing
+```
+qiscus.publishTyping(0)
+```
+
+## Update message Status (read)
+```
+qiscus.readMessage(id);
+```
+
+## Update message Status (receive)
+```
+qiscus.receiveMessage(id);
+```
+
+## Currently Selected Rooms
+```
+qiscus.selected // room info
+qiscus.selected.comments // comments list
+```
+
+## Loaded Rooms
 ```
 qiscus.rooms
 ```
 
-Return a list of currently loaded `Room` object.
-
-### selected
-
-```
-qiscus.selected
-```
-
-Return currently active `Room` object.
-
-### userData
-
+## userData
 ```
 qiscus.userData
 ```

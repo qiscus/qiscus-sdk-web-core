@@ -1,3 +1,8 @@
+# v1.3.1
+- add more params on loadComments
+- updated Readme
+- add custom template support
+
 # v1.3.0
 - open api for publish typing -> core.publishTyping([1|0])
 - change submitComment to sendComment

@@ -1,6 +1,6 @@
 import request from 'superagent'
 import {EventEmitter} from 'events';
-import {format} from 'date-fns';
+import {format, distanceInWordsToNow} from 'date-fns';
 import Comment from './lib/Comment';
 import Room from './lib/Room';
 import HttpAdapter from './lib/adapters/http';
@@ -57,6 +57,8 @@ class QiscusSDK extends EventEmitter {
     this.isInit          = false;
     this.emoji           = false;
     this.isTypingStatus  = '';
+    this.customTemplate  = false;
+    this.templateFunction = null;
   }
 
   /**
@@ -77,6 +79,8 @@ class QiscusSDK extends EventEmitter {
     if (config.allowedFileTypes) this.allowedFileTypes = config.allowedFileTypes;
     // Let's initialize the app based on options
     if (config.options) this.options = Object.assign({}, this.options, config.options)
+    if (config.customTemplate) this.customTemplate = config.customTemplate;
+    if (config.templateFunction) this.templateFunction = config.templateFunction;
 
     // set Event Listeners
     this.setEventListeners();
@@ -276,6 +280,13 @@ class QiscusSDK extends EventEmitter {
     this.avatar_url = data.user.avatar_url;
     this.isInit = true;
     this.emit('login-success', data)
+  }
+
+  logout() {
+    this.selected = null;
+    this.isInit = false;
+    this.isLogin = false;
+    this.userData = null;
   }
 
   // Activate Sync Feature if `http` or `both` is chosen as sync value when init
@@ -506,9 +517,9 @@ class QiscusSDK extends EventEmitter {
     });
   }
   
-  loadComments (room_id, last_comment_id = 0) {
+  loadComments (room_id, last_comment_id=0, timestamp, after, limit) {
     const self = this;
-    return self.userAdapter.loadComments(room_id, last_comment_id)
+    return self.userAdapter.loadComments(room_id, last_comment_id, timestamp, after, limit)
       .then((response) => {
         self.selected.receiveComments(response.reverse())
         self.sortComments()
