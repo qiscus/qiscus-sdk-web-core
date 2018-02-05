@@ -18,7 +18,7 @@ import QiscusSDK from 'qiscus-sdk-core';
 const qiscus = new QiscusSDK();
 ```
 
-## Initialization
+## Init using AppId 
 
 ```
 qiscus.init({
@@ -36,6 +36,17 @@ qiscus.init({
     groupRoomCreatedCallback() {},
   },
   mode: 'widget', // widget | wide
+  mqttURL: '...', // custom mqtt URL
+  baseURL: '...', // custom base URL
+});
+```
+
+## Init using Custom Server
+```
+qiscus.init({
+  // change this into your own AppId through https://dashboard.qiscus.com
+  AppId: 'sdksample',
+  options: { },
   mqttURL: '...', // custom mqtt URL
   baseURL: '...', // custom base URL
 });
@@ -67,6 +78,18 @@ qiscus.setUserWithIdentityToken(identityToken);
 // loginSuccessCallback | loginErrorCallback will be triggered by this point
 ```
 
+## Updating a User Profile and Profile Image
+Call another setUser() with new data
+```
+qiscus.setUser(userId, key, displayName, avatarUrl)
+// this method can only be used to update displayName and avatarUrl
+```
+
+## Check is User Logged In
+```
+qiscus.isLogin // return true or false
+```
+
 ## Logout
 
 ```
@@ -82,6 +105,20 @@ qiscus.sendMessage(
   type:<String>, // default to text
   payload:<String>, // JSON.stringify(payload object)
   extras:<Object>); // In case we need to attach extra data
+```
+
+Example of sending text message:
+```
+qiscus.sendComment(roomId, 'my message', null, 'text', null, null);
+```
+
+Example of sending custom message:
+```
+const customPayload = JSON.stringify({
+  type: 'my-awesome-profile-card',
+  content: {name, phone, ...}
+});
+qiscus.sendComment(roomId, 'check my profile card', null, 'custom', customPayload, null);
 ```
 
 Example payload of sending carousel:
@@ -101,7 +138,7 @@ const carouselPayload = JSON.stringify({
       }
     },
     buttons:[
-      {
+       {
         label:"button1",
         postback_text:"Load more",
         type:"postback",
@@ -125,30 +162,64 @@ qiscus.sendComment(roomId, 'test carousel', null, 'carousel', carouselPayload, n
 
 ## Load Messages
 ```
-qiscus.loadComments(room_id, last_comment_id = 0, timestamp, after, limit);
+qiscus.loadComments(room_id, last_comment_id = 0, timestamp, after, limit)
+  .then(res => { 
+    // do something 
+  }, err => { 
+    // throw the error to your log of choice 
+  });
+```
+
+## Load more
+Use API above and pass last commend id of current room
+```
+qiscus.loadComments(qiscus.selected.id, qiscus.selected.comments[qiscus.selected.comments - 1].id)
+  .then( res => {
+    console.info(res);
+  }, err => {
+    throw new Error(err);
+  });
 ```
 
 # Room
+## Create 1-on-1 Chat Room
+```
+qiscus.chatTarget(userId) // return Promise also triggering chatRoomCreatedCallback() of init options
+```
+
 ## Create Group Room
 ```
-qiscus.createGroupRoom([participantsUserId], roomName);
+qiscus.createGroupRoom([participantsUserId], roomName)
+  .then(res => {
+    new Notification('Success', { body: `Room created`});
+  }, err => {
+    throw new Error(err);
+  });
 // return promise
 // also triggered groupRoomCreatedCallback();
 ```
 
 ## Get Chat Room by Id
 ```
-qiscus.getRoomById(id)
+qiscus.getRoomById(id).then(res => {
+  // do something, notify user, etc
+}, err => {
+  // log? throw err?
+})
 ```
 
 ## Get Chat Room By Channel
 ```
-qiscus.getOrCreateRoomByChannel(channel);
+qiscus.getOrCreateRoomByChannel(channel).then(res => {
+  // do something, notify user, etc
+}, err => {
+  // log? throw err?
+});
 ```
 
 ## Get Currently Selected Chat Room Participants
 ```
-qiscus.selected.participants
+qiscus.selected.participants // return array of participants object
 ```
 
 ## Get Rooms Info
@@ -162,15 +233,40 @@ qiscus.selected.participants
   * @returns Promise
   * @memberof QiscusSDK
   */
-qiscus.getRoomsInfo(params)
+qiscus.getRoomsInfo(params).then(res => {
+  // display the data in modal box?
+}, err => {
+  // log? throw err?
+})
 ```
 
 ## Get Rooms List
 ```
-qiscus.loadRoomList(); // return Promise
+qiscus.loadRoomList().then(res => {
+  // populate our own rooms list?
+  this.conversations = res;
+}, err => {
+  // log? throw err?
+}); // return Promise
 ```
 
-## Update Room (WIP)
+## Update Room
+```
+/**
+* Update room
+* @param {id, room_name, avatar_url, options} args 
+* @param id <Int> required
+* @param room_name <String> optional
+* @param avatar_url <String> optional
+* @param options <Object> optional
+* @return Promise
+*/
+qiscus.updateRoom({id: 1, 'test room', 'http://my.url', {official: false}}).then(res => {
+  // do something, notify user, etc
+}, err => {
+  // log? throw err?
+})
+```
 
 # Statuses
 ## Publish Start Typing

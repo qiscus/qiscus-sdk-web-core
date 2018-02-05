@@ -662,6 +662,14 @@ class QiscusSDK extends EventEmitter {
   }
 
   /**
+   * Update room
+   * @param {id, room_name, avatar_url, options} args 
+   * @return Promise
+   */
+  updateRoom(args) {
+    return this.roomAdapter.updateRoom(args);
+  }
+  /**
    * Create group chat room
    * @param {string} name - Chat room name
    * @param {string[]} emails - Participant to be invited
