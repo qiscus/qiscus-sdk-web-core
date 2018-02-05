@@ -68,8 +68,14 @@ qiscus.getNonce().then(res => nonce = res);
 
 Then, we need to get identity token from server, qiscus doesn't handle this thing, it's up to client how then want to handle this. After identity token is retrieved, we need to verify the identity token to qiscus server.
 ```
-let identityToken;
-qiscus.verifyIdentityToken(token).then(res => identityToken = res);
+let nonce, identityToken;
+qiscus.getNonce().then(res => nonce = res.nonce)
+
+// custom api call to jwt server by using nonce retrieved from previous step
+api.getIdentityToken(nonce).then(res => identityToken = res.identity_token);
+
+// verify identity token received to qiscus server
+qiscus.verifyIdentityToken(identityToken).then(res => identityToken = res);
 ```
 
 Use the token to authenticate
@@ -306,3 +312,104 @@ qiscus.userData
 ```
 
 Return currently logged in user.
+
+# Event Handler
+## loginSuccessCallback
+Called when login is Success
+```
+qiscus.init({
+  AppId: ...,
+  options: {
+    loginSuccessCallback(response) {
+      // example: chat with user when login is successful
+      qiscus.chatTarget(userId);
+    }
+  }
+});
+```
+
+## loginErrorCallback
+Called when login  is unsuccessful
+```
+qiscus.init({
+  AppId: ...,
+  options: {
+    loginErrorCallback(error) {
+      // example: notify user there's problem
+      throw new Error(error);
+    }
+  }
+});
+```
+
+## headerClickedCallback
+Called when chat header is clicked
+qiscus.init({
+  AppId: ...,
+  options: {
+    headerClickedCallback(response) {
+      // example: display modal dialog when chat header is clicked
+      UI.displayRoomInfo(qiscus.selected.id);
+    }
+  }
+});
+
+## newMessagesCallback
+Called when there's new message
+```
+qiscus.init({
+  AppId: ...,
+  options: {
+    newMessagesCallback(messages) {
+      // example: set desktop notification for incoming comment
+      //  request permission if it is disabled
+      if (Notification.permission !== "granted") Notification.requestPermission();
+      // create the notification if only window is not focused
+      if ( document.hasFocus() )) return
+      messages.forEach(message => {
+        let notif = new Notification(`New message from ${message.username}`, {
+          body: message.message
+          icon: your-icon-url
+        });
+        notif.onClick = function(){
+          notif.close();
+          window.focus();
+        }
+      })
+    }
+  }
+});
+
+// sample messages payload
+[{
+  "chat_type": "single",
+  "comment_before_id": 827962,
+  "comment_before_id_str": "827962",
+  "disable_link_preview": false,
+  "email": "customer-service@email.com",
+  "id": 827963,
+  "id_str": "827963",
+  "message": "adf;lkjadsf",
+  "payload": null,
+  "room_avatar": "",
+  "room_id": 30418,
+  "room_id_str": "30418",
+  "room_name": "Customer Service",
+  "timestamp": "2017-09-29T10:51:25Z",
+  "topic_id": 30418,
+  "topic_id_str": "30418",
+  "type": "text",
+  "unique_temp_id": "bq1506682285227",
+  "unix_nano_timestamp": 1506682285076080000,
+  "unix_timestamp": 1506682285,
+  "user_avatar": {
+    "avatar": {
+      "url": "https://qiscuss3.s3.amazonaws.com/uploads/55c0c6ee486be6b686d52e5b9bbedbbf/2.png"
+    }
+  },
+  "user_avatar_url": "https://qiscuss3.s3.amazonaws.com/uploads/55c0c6ee486be6b686d52e5b9bbedbbf/2.png",
+  "user_id": 131324,
+  "user_id_str": "131324",
+  "username": "Customer Service"
+}]
+```

@@ -92,8 +92,9 @@ class QiscusSDK extends EventEmitter {
   readComment(roomId, commentId) {
     const self = this;
     if(!self.selected || self.selected.id != commentId) return false;
-    self.userAdapter.updateCommentStatus(roomId, comment.id, null)
+    self.userAdapter.updateCommentStatus(roomId, commentId, null)
     .then( res => {
+      self.emit('comment-read', {roomId, commentId});
       self.sortComments()
     })
   }
@@ -101,8 +102,9 @@ class QiscusSDK extends EventEmitter {
   receiveComment(roomId, commentId) {
     const self = this;
     if(!self.selected) return false;
-    self.userAdapter.updateCommentStatus(roomId, null, comment.id)
+    self.userAdapter.updateCommentStatus(roomId, null, commentId)
     .then( res => {
+      self.emit('comment-delivered', {roomId, commentId});
       self.sortComments()
     })
   }
@@ -159,7 +161,7 @@ class QiscusSDK extends EventEmitter {
       self.userAdapter     = new UserAdapter(self.HTTPAdapter);
       self.roomAdapter     = new RoomAdapter(self.HTTPAdapter);
       self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self);
-      // self.realtimeAdapter.subscribeUserChannel();
+      self.realtimeAdapter.subscribeUserChannel();
 
       if (self.sync == 'http' || self.sync == 'both') self.activateSync();
       if (self.options.loginSuccessCallback) self.options.loginSuccessCallback(response)
@@ -324,8 +326,10 @@ class QiscusSDK extends EventEmitter {
   setActiveRoom(room) {
     // when we activate a room
     // we need to unsubscribe from typing event
-    this.realtimeAdapter.unsubscribeTyping();
-    this.realtimeAdapter.unsubscribeRoomPresence();
+    if(this.selected) {
+      this.realtimeAdapter.unsubscribeTyping();
+      this.realtimeAdapter.unsubscribeRoomPresence();
+    }
     const targetUserId = room.participants.filter(p => p.email != this.user_id);
     if(room.type != 'group' && targetUserId) this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
     this.selected = room;
