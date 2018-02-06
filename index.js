@@ -135,7 +135,7 @@ class QiscusSDK extends EventEmitter {
           ? comment.id 
           : self.last_received_comment_id;
         // update comment status, if only self.selected isn't null and it is the correct room
-        self.receiveComment(comment.id);
+        self.receiveComment(comment.room_id, comment.id);
         if(isRoomSelected) self.readComment(comment.id);
       })
       
@@ -222,7 +222,7 @@ class QiscusSDK extends EventEmitter {
       const payload = data.split(":");
       self.chatmateStatus = (payload[0] == 1)
         ? 'Online'
-        : `Last seen ${distanceInWordsToNow(Number(payload[1]))}`
+        : `Last seen ${distanceInWordsToNow(Number(payload[1].substring(0, 13)))}`
       if (self.options.presenceCallback) self.options.presenceCallback(data);
     })
 
