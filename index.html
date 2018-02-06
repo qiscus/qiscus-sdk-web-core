@@ -21,10 +21,11 @@
       options: {
         loginSuccessCallback: function() {
           console.info('successfully logged in');
-          qiscus.chatTarget('guest@qiscus.com').then(res => {
-            console.info('chat with guest@qiscus.com', qiscus.selected);
+          qiscus.chatTarget('niwang@qiscus.com').then(res => {
+            console.info('chat with niwang@qiscus.com', qiscus.selected);
           });
         },
+        loginErrorCallback: function(err) { console.error(err); },
         newMessagesCallback: function(data) {
           console.info(data);
         }

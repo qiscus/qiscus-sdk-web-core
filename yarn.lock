@@ -3367,10 +3367,6 @@ p-locate@^2.0.0:
   dependencies:
     p-limit "^1.1.0"
 
-paho.mqtt.js@^2.0.5:
-  version "2.0.5"
-  resolved "https://registry.yarnpkg.com/paho.mqtt.js/-/paho.mqtt.js-2.0.5.tgz#6c97143a29b30417317837880b0464226be909a3"
-
 pako@~0.2.0:
   version "0.2.9"
   resolved "https://registry.yarnpkg.com/pako/-/pako-0.2.9.tgz#f3f7522f4ef782348da8161bad9ecfd51bf83a75"

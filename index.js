@@ -135,8 +135,10 @@ class QiscusSDK extends EventEmitter {
           ? comment.id 
           : self.last_received_comment_id;
         // update comment status, if only self.selected isn't null and it is the correct room
-        self.receiveComment(comment.room_id, comment.id);
-        if(isRoomSelected) self.readComment(comment.id);
+        if(self.user_id != comment.email){
+          self.receiveComment(comment.room_id, comment.id);
+        }
+        if(isRoomSelected) self.readComment(comment.room_id, comment.id);
       })
       
       // call callbacks
@@ -251,6 +253,7 @@ class QiscusSDK extends EventEmitter {
       if(response.status != 200) return this.emit('login-error', response.error)
       this.isInit = true
       this.emit('login-success', response)
+      window.setInterval(() => this.realtimeAdapter.publishPresence(this.user_id), 3500)
     })
   }
 
