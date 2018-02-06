@@ -31,9 +31,9 @@ qiscus.init({
         console.info('chat with guest@qiscus.com', qiscus.selected);
       });
     },
-    loginErrorCallback() {},
-    newMessagesCallback() {},
-    groupRoomCreatedCallback() {},
+    loginErrorCallback(data) {},
+    newMessagesCallback(data) {},
+    groupRoomCreatedCallback(data) {},
   },
   mode: 'widget', // widget | wide
   mqttURL: '...', // custom mqtt URL
