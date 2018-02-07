@@ -134,6 +134,14 @@ class QiscusSDK extends EventEmitter {
         self.last_received_comment_id = (comment.id > self.last_received_comment_id) 
           ? comment.id 
           : self.last_received_comment_id;
+        // scroll down for ui, only for web
+        const lastCommentId = self.selected.comments[self.selected.comments.length - 1].id;
+        if(lastCommentId && self.selected) {
+          setTimeout(function(){
+            const element = document.getElementById(lastCommentId);
+            if(element) element.scrollIntoView({ block: 'end', behaviour: 'smooth' })
+          }, 200);
+        }
         // update comment status, if only self.selected isn't null and it is the correct room
         if(self.user_id != comment.email){
           self.receiveComment(comment.room_id, comment.id);
@@ -770,6 +778,7 @@ class FileUploaded {
   constructor(name, roomId) {
     this.name = name;
     this.roomId = roomId;
+    this.progress = 0;
   }
 }
 
