@@ -86,7 +86,7 @@ class QiscusSDK extends EventEmitter {
     this.setEventListeners();
     
     // mini garbage collector
-    window.setInterval(this.clearRoomsCache.bind(this), 90000);
+    // window.setInterval(this.clearRoomsCache.bind(this), 90000);
   }
 
   readComment(roomId, commentId) {
@@ -122,7 +122,10 @@ class QiscusSDK extends EventEmitter {
       comments.map(comment => {
         // find this comment room
         const room = self.rooms.find(r => r.id == comment.room_id);
-        if (!room) return false;
+        if (!room) {
+          console.info('Room for this comment not loaded yet', comment);
+          return false;
+        }
         const pendingComment = new Comment(comment);
         // set comment metadata (read or delivered) based on current selected room
         const isRoomSelected = room.isCurrentlySelected(self.selected);
@@ -134,6 +137,16 @@ class QiscusSDK extends EventEmitter {
         self.last_received_comment_id = (comment.id > self.last_received_comment_id) 
           ? comment.id 
           : self.last_received_comment_id;
+        // let's sort the comments
+        self.sortComments()
+        // scroll down for ui, only for web
+        const lastCommentId = self.selected.comments[self.selected.comments.length - 1].id;
+        if(lastCommentId && self.selected) {
+          setTimeout(function(){
+            const element = document.getElementById(lastCommentId);
+            if(element) element.scrollIntoView({ block: 'end', behaviour: 'smooth' })
+          }, 200);
+        }
         // update comment status, if only self.selected isn't null and it is the correct room
         if(self.user_id != comment.email){
           self.receiveComment(comment.room_id, comment.id);
@@ -284,7 +297,7 @@ class QiscusSDK extends EventEmitter {
     this.username = data.user.username;
     this.avatar_url = data.user.avatar_url;
     this.isInit = true;
-    this.emit('login-success', data)
+    this.emit('login-success', {results:data})
   }
 
   logout() {
@@ -770,6 +783,7 @@ class FileUploaded {
   constructor(name, roomId) {
     this.name = name;
     this.roomId = roomId;
+    this.progress = 0;
   }
 }
 
