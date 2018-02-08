@@ -373,7 +373,7 @@ class QiscusSDK extends EventEmitter {
 
     // We need to get room id 1st, based on room_name_id_map
     const roomId = self.room_name_id_map[userId] || null
-    let room     = self.rooms.find(room => { id: roomId });
+    let room     = self.rooms.find(r => r.id == roomId);
     if (room) { // => Room is Found, just use this, no need to reload
       room.last_comment_id = room.comments.length <= 0 ? null : room.comments[room.comments.length-1].id
       self.setActiveRoom(room);
