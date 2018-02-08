@@ -394,7 +394,7 @@ class QiscusSDK extends EventEmitter {
         const topicId = room.id
         const message = initialMessage
         self.sendComment(topicId, message)
-          .then(() => console.log('Comment posted'))
+          .then()
           .catch(err => {
             console.error('Error when submit comment', err)
           })
@@ -435,7 +435,7 @@ class QiscusSDK extends EventEmitter {
       .then((response) => {
         // make sure the room hasn't been pushed yet
         let room;
-        let roomToFind = self.rooms.find(room => { id: id});
+        let roomToFind = self.rooms.find(r => r.id == id);
         if (!roomToFind) {
           let roomData = response.results.room;
           roomData.name = roomData.room_name;
