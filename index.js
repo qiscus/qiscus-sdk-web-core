@@ -649,10 +649,10 @@ class QiscusSDK extends EventEmitter {
       id: comment.id,
       unique_id: comment.unique_id
     }
-    var pendingComment = QiscusSDK.core.selected.comments.find( cmtToFind => cmtToFind.id == comment.id )
+    var pendingComment = room.comments.find( cmtToFind => cmtToFind.id == comment.id )
 
     const extrasToBeSubmitted = self.extras
-    return this.userAdapter.postComment(QiscusSDK.core.selected.id, pendingComment.message, pendingComment.unique_id, comment.type, comment.payload, extrasToBeSubmitted)
+    return this.userAdapter.postComment(room.id, pendingComment.message, pendingComment.unique_id, comment.type, comment.payload, extrasToBeSubmitted)
     .then((res) => {
       // When the posting succeeded, we mark the Comment as sent,
       // so all the interested party can be notified.
