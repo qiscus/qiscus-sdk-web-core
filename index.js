@@ -533,6 +533,7 @@ class QiscusSDK extends EventEmitter {
       room.last_comment_message = room.last_comment.message;
       room.last_comment_message_created_at = room.last_comment.timestamp;
       room.room_type = room.chat_type;
+      room.comments = [];
       return new Room(room)
     });
   }
