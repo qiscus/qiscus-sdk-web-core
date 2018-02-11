@@ -122,10 +122,7 @@ class QiscusSDK extends EventEmitter {
       comments.map(comment => {
         // find this comment room
         const room = self.rooms.find(r => r.id == comment.room_id);
-        if (!room) {
-          console.info('Room for this comment not loaded yet', comment);
-          return false;
-        }
+        if (!room) return false;
         const pendingComment = new Comment(comment);
         // set comment metadata (read or delivered) based on current selected room
         const isRoomSelected = room.isCurrentlySelected(self.selected);
@@ -147,12 +144,15 @@ class QiscusSDK extends EventEmitter {
             if(element) element.scrollIntoView({ block: 'end', behaviour: 'smooth' })
           }, 200);
         }
-        // update comment status, if only self.selected isn't null and it is the correct room
-        if(self.user_id != comment.email){
-          self.receiveComment(comment.room_id, comment.id);
-        }
-        if(isRoomSelected) self.readComment(comment.room_id, comment.id);
       })
+      
+      // get last comment and update room status for it
+      const lastComment = comments[comments.length-1];
+      if(isRoomSelected) {
+        self.readComment(comment.room_id, comment.id);
+      } else {
+        if(self.user_id != comment.email) self.receiveComment(lastComment.room_id, lastComment.id);
+      }
       
       // call callbacks
       if (self.options.newMessagesCallback) self.options.newMessagesCallback(comments);
@@ -373,7 +373,7 @@ class QiscusSDK extends EventEmitter {
 
     // We need to get room id 1st, based on room_name_id_map
     const roomId = self.room_name_id_map[userId] || null
-    let room     = self.rooms.find(room => { id: roomId });
+    let room     = self.rooms.find(r => r.id == roomId);
     if (room) { // => Room is Found, just use this, no need to reload
       room.last_comment_id = room.comments.length <= 0 ? null : room.comments[room.comments.length-1].id
       self.setActiveRoom(room);
@@ -407,7 +407,7 @@ class QiscusSDK extends EventEmitter {
         const topicId = room.id
         const message = initialMessage
         self.sendComment(topicId, message)
-          .then(() => console.log('Comment posted'))
+          .then()
           .catch(err => {
             console.error('Error when submit comment', err)
           })
@@ -448,7 +448,7 @@ class QiscusSDK extends EventEmitter {
       .then((response) => {
         // make sure the room hasn't been pushed yet
         let room;
-        let roomToFind = self.rooms.find(room => { id: id});
+        let roomToFind = self.rooms.find(r => r.id == id);
         if (!roomToFind) {
           let roomData = response.results.room;
           roomData.name = roomData.room_name;
@@ -533,6 +533,7 @@ class QiscusSDK extends EventEmitter {
       room.last_comment_message = room.last_comment.message;
       room.last_comment_message_created_at = room.last_comment.timestamp;
       room.room_type = room.chat_type;
+      room.comments = [];
       return new Room(room)
     });
   }
