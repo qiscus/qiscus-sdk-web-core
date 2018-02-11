@@ -147,11 +147,13 @@ class QiscusSDK extends EventEmitter {
       })
       
       // get last comment and update room status for it
-      const lastComment = comments[comments.length-1];
-      if(isRoomSelected) {
-        self.readComment(comment.room_id, comment.id);
-      } else {
-        if(self.user_id != comment.email) self.receiveComment(lastComment.room_id, lastComment.id);
+      if(self.selected) {
+        const lastComment = comments[comments.length-1];
+        if(lastComment.room_id == self.selected.id) {
+          self.readComment(lastComment.room_id, lastComment.id);
+        } else {
+          if(self.user_id != lastComment.email) self.receiveComment(lastComment.room_id, lastComment.id);
+        }
       }
       
       // call callbacks
