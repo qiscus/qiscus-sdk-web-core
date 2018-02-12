@@ -122,32 +122,35 @@ class QiscusSDK extends EventEmitter {
       comments.map(comment => {
         // find this comment room
         const room = self.rooms.find(r => r.id == comment.room_id);
-        if (!room) return false;
+        if (!room) {
+          self.updateLastReceivedComment(comment.id);
+          return false;
+        }
         const pendingComment = new Comment(comment);
         // set comment metadata (read or delivered) based on current selected room
         const isRoomSelected = room.isCurrentlySelected(self.selected);
-        if(isRoomSelected) pendingComment.markAsRead();
-        if(!isRoomSelected) pendingComment.markAsDelivered();
+        const isAlreadyRead  = (pendingComment.id < self.last_received_comment_id);
+        pendingComment.markAsDelivered();
+        if((isRoomSelected || isAlreadyRead) 
+          && self.user_id != pendingComment.username_real) pendingComment.markAsRead();
         // fetch the comment inside the room
         room.receiveComment(pendingComment);
         // update comment status
         // get last comment and update room status for it
-        if(self.last_received_comment_id < comment.id && self.user_id != comment.email) {
-          if(comment.room_id == self.selected.id) {
+        if(!isAlreadyRead && self.user_id != comment.email) {
+          if(isRoomSelected) {
             self.readComment(comment.room_id, comment.id);
           } else {
             self.receiveComment(comment.room_id, comment.id);
           }
         }
         // let's update last_received_comment_id
-        self.last_received_comment_id = (comment.id > self.last_received_comment_id) 
-          ? comment.id 
-          : self.last_received_comment_id;
+        self.updateLastReceivedComment(comment.id);
         // let's sort the comments
         self.sortComments()
         // scroll down for ui, only for web
-        const lastCommentId = self.selected.comments[self.selected.comments.length - 1].id;
-        if(lastCommentId && self.selected) {
+        if(self.selected && self.selected.comments.length > 0) {
+          const lastCommentId = self.selected.comments[self.selected.comments.length - 1].id;
           setTimeout(function(){
             const element = document.getElementById(lastCommentId);
             if(element) element.scrollIntoView({ block: 'end', behaviour: 'smooth' })
@@ -249,6 +252,9 @@ class QiscusSDK extends EventEmitter {
 
   }
 
+  updateLastReceivedComment(id) {
+    if(this.last_received_comment_id < id) this.last_received_comment_id = id;
+  }
   /**
   * Setting Up User Credentials for next API Request
   * @param {string} userId - client userId (will be used for login or register)
@@ -435,7 +441,7 @@ class QiscusSDK extends EventEmitter {
     return self.getRoomById(id)
     .then((response) => {
       return Promise.resolve(response);
-    })
+    }, err => Promise.reject(err));
   }
 
   /**
