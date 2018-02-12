@@ -91,7 +91,7 @@ class QiscusSDK extends EventEmitter {
 
   readComment(roomId, commentId) {
     const self = this;
-    if(!self.selected || self.selected.id != commentId) return false;
+    if(!self.selected || self.selected.id != roomId) return false;
     self.userAdapter.updateCommentStatus(roomId, commentId, null)
     .then( res => {
       self.emit('comment-read', {roomId, commentId});
@@ -130,6 +130,15 @@ class QiscusSDK extends EventEmitter {
         if(!isRoomSelected) pendingComment.markAsDelivered();
         // fetch the comment inside the room
         room.receiveComment(pendingComment);
+        // update comment status
+        // get last comment and update room status for it
+        if(self.last_received_comment_id < comment.id && self.user_id != comment.email) {
+          if(comment.room_id == self.selected.id) {
+            self.readComment(comment.room_id, comment.id);
+          } else {
+            self.receiveComment(comment.room_id, comment.id);
+          }
+        }
         // let's update last_received_comment_id
         self.last_received_comment_id = (comment.id > self.last_received_comment_id) 
           ? comment.id 
@@ -146,16 +155,6 @@ class QiscusSDK extends EventEmitter {
         }
       })
       
-      // get last comment and update room status for it
-      if(self.selected) {
-        const lastComment = comments[comments.length-1];
-        if(lastComment.room_id == self.selected.id) {
-          self.readComment(lastComment.room_id, lastComment.id);
-        } else {
-          if(self.user_id != lastComment.email) self.receiveComment(lastComment.room_id, lastComment.id);
-        }
-      }
-      
       // call callbacks
       if (self.options.newMessagesCallback) self.options.newMessagesCallback(comments);
     })
@@ -168,6 +167,7 @@ class QiscusSDK extends EventEmitter {
       const mqttURL = self.mqttURL;
       self.isLogin  = true;
       self.userData = response.results.user;
+      self.last_received_comment_id = self.userData.last_comment_id;
 
       // now that we have the token, etc, we need to set all our adapters
       // /////////////// API CLIENT /////////////////
