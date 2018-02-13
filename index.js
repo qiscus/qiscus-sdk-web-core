@@ -117,6 +117,9 @@ class QiscusSDK extends EventEmitter {
      * @return {void}
     */
     self.on('newmessages', function (comments) {
+      const callCallback = () => {
+        if (self.options.newMessagesCallback) self.options.newMessagesCallback(comments);
+      };
       // let's convert the data into something we can use
       // first we need to make sure we sort this data out based on room_id
       comments.map(comment => {
@@ -124,15 +127,17 @@ class QiscusSDK extends EventEmitter {
         const room = self.rooms.find(r => r.id == comment.room_id);
         if (!room) {
           self.updateLastReceivedComment(comment.id);
+          callCalback();
           return false;
         }
+        // pastikan dulu komen ini komen baru, klo komen lama ga usah panggil cb
+        const isExistingComment = room.comments.find(cmt => cmt.id == comment.id);
         const pendingComment = new Comment(comment);
         // set comment metadata (read or delivered) based on current selected room
         const isRoomSelected = room.isCurrentlySelected(self.selected);
-        const isAlreadyRead  = (pendingComment.id < self.last_received_comment_id);
+        const isAlreadyRead  = (pendingComment.id < self.last_received_comment_id) ? true : false;
         pendingComment.markAsDelivered();
-        if((isRoomSelected || isAlreadyRead) 
-          && self.user_id != pendingComment.username_real) pendingComment.markAsRead();
+        if(isRoomSelected || isAlreadyRead) pendingComment.markAsRead();
         // fetch the comment inside the room
         room.receiveComment(pendingComment);
         // update comment status
@@ -146,6 +151,7 @@ class QiscusSDK extends EventEmitter {
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
+        if(!isExistingComment) callCallback();
         // let's sort the comments
         self.sortComments()
         // scroll down for ui, only for web
@@ -157,9 +163,6 @@ class QiscusSDK extends EventEmitter {
           }, 200);
         }
       })
-      
-      // call callbacks
-      if (self.options.newMessagesCallback) self.options.newMessagesCallback(comments);
     })
 
     /**
@@ -508,6 +511,8 @@ class QiscusSDK extends EventEmitter {
         self.last_received_comment_id = (self.last_received_comment_id < room.last_comment_id) ? room.last_comment_id : self.last_received_comment_id
         self.setActiveRoom(room)
         self.isLoading = false
+        const last_comment = room.comments[room.comments.length-1];
+        if (last_comment) self.readComment(room.id, last_comment.id);
         return Promise.resolve(room);
         // self.emit('group-room-created', self.selected)
       }, (error) => {
