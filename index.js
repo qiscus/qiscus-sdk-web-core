@@ -355,7 +355,9 @@ class QiscusSDK extends EventEmitter {
     // we need to unsubscribe from typing event
     if(this.selected) {
       this.realtimeAdapter.unsubscribeTyping();
-      this.realtimeAdapter.unsubscribeRoomPresence();
+      // before we unsubscribe, we need to get the userId first
+      const unsubscribedUserId = this.selected.participants.filter(p => p.email != this.user_id);
+      this.realtimeAdapter.unsubscribeRoomPresence(unsubscribedUserId);
     }
     const targetUserId = room.participants.filter(p => p.email != this.user_id);
     if(room.type != 'group' && targetUserId) this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
