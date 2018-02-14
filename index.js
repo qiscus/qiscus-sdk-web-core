@@ -86,7 +86,7 @@ class QiscusSDK extends EventEmitter {
     this.setEventListeners();
     
     // mini garbage collector
-    // window.setInterval(this.clearRoomsCache.bind(this), 90000);
+    window.setInterval(this.clearRoomsCache.bind(this), 90000);
   }
 
   readComment(roomId, commentId) {
