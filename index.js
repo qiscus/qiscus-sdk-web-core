@@ -117,7 +117,7 @@ class QiscusSDK extends EventEmitter {
      * @return {void}
     */
     self.on('newmessages', function (comments) {
-      const callCallback = () => {
+      function callCallback() {
         if (self.options.newMessagesCallback) self.options.newMessagesCallback(comments);
       };
       // let's convert the data into something we can use
@@ -359,6 +359,8 @@ class QiscusSDK extends EventEmitter {
     }
     const targetUserId = room.participants.filter(p => p.email != this.user_id);
     if(room.type != 'group' && targetUserId) this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
+    this.chatmateStatus = null;
+    this.isTypingStatus = null;
     this.selected = room;
     // we need to subscribe to new room typing event now
     this.realtimeAdapter.subscribeTyping(room.id);
