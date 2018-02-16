@@ -117,9 +117,6 @@ class QiscusSDK extends EventEmitter {
      * @return {void}
     */
     self.on('newmessages', function (comments) {
-      function callCallback() {
-        if (self.options.newMessagesCallback) self.options.newMessagesCallback(comments);
-      };
       // let's convert the data into something we can use
       // first we need to make sure we sort this data out based on room_id
       comments.map(comment => {
@@ -127,7 +124,7 @@ class QiscusSDK extends EventEmitter {
         const room = self.rooms.find(r => r.id == comment.room_id);
         if (!room) {
           self.updateLastReceivedComment(comment.id);
-          callCalback();
+          self._callNewMessagesCallback([comment]);
           return false;
         }
         // pastikan dulu komen ini komen baru, klo komen lama ga usah panggil cb
@@ -151,7 +148,7 @@ class QiscusSDK extends EventEmitter {
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
-        if(!isExistingComment) callCallback();
+        if(!isExistingComment) self._callNewMessagesCallback([comment]);
         // let's sort the comments
         self.sortComments()
         // scroll down for ui, only for web
@@ -254,6 +251,10 @@ class QiscusSDK extends EventEmitter {
     })
 
   }
+
+  _callNewMessagesCallback(comments) {
+    if (this.options.newMessagesCallback) this.options.newMessagesCallback(comments);
+  };
 
   updateLastReceivedComment(id) {
     if(this.last_received_comment_id < id) this.last_received_comment_id = id;
@@ -526,7 +527,7 @@ class QiscusSDK extends EventEmitter {
   }
 
   getOrCreateRoomByChannel(channel, name, avatar_url) {
-    this.getOrCreateRoomByUniqueId(channel, name, avatar_url);
+    return this.getOrCreateRoomByUniqueId(channel, name, avatar_url);
   }
 
   /**
@@ -648,7 +649,7 @@ class QiscusSDK extends EventEmitter {
       pendingComment.markAsSent()
       pendingComment.id = res.id
       pendingComment.before_id = res.comment_before_id
-      return new Promise((resolve, reject) => resolve(self.selected))
+      return new Promise((resolve, reject) => resolve(res))
     }, (err) => {
       pendingComment.markAsFailed()
       return new Promise((resolve, reject) => reject(err))
