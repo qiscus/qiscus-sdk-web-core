@@ -40,7 +40,7 @@ class QiscusSDK extends EventEmitter {
     this.realtimeAdapter = null;
     this.isInit          = false;
     this.isSynced        = false;
-    this.sync            = 'both'; // possible values 'socket', 'http', 'both'
+    this.sync            = 'socket'; // possible values 'socket', 'http', 'both'
     this.httpsync        = null;
     this.extras          = null;
     this.last_received_comment_id = 0;
