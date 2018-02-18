@@ -40,7 +40,7 @@ class QiscusSDK extends EventEmitter {
     this.realtimeAdapter = null;
     this.isInit          = false;
     this.isSynced        = false;
-    this.sync            = 'socket'; // possible values 'socket', 'http', 'both'
+    this.sync            = 'both'; // possible values 'socket', 'http', 'both'
     this.httpsync        = null;
     this.extras          = null;
     this.last_received_comment_id = 0;
@@ -151,14 +151,6 @@ class QiscusSDK extends EventEmitter {
         if(!isExistingComment) self._callNewMessagesCallback([comment]);
         // let's sort the comments
         self.sortComments()
-        // scroll down for ui, only for web
-        if(self.selected && self.selected.comments.length > 0) {
-          const lastCommentId = self.selected.comments[self.selected.comments.length - 1].id;
-          setTimeout(function(){
-            const element = document.getElementById(lastCommentId);
-            if(element) element.scrollIntoView({ block: 'end', behaviour: 'smooth' })
-          }, 200);
-        }
       })
     })
 
