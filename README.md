@@ -179,7 +179,7 @@ qiscus.loadComments(room_id, last_comment_id = 0, timestamp, after, limit)
 ## Load more
 Use API above and pass last commend id of current room
 ```
-qiscus.loadComments(qiscus.selected.id, qiscus.selected.comments[qiscus.selected.comments - 1].id, null, false)
+qiscus.loadComments(qiscus.selected.id, qiscus.selected.comments[0].id, null, false)
   .then( res => {
     console.info(res);
   }, err => {
