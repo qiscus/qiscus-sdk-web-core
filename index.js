@@ -353,7 +353,7 @@ class QiscusSDK extends EventEmitter {
       this.realtimeAdapter.unsubscribeRoomPresence(unsubscribedUserId);
     }
     const targetUserId = room.participants.filter(p => p.email != this.user_id);
-    if(room.type != 'group' && targetUserId) this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
+    if(room.type != 'group' && targetUserId.length > 0) this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
     this.chatmateStatus = null;
     this.isTypingStatus = null;
     this.selected = room;

@@ -1,5 +1,5 @@
 node_modules
 .vscode
 docs
-dist/QiscusSDKCore.js
-dist/QiscusSDKCore.js.map
+dist/QiscusSDKCore.min.js
+dist/QiscusSDKCore.min.js.map
