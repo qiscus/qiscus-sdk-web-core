@@ -548,9 +548,9 @@ class QiscusSDK extends EventEmitter {
     });
   }
   
-  loadComments (room_id, last_comment_id=0, timestamp, after, limit) {
+  loadComments (options = {}) {
     const self = this;
-    return self.userAdapter.loadComments(room_id, last_comment_id, timestamp, after, limit)
+    return self.userAdapter.loadComments(self.selected.id, options)
       .then((response) => {
         self.selected.receiveComments(response.reverse())
         self.sortComments()
