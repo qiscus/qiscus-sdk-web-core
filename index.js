@@ -548,9 +548,9 @@ class QiscusSDK extends EventEmitter {
     });
   }
   
-  loadComments (options = {}) {
+  loadComments (room_id, options = {}) {
     const self = this;
-    return self.userAdapter.loadComments(self.selected.id, options)
+    return self.userAdapter.loadComments(room_id, options)
       .then((response) => {
         self.selected.receiveComments(response.reverse())
         self.sortComments()
@@ -559,6 +559,12 @@ class QiscusSDK extends EventEmitter {
         console.error('Error loading comments', error)
         return new Promise(reject => reject(error));
       });
+  }
+
+  loadMore(last_comment_id, options = {}) {
+    options.last_comment_id = last_comment_id;
+    options.after = false
+    return this.loadComments(qiscus.selected.id, options)
   }
 
   /**
