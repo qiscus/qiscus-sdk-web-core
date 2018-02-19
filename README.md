@@ -352,18 +352,6 @@ qiscus.init({
 });
 ```
 
-## headerClickedCallback
-Called when chat header is clicked
-qiscus.init({
-  AppId: ...,
-  options: {
-    headerClickedCallback(response) {
-      // example: display modal dialog when chat header is clicked
-      UI.displayRoomInfo(qiscus.selected.id);
-    }
-  }
-});
-
 ## newMessagesCallback
 Called when there's new message
 ```
