@@ -267,7 +267,7 @@ qiscus.loadRoomList().then(res => {
 * @param options <Object> optional
 * @return Promise
 */
-qiscus.updateRoom({id: 1, 'test room', 'http://my.url', {official: false}}).then(res => {
+qiscus.updateRoom({id: 1, room_name: 'test room', avatar_url: 'http://my.url', options: {official: false}}).then(res => {
   // do something, notify user, etc
 }, err => {
   // log? throw err?
