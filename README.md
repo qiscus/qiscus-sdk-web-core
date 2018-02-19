@@ -168,7 +168,13 @@ qiscus.sendComment(roomId, 'test carousel', null, 'carousel', carouselPayload, n
 
 ## Load Messages
 ```
-qiscus.loadComments(room_id, last_comment_id = 0, timestamp, after, limit)
+options = {
+  last_comment_id: 10,
+  after: true/false,
+  limit: 10
+}
+
+qiscus.loadComments(room_id, options = {})
   .then(res => { 
     // do something 
   }, err => { 
@@ -179,7 +185,11 @@ qiscus.loadComments(room_id, last_comment_id = 0, timestamp, after, limit)
 ## Load more
 Use API above and pass last commend id of current room
 ```
-qiscus.loadComments(qiscus.selected.id, qiscus.selected.comments[0].id, null, false)
+options = {
+  limit: 20
+}
+
+qiscus.loadMore(last_comment_id, options = {})
   .then( res => {
     console.info(res);
   }, err => {
