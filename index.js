@@ -350,7 +350,7 @@ class QiscusSDK extends EventEmitter {
       this.realtimeAdapter.unsubscribeTyping();
       // before we unsubscribe, we need to get the userId first
       const unsubscribedUserId = this.selected.participants.filter(p => p.email != this.user_id);
-      this.realtimeAdapter.unsubscribeRoomPresence(unsubscribedUserId);
+      if (unsubscribedUserId) this.realtimeAdapter.unsubscribeRoomPresence(unsubscribedUserId[0].email);
     }
     const targetUserId = room.participants.filter(p => p.email != this.user_id);
     if(room.type != 'group' && targetUserId.length > 0) this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
@@ -741,6 +741,9 @@ class QiscusSDK extends EventEmitter {
     formData.append('token', self.userData.token);
     var xhr = new XMLHttpRequest();
     xhr.open('POST', `${self.baseURL}/api/v2/sdk/upload`, true);
+    xhr.setRequestHeader('qiscus_sdk_app_id', `${self.AppId}`);
+    xhr.setRequestHeader('qiscus_sdk_user_id', `${self.user_id}`);
+    xhr.setRequestHeader('qiscus_sdk_token', `${self.userData.token}`);
     xhr.onload = function() {
       if(xhr.status === 200) {
         // file(s) uploaded), let's post to comment
