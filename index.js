@@ -781,10 +781,10 @@ class QiscusSDK extends EventEmitter {
   }
 
   clearRoomsCache() {
-    // clear the map
-    this.room_name_id_map = {[this.selected.name]: this.selected.id};
     // remove all room except currently selected
     if(this.selected) {
+      // clear the map
+      this.room_name_id_map = {[this.selected.name]: this.selected.id};
       // get current index and array length
       const roomLength = this.rooms.length;
       let curIndex = this.rooms.findIndex(room => room.id == this.selected.id);
