@@ -267,7 +267,7 @@ class QiscusSDK extends EventEmitter {
 
     // Connect to Login or Register API
     this.connectToQiscus().then((response) => {
-      if(response.status != 200) return this.emit('login-error', response.error)
+      if(response.status != 200) return this.emit('login-error', response.text)
       this.isInit = true
       this.emit('login-success', response)
       window.setInterval(() => this.realtimeAdapter.publishPresence(this.user_id), 3500)
@@ -287,7 +287,7 @@ class QiscusSDK extends EventEmitter {
       let req = request.post(`${this.baseURL}/api/v2/sdk/login_or_register`)
       req.send(body).set('Content-Type', 'application/x-www-form-urlencoded')
       .end((err, res) => {
-        if (err) return reject(err)
+        if (err) return resolve(res)
         return resolve(res.body)
       })
     })
