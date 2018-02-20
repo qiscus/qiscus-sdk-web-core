@@ -86,7 +86,7 @@ class QiscusSDK extends EventEmitter {
     this.setEventListeners();
     
     // mini garbage collector
-    window.setInterval(this.clearRoomsCache.bind(this), 90000);
+    // window.setInterval(this.clearRoomsCache.bind(this), 90000);
   }
 
   readComment(roomId, commentId) {
@@ -122,9 +122,12 @@ class QiscusSDK extends EventEmitter {
       comments.map(comment => {
         // find this comment room
         const room = self.rooms.find(r => r.id == comment.room_id);
+        const isAlreadyRead  = (comment.id <= self.last_received_comment_id) ? true : false;
         if (!room) {
-          self.updateLastReceivedComment(comment.id);
-          self._callNewMessagesCallback([comment]);
+          if(!isAlreadyRead) {
+            self._callNewMessagesCallback([comment]);
+            self.updateLastReceivedComment(comment.id);
+          }
           return false;
         }
         // pastikan dulu komen ini komen baru, klo komen lama ga usah panggil cb
@@ -132,7 +135,6 @@ class QiscusSDK extends EventEmitter {
         const pendingComment = new Comment(comment);
         // set comment metadata (read or delivered) based on current selected room
         const isRoomSelected = room.isCurrentlySelected(self.selected);
-        const isAlreadyRead  = (pendingComment.id < self.last_received_comment_id) ? true : false;
         pendingComment.markAsDelivered();
         if(isRoomSelected || isAlreadyRead) pendingComment.markAsRead();
         // fetch the comment inside the room
@@ -149,8 +151,6 @@ class QiscusSDK extends EventEmitter {
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
         if(!isExistingComment) self._callNewMessagesCallback([comment]);
-        // let's sort the comments
-        self.sortComments()
       })
     })
 
@@ -246,6 +246,8 @@ class QiscusSDK extends EventEmitter {
 
   _callNewMessagesCallback(comments) {
     if (this.options.newMessagesCallback) this.options.newMessagesCallback(comments);
+    // let's sort the comments
+    this.sortComments()
   };
 
   updateLastReceivedComment(id) {
@@ -564,7 +566,7 @@ class QiscusSDK extends EventEmitter {
   loadMore(last_comment_id, options = {}) {
     options.last_comment_id = last_comment_id;
     options.after = false
-    return this.loadComments(qiscus.selected.id, options)
+    return this.loadComments(this.selected.id, options)
   }
 
   /**
