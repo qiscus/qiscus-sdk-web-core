@@ -297,12 +297,12 @@ qiscus.publishTyping(0)
 
 ## Update message Status (read)
 ```
-qiscus.readComment(room_id, id);
+qiscus.readComment(room_id, comment_id);
 ```
 
 ## Update message Status (receive)
 ```
-qiscus.receiveComment(room_id, id);
+qiscus.receiveComment(room_id, comment_id);
 ```
 
 ## Currently Selected Rooms
