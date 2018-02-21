@@ -144,6 +144,9 @@ class QiscusSDK extends EventEmitter {
         if(!isAlreadyRead && self.user_id != comment.email) {
           if(isRoomSelected) {
             self.readComment(comment.room_id, comment.id);
+            self.selected.comments
+              .filter(comment => comment.status != 'read')
+              .map(comment => comment.markAsRead);
           } else {
             self.receiveComment(comment.room_id, comment.id);
           }
