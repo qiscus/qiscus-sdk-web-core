@@ -119,13 +119,13 @@ class QiscusSDK extends EventEmitter {
     self.on('newmessages', function (comments) {
       // let's convert the data into something we can use
       // first we need to make sure we sort this data out based on room_id
+      self._callNewMessagesCallback(comments);
       comments.map(comment => {
         // find this comment room
         const room = self.rooms.find(r => r.id == comment.room_id);
         const isAlreadyRead  = (comment.id <= self.last_received_comment_id) ? true : false;
         if (!room) {
           if(!isAlreadyRead) {
-            self._callNewMessagesCallback([comment]);
             self.updateLastReceivedComment(comment.id);
           }
           return false;
@@ -153,7 +153,7 @@ class QiscusSDK extends EventEmitter {
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
-        if(!isExistingComment) self._callNewMessagesCallback([comment]);
+        
       })
     })
 
