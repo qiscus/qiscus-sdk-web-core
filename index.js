@@ -125,7 +125,7 @@ class QiscusSDK extends EventEmitter {
         const isAlreadyRead  = (comment.id <= self.last_received_comment_id) ? true : false;
         if (!room) {
           if(!isAlreadyRead) {
-            self._callNewMessagesCallback.bind(self, [comment]);
+            self._callNewMessagesCallback([comment]);
             self.updateLastReceivedComment(comment.id);
           }
           return false;
@@ -153,7 +153,7 @@ class QiscusSDK extends EventEmitter {
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
-        if(!isExistingComment) self._callNewMessagesCallback.bind(self, [comment]);
+        if(!isExistingComment) self._callNewMessagesCallback([comment]);
       })
     })
 
