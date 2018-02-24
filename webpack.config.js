@@ -5,13 +5,15 @@ var libraryName    = 'QiscusSDKCore';
 var env            = process.env.WEBPACK_ENV;
 var plugins        = [], outputFile;
 const MinifyPlugin = require("babel-minify-webpack-plugin");
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
 if (env === 'build') {
   // plugins.push(new UglifyJsPlugin({ minimize: true }));
   plugins.push(new MinifyPlugin({}, {comments: false}));
-
+  plugins.push(new BundleAnalyzerPlugin());
   outputFile = libraryName + '.min.js';
 } else {
+  plugins.push(new BundleAnalyzerPlugin());
   outputFile = libraryName + '.js';
 };
 
