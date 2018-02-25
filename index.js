@@ -59,6 +59,11 @@ class QiscusSDK extends EventEmitter {
     this.isTypingStatus  = '';
     this.customTemplate  = false;
     this.templateFunction = null;
+    this.debugMode       = false;
+    this.debugMQTTMode   = false;
+
+    //to prevent double receive newmessages callback
+    this.lastReceiveMessages = [];
   }
 
   /**
@@ -119,6 +124,16 @@ class QiscusSDK extends EventEmitter {
     self.on('newmessages', function (comments) {
       // let's convert the data into something we can use
       // first we need to make sure we sort this data out based on room_id
+      this.logging("newmessages", comments);
+
+
+      if (this.lastReceiveMessages.length > 0 && this.lastReceiveMessages[0].unique_temp_id == comments[0].unique_temp_id) {
+        this.logging("lastReceiveMessages double", comments);
+        return;
+      }
+
+      this.lastReceiveMessages = comments;
+
       self._callNewMessagesCallback(comments);
       comments.map(comment => {
         // find this comment room
@@ -162,6 +177,9 @@ class QiscusSDK extends EventEmitter {
      * Basically, it sets up necessary properties for qiscusSDK
      */
     self.on('login-success', function (response) {
+
+      this.logging("login-success", response);
+
       const mqttURL = self.mqttURL;
       self.isLogin  = true;
       self.userData = response.results.user;
@@ -800,6 +818,12 @@ class QiscusSDK extends EventEmitter {
       // ambil ulang cur index nya, klo udah di awal ga perlu lagi kode dibawah ini
       curIndex = this.rooms.findIndex(room => room.id == this.selected.id);
       if (curIndex > 0 && this.rooms.length > 1) this.rooms.splice(1, this.rooms.length - 1);
+    }
+  }
+
+  logging(message, params = {}){
+    if (this.debugMode){
+      console.log(message, params);
     }
   }
 }
