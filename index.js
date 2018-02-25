@@ -552,9 +552,9 @@ class QiscusSDK extends EventEmitter {
    */
   sortComments () {
     this.selected.comments.sort(function (leftSideComment, rightSideComment) {
-      if(rightSideComment.id < 0) return 0
-      if(rightSideComment.id < leftSideComment.id) return 1
-      if(rightSideComment.id > leftSideComment.id) return -1
+      if(rightSideComment.timestamp < 0) return 0
+      if(rightSideComment.timestamp < leftSideComment.timestamp) return 1
+      if(rightSideComment.timestamp > leftSideComment.timestamp) return -1
       return 0
     })
   }
