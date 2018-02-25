@@ -168,6 +168,8 @@ class QiscusSDK extends EventEmitter {
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
+        this.sortComments()
+
         
       })
     })
@@ -268,7 +270,6 @@ class QiscusSDK extends EventEmitter {
   _callNewMessagesCallback(comments) {
     if (this.options.newMessagesCallback) this.options.newMessagesCallback(comments);
     // let's sort the comments
-    this.sortComments()
   };
 
   updateLastReceivedComment(id) {
@@ -552,10 +553,7 @@ class QiscusSDK extends EventEmitter {
    */
   sortComments () {
     this.selected.comments.sort(function (leftSideComment, rightSideComment) {
-      if(rightSideComment.timestamp < 0) return 0
-      if(rightSideComment.timestamp < leftSideComment.timestamp) return 1
-      if(rightSideComment.timestamp > leftSideComment.timestamp) return -1
-      return 0
+      return leftSideComment.id - rightSideComment.id;
     })
   }
 
