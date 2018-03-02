@@ -59,6 +59,11 @@ class QiscusSDK extends EventEmitter {
     this.isTypingStatus  = '';
     this.customTemplate  = false;
     this.templateFunction = null;
+    this.debugMode       = false;
+    this.debugMQTTMode   = false;
+
+    //to prevent double receive newmessages callback
+    this.lastReceiveMessages = [];
   }
 
   /**
@@ -119,6 +124,16 @@ class QiscusSDK extends EventEmitter {
     self.on('newmessages', function (comments) {
       // let's convert the data into something we can use
       // first we need to make sure we sort this data out based on room_id
+      this.logging("newmessages", comments);
+
+
+      if (this.lastReceiveMessages.length > 0 && this.lastReceiveMessages[0].unique_temp_id == comments[0].unique_temp_id) {
+        this.logging("lastReceiveMessages double", comments);
+        return;
+      }
+
+      this.lastReceiveMessages = comments;
+
       self._callNewMessagesCallback(comments);
       comments.map(comment => {
         // find this comment room
@@ -153,6 +168,8 @@ class QiscusSDK extends EventEmitter {
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
+        this.sortComments()
+
         
       })
     })
@@ -162,6 +179,9 @@ class QiscusSDK extends EventEmitter {
      * Basically, it sets up necessary properties for qiscusSDK
      */
     self.on('login-success', function (response) {
+
+      this.logging("login-success", response);
+
       const mqttURL = self.mqttURL;
       self.isLogin  = true;
       self.userData = response.results.user;
@@ -250,7 +270,6 @@ class QiscusSDK extends EventEmitter {
   _callNewMessagesCallback(comments) {
     if (this.options.newMessagesCallback) this.options.newMessagesCallback(comments);
     // let's sort the comments
-    this.sortComments()
   };
 
   updateLastReceivedComment(id) {
@@ -534,10 +553,7 @@ class QiscusSDK extends EventEmitter {
    */
   sortComments () {
     this.selected.comments.sort(function (leftSideComment, rightSideComment) {
-      if(rightSideComment.id < 0) return 0
-      if(rightSideComment.id < leftSideComment.id) return 1
-      if(rightSideComment.id > leftSideComment.id) return -1
-      return 0
+      return leftSideComment.id - rightSideComment.id;
     })
   }
 
@@ -800,6 +816,12 @@ class QiscusSDK extends EventEmitter {
       // ambil ulang cur index nya, klo udah di awal ga perlu lagi kode dibawah ini
       curIndex = this.rooms.findIndex(room => room.id == this.selected.id);
       if (curIndex > 0 && this.rooms.length > 1) this.rooms.splice(1, this.rooms.length - 1);
+    }
+  }
+
+  logging(message, params = {}){
+    if (this.debugMode){
+      console.log(message, params);
     }
   }
 }
