@@ -209,6 +209,17 @@ class QiscusSDK extends EventEmitter {
       if (self.options.loginErrorCallback) self.options.loginErrorCallback(error);
     })
 
+    self.on('comment-deleted', function(data) {
+      // get to the room id and delete the comment
+      const {roomId, commentId} = data;
+      const roomToBeFound = self.rooms.find(room => room.id == roomId);
+      if(roomToBeFound) {
+        const commentToBeFound = roomToBeFound.findIndex(comment => comment.id == commentId);
+        if(commentToBeFound > -1) roomToBeFound.splice(commentToBeFound, 1);
+      }
+      if (self.options.commentDeletedCallback) self.options.commentDeletedCallback(data);
+    })
+
     /**
      * Called when the comment has been delivered
      */
@@ -805,6 +816,15 @@ class QiscusSDK extends EventEmitter {
    */
   getRoomsInfo(params) {
     return this.userAdapter.getRoomsInfo(params);
+  }
+
+  deleteComment(roomId, commentUniqueIds) {
+    if(!Array.isArray(commentUniqueIds)) throw new Error(`unique ids' must be type of Array`);
+    return this.userAdapter.deleteComment(roomId, commentUniqueIds)
+      .then((res) => {
+        this.emit('comment-deleted', {roomId, commentUniqueIds});
+        return Promise.resolve(res);
+      }, (err) => Promise.reject(err));
   }
 
   clearRoomsCache() {
