@@ -373,11 +373,14 @@ class QiscusSDK extends EventEmitter {
     if(this.selected) {
       this.realtimeAdapter.unsubscribeTyping();
       // before we unsubscribe, we need to get the userId first
-      const unsubscribedUserId = this.selected.participants.filter(p => p.email != this.user_id);
-      if (unsubscribedUserId) this.realtimeAdapter.unsubscribeRoomPresence(unsubscribedUserId[0].email);
+      // and only unsubscribe if the previous room is having a type of 'single'
+      if(this.selected.room_type == 'single') {
+        const unsubscribedUserId = this.selected.participants.filter(p => p.email != this.user_id);
+        if (unsubscribedUserId.length > 0) this.realtimeAdapter.unsubscribeRoomPresence(unsubscribedUserId[0].email);
+      }
     }
     const targetUserId = room.participants.filter(p => p.email != this.user_id);
-    if(room.type != 'group' && targetUserId.length > 0) this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
+    if(room.type === 'single' && targetUserId.length > 0) this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
     this.chatmateStatus = null;
     this.isTypingStatus = null;
     this.selected = room;
