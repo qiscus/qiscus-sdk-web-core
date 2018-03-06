@@ -214,7 +214,7 @@ class QiscusSDK extends EventEmitter {
       const {roomId, commentId} = data;
       const roomToBeFound = self.rooms.find(room => room.id == roomId);
       if(roomToBeFound) {
-        const commentToBeFound = roomToBeFound.findIndex(comment => comment.id == commentId);
+        const commentToBeFound = roomToBeFound.findIndex(comment => comment.unique_id == commentId);
         if(commentToBeFound > -1) roomToBeFound.splice(commentToBeFound, 1);
       }
       if (self.options.commentDeletedCallback) self.options.commentDeletedCallback(data);
