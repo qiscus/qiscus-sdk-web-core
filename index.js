@@ -211,11 +211,14 @@ class QiscusSDK extends EventEmitter {
 
     self.on('comment-deleted', function(data) {
       // get to the room id and delete the comment
-      const {roomId, commentId} = data;
+      const {roomId, commentUniqueIds} = data;
       const roomToBeFound = self.rooms.find(room => room.id == roomId);
       if(roomToBeFound) {
-        const commentToBeFound = roomToBeFound.findIndex(comment => comment.unique_id == commentId);
-        if(commentToBeFound > -1) roomToBeFound.splice(commentToBeFound, 1);
+        // loop through the array of unique_ids
+        commentUniqueIds.map(id => {
+          const commentToBeFound = roomToBeFound.comments.findIndex(comment => comment.unique_id == id);
+          if(commentToBeFound > -1) roomToBeFound.comments.splice(commentToBeFound, 1);
+        });
       }
       if (self.options.commentDeletedCallback) self.options.commentDeletedCallback(data);
     })
