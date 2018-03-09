@@ -212,13 +212,19 @@ class QiscusSDK extends EventEmitter {
 
     self.on('comment-deleted', function(data) {
       // get to the room id and delete the comment
-      const {roomId, commentUniqueIds} = data;
+      const {roomId, commentUniqueIds, isForEveryone, isHard} = data;
       const roomToBeFound = self.rooms.find(room => room.id == roomId);
       if(roomToBeFound) {
         // loop through the array of unique_ids
         commentUniqueIds.map(id => {
           const commentToBeFound = roomToBeFound.comments.findIndex(comment => comment.unique_id == id);
-          if(commentToBeFound > -1) roomToBeFound.comments.splice(commentToBeFound, 1);
+          if(commentToBeFound > -1){
+            if(isHard){
+              roomToBeFound.comments.splice(commentToBeFound, 1);
+            } else {
+              roomToBeFound.comments[commentToBeFound].message = 'this message has been deleted';
+            }
+          }
         });
       }
       if (self.options.commentDeletedCallback) self.options.commentDeletedCallback(data);
@@ -824,7 +830,7 @@ class QiscusSDK extends EventEmitter {
     if(!Array.isArray(commentUniqueIds)) throw new Error(`unique ids' must be type of Array`);
     return this.userAdapter.deleteComment(roomId, commentUniqueIds, isForEveryone, isHard)
       .then((res) => {
-        this.emit('comment-deleted', {roomId, commentUniqueIds});
+        this.emit('comment-deleted', {roomId, commentUniqueIds, isForEveryone, isHard});
         return Promise.resolve(res);
       }, (err) => Promise.reject(err));
   }
