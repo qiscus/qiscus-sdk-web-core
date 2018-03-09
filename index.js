@@ -820,9 +820,9 @@ class QiscusSDK extends EventEmitter {
     return this.userAdapter.getRoomsInfo(params);
   }
 
-  deleteComment(roomId, commentUniqueIds) {
+  deleteComment(roomId, commentUniqueIds, isForEveryone, isHard) {
     if(!Array.isArray(commentUniqueIds)) throw new Error(`unique ids' must be type of Array`);
-    return this.userAdapter.deleteComment(roomId, commentUniqueIds)
+    return this.userAdapter.deleteComment(roomId, commentUniqueIds, isForEveryone, isHard)
       .then((res) => {
         this.emit('comment-deleted', {roomId, commentUniqueIds});
         return Promise.resolve(res);
