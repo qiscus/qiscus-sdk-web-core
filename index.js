@@ -197,6 +197,7 @@ class QiscusSDK extends EventEmitter {
       self.roomAdapter     = new RoomAdapter(self.HTTPAdapter);
       self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self);
       self.realtimeAdapter.subscribeUserChannel();
+      window.setInterval(() => this.realtimeAdapter.publishPresence(this.user_id), 3500)
 
       if (self.sync == 'http' || self.sync == 'both') self.activateSync();
       if (self.options.loginSuccessCallback) self.options.loginSuccessCallback(response)
@@ -308,7 +309,6 @@ class QiscusSDK extends EventEmitter {
       if(response.status != 200) return this.emit('login-error', response.text)
       this.isInit = true
       this.emit('login-success', response)
-      window.setInterval(() => this.realtimeAdapter.publishPresence(this.user_id), 3500)
     })
   }
 
@@ -368,7 +368,6 @@ class QiscusSDK extends EventEmitter {
    * If comment count > 0 then we have new message
    */
   synchronize () {
-    this.realtimeAdapter.publishPresence(this.user_id);
     this.userAdapter.sync(this.last_received_comment_id)
     .then((comments) => {
       if (comments.length > 0) this.emit('newmessages', comments)
