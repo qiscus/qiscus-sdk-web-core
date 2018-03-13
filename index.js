@@ -116,6 +116,11 @@ class QiscusSDK extends EventEmitter {
 
   setEventListeners() {
     const self = this;
+    self.on('room-changed', function(room) {
+      this.logging("room changed", room);
+      if (self.options.roomChangedCallback) self.options.roomChangedCallback(room)
+    });
+    
     /**
      * This event will be called when there's new post messages
      * @param {string} data - JSON Response from SYNC API / MQTT
@@ -405,6 +410,7 @@ class QiscusSDK extends EventEmitter {
     this.selected = room;
     // we need to subscribe to new room typing event now
     this.realtimeAdapter.subscribeTyping(room.id);
+    this.emit('room-changed', this.selected);
   }
 
   /**
