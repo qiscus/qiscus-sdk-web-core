@@ -1,6 +1,7 @@
 import request from 'superagent'
 import {EventEmitter} from 'events';
-import {format, distanceInWordsToNow} from 'date-fns';
+import format from 'date-fns/format';
+import distanceInWordsToNow from 'date-fns/distance_in_words_to_now';
 import Comment from './lib/Comment';
 import Room from './lib/Room';
 import HttpAdapter from './lib/adapters/http';
@@ -854,6 +855,11 @@ class QiscusSDK extends EventEmitter {
       curIndex = this.rooms.findIndex(room => room.id == this.selected.id);
       if (curIndex > 0 && this.rooms.length > 1) this.rooms.splice(1, this.rooms.length - 1);
     }
+  }
+
+  clearRoomMessages(room_ids) {
+    if(!isArray(room_ids)) throw new Error('room_ids must be type of array');
+    return this.userAdapter.clearRoomMessages(room_ids);
   }
 
   logging(message, params = {}){
