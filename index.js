@@ -50,6 +50,7 @@ class QiscusSDK extends EventEmitter {
     };
 
     // UI related Properties
+    this.UI              = {};
     this.mode            = 'widget';
     this.avatar          = true;
     this.plugins         = [];
@@ -222,7 +223,7 @@ class QiscusSDK extends EventEmitter {
       if (roomToClear) roomToClear.comments.length = 0;
       if (self.options.roomClearedCallback) self.options.roomClearedCallback(room);
     })
-    
+
     self.on('comment-deleted', function(data) {
       // get to the room id and delete the comment
       const {roomId, commentUniqueIds, isForEveryone, isHard} = data;
