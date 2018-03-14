@@ -216,6 +216,13 @@ class QiscusSDK extends EventEmitter {
       if (self.options.loginErrorCallback) self.options.loginErrorCallback(error);
     })
 
+    self.on('room-cleared', function(room) {
+      // find room
+      const roomToClear = self.rooms.find(r => r.unique_id == room.unique_id);
+      if (roomToClear) roomToClear.comments.length = 0;
+      if (self.options.roomClearedCallback) self.options.roomClearedCallback(room);
+    })
+    
     self.on('comment-deleted', function(data) {
       // get to the room id and delete the comment
       const {roomId, commentUniqueIds, isForEveryone, isHard} = data;
@@ -858,7 +865,7 @@ class QiscusSDK extends EventEmitter {
   }
 
   clearRoomMessages(room_ids) {
-    if(!isArray(room_ids)) throw new Error('room_ids must be type of array');
+    if(!Array.isArray(room_ids)) throw new Error('room_ids must be type of array');
     return this.userAdapter.clearRoomMessages(room_ids);
   }
 
