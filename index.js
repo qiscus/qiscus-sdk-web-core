@@ -220,7 +220,13 @@ class QiscusSDK extends EventEmitter {
     self.on('room-cleared', function(room) {
       // find room
       const roomToClear = self.rooms.find(r => r.unique_id == room.unique_id);
-      if (roomToClear) roomToClear.comments.length = 0;
+      if (roomToClear) {
+        roomToClear.comments.length = 0;
+        if(roomToClear.id == self.selected.id) {
+          self.selected = null;
+          self.selected = roomToClear;
+        }
+      }
       if (self.options.roomClearedCallback) self.options.roomClearedCallback(room);
     })
 

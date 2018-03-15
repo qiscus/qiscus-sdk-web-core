@@ -5,8 +5,8 @@
   "license": "MIT",
   "main": "dist/QiscusSDKCore.min.js",
   "scripts": {
-    "build": "WEBPACK_ENV=build webpack",
-    "dev": "WEBPACK_ENV=dev webpack --progress --colors --watch",
+    "build": "cross-env WEBPACK_ENV=build webpack",
+    "dev": "cross-env WEBPACK_ENV=dev webpack --progress --colors --watch",
     "test": "mocha --compilers js:babel-core/register --colors -w test/test*.js"
   },
   "devDependencies": {
@@ -19,6 +19,7 @@
     "babel-preset-env": "^1.6.0",
     "babel-preset-es2015": "^6.24.1",
     "chai": "^4.1.2",
+    "cross-env": "^5.1.4",
     "esdoc": "^1.0.2",
     "esdoc-standard-plugin": "^1.0.0",
     "eslint": "^4.7.0",

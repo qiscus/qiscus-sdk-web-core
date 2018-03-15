@@ -1,5 +1,4 @@
 node_modules
 .vscode
 docs
-dist/QiscusSDKCore.min.js
-dist/QiscusSDKCore.min.js.map
+yarn-error.log
