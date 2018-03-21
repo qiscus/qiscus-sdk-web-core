@@ -293,9 +293,11 @@ class QiscusSDK extends EventEmitter {
      */
     self.on('presence', function(data) {
       const payload = data.split(":");
-      self.chatmateStatus = (payload[0] == 1)
-        ? 'Online'
-        : `Last seen ${distanceInWordsToNow(Number(payload[1].substring(0, 13)))}`
+      if (self.chatmateStatus != payload[0]) {
+          self.chatmateStatus = (payload[0] == 1)
+            ? 'Online'
+            : `Last seen ${distanceInWordsToNow(Number(payload[1].substring(0, 13)))}`        
+      }
       if (self.options.presenceCallback) self.options.presenceCallback(data);
     })
 
@@ -524,7 +526,6 @@ class QiscusSDK extends EventEmitter {
         if (!roomToFind) {
           let roomData = response.results.room;
           roomData.name = roomData.room_name;
-          roomData.room_type = 'group';
           roomData.comments = response.results.comments.reverse();
           room = new Room(roomData);
           self.room_name_id_map[room.name] = room.id;
