@@ -164,14 +164,11 @@ class QiscusSDK extends EventEmitter {
         // update comment status
         // get last comment and update room status for it
         if(!isAlreadyRead && self.user_id != comment.email) {
-          if(isRoomSelected) {
-            self.readComment(comment.room_id, comment.id);
-            self.selected.comments
-              .filter(comment => comment.status != 'read')
-              .map(comment => comment.markAsRead);
-          } else {
             self.receiveComment(comment.room_id, comment.id);
-          }
+            self.selected.comments
+              .filter(comment => comment.status != 'delivered')
+              .filter(comment => comment.status != 'read')
+              .map(comment => comment.markAsDelivered);
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);

@@ -118,6 +118,15 @@ Example of sending text message:
 qiscus.sendComment(roomId, 'my message', null, 'text', null, null);
 ```
 
+Example of sending file attachment:
+```
+const filePayload = JSON.stringify({
+    url: "https://res.cloudinary.com/qiscus/image/upload/USWiylE7Go/ios-15049438515185.png",
+    caption: "Ini gambar siapa?"
+});
+qiscus.sendComment(roomId, 'check my image', null, 'file_attachment', filePayload, null);
+```
+
 Example of sending custom message:
 ```
 const customPayload = JSON.stringify({
@@ -165,6 +174,8 @@ const carouselPayload = JSON.stringify({
 });
 qiscus.sendComment(roomId, 'test carousel', null, 'carousel', carouselPayload, null);
 ```
+
+
 
 ## Load Messages
 ```
@@ -410,4 +421,58 @@ qiscus.init({
   "user_id_str": "131324",
   "username": "Customer Service"
 }]
+```
+
+## presenceCallback
+Called when our opponent's online or offline
+
+```
+qiscus.init({
+  AppId: ...,
+  options: {
+    presenceCallback(data) {
+      // doing something here
+    }
+  }
+});
+```
+
+## typingCallback
+Called when there are someone typing in the room that we subscribe
+```
+qiscus.init({
+  AppId: ...,
+  options: {
+    typingCallback(data) {
+      // doing something here
+    }
+  }
+});
+```
+
+
+## commentDeliveredCallback
+Called when our message get delivered (reach our opponent's) device
+```
+qiscus.init({
+  AppId: ...,
+  options: {
+    commentDeliveredCallback(data) {
+      // doing something here
+    }
+  }
+});
+```
+
+## commentReadCallback
+Called when our message being read
+```
+qiscus.init({
+  AppId: ...,
+  options: {
+    commentReadCallback(data) {
+      // doing something here
+    }
+  }
+});
 ```
