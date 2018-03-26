@@ -682,7 +682,8 @@ class QiscusSDK extends EventEmitter {
       user_avatar_url: this.userData.avatar_url,
       id: self.pendingCommentId,
       type: type || 'text',
-      timestamp: format(new Date())
+      timestamp: format(new Date()),
+      unique_id: uniqueId
     }
     if(type != 'text') commentData.payload = JSON.parse(payload)
     var pendingComment = self.prepareCommentToBeSubmitted(commentData)
