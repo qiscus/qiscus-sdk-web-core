@@ -101,6 +101,11 @@ class QiscusSDK extends EventEmitter {
     if(!self.selected || self.selected.id != roomId) return false;
     self.userAdapter.updateCommentStatus(roomId, commentId, null)
     .then( res => {
+      // ambil semua yang belum di read selain komen ini, kemudian mark as read
+      self.selected.comments
+        .filter(cmt => cmt.isRead != true && cmt.isDelivered == true)
+        .map(cmt => cmt.markAsRead());
+
       self.emit('comment-read', {roomId, commentId});
       self.sortComments()
     })
@@ -111,6 +116,13 @@ class QiscusSDK extends EventEmitter {
     if(!self.selected) return false;
     self.userAdapter.updateCommentStatus(roomId, null, commentId)
     .then( res => {
+      // get this room
+      const roomToFind = self.rooms.find(room => room.id == roomId);
+      if (roomToFind) {
+        roomToFind.comments
+          .filter(comment => comment.isSent == true && comment.isDelivered == false)
+          .map(comment => comment.markAsDelivered())
+      }
       self.emit('comment-delivered', {roomId, commentId});
       self.sortComments()
     })
@@ -132,7 +144,6 @@ class QiscusSDK extends EventEmitter {
       // let's convert the data into something we can use
       // first we need to make sure we sort this data out based on room_id
       this.logging("newmessages", comments);
-
 
       if (this.lastReceiveMessages.length > 0 && this.lastReceiveMessages[0].unique_temp_id == comments[0].unique_temp_id) {
         this.logging("lastReceiveMessages double", comments);
