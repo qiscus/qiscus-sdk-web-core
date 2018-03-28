@@ -180,7 +180,7 @@ class QiscusSDK extends EventEmitter {
         pendingComment.markAsDelivered();
         if(isRoomSelected || isAlreadyRead){
           pendingComment.markAsRead();
-          readComment(comment.room_id, comment.id)
+          self.readComment(comment.room_id, comment.id)
         }
         // fetch the comment inside the room
         room.receiveComment(pendingComment);
