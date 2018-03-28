@@ -216,7 +216,11 @@ qiscus.chatTarget(userId) // return Promise also triggering chatRoomCreatedCallb
 
 ## Create Group Room
 ```
-qiscus.createGroupRoom([participantsUserId], roomName)
+users = [user1, user2, user3]
+options = {
+  "avatar_url": "https://mybucket.com/image.jpg"
+}
+createGroupRoom (name, users, options)
   .then(res => {
     new Notification('Success', { body: `Room created`});
   }, err => {
