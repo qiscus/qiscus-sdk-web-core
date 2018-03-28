@@ -162,14 +162,26 @@ class QiscusSDK extends EventEmitter {
             self.updateLastReceivedComment(comment.id);
           }
           return false;
+        } else {
+          // sync ulang jika before id dari komen ini tidak ada di listing komen 
+          // (ada komen yang hilang berarti)
+          // ambil room id, ambil komen terakhir, sync
+          const roomLastCommentId = (room.comments.length > 0)
+            ? room.comments[room.comments.length-1].id
+            : self.last_received_comment_id;
+          self.synchronize(roomLastCommentId);
         }
+
         // pastikan dulu komen ini komen baru, klo komen lama ga usah panggil cb
         const isExistingComment = room.comments.find(cmt => cmt.id == comment.id);
         const pendingComment = new Comment(comment);
         // set comment metadata (read or delivered) based on current selected room
         const isRoomSelected = room.isCurrentlySelected(self.selected);
         pendingComment.markAsDelivered();
-        if(isRoomSelected || isAlreadyRead) pendingComment.markAsRead();
+        if(isRoomSelected || isAlreadyRead){
+          pendingComment.markAsRead();
+          readComment(comment.room_id, comment.id)
+        }
         // fetch the comment inside the room
         room.receiveComment(pendingComment);
         // update comment status
@@ -403,8 +415,9 @@ class QiscusSDK extends EventEmitter {
    * This method let us get new comments from server
    * If comment count > 0 then we have new message
    */
-  synchronize () {
-    this.userAdapter.sync(this.last_received_comment_id)
+  synchronize (last_id) {
+    const idToBeSynced = last_id || this.last_received_comment_id;
+    this.userAdapter.sync(idToBeSynced)
     .then((comments) => {
       if (comments.length > 0) this.emit('newmessages', comments)
     })
