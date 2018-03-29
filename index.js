@@ -102,11 +102,6 @@ class QiscusSDK extends EventEmitter {
     self.userAdapter.updateCommentStatus(roomId, commentId, null)
     .then( res => {
       // ambil semua yang belum di read selain komen ini, kemudian mark as read
-      self.selected.comments
-        .filter(cmt => cmt.isRead != true && cmt.isDelivered == true)
-        .map(cmt => cmt.markAsRead());
-
-      self.emit('comment-read', {roomId, commentId});
       self.sortComments()
     })
   }
@@ -180,11 +175,7 @@ class QiscusSDK extends EventEmitter {
         const pendingComment = new Comment(comment);
         // set comment metadata (read or delivered) based on current selected room
         const isRoomSelected = room.isCurrentlySelected(self.selected);
-        pendingComment.markAsDelivered();
-        if(isRoomSelected || isAlreadyRead){
-          pendingComment.markAsRead();
-          self.readComment(comment.room_id, comment.id)
-        }
+
         // fetch the comment inside the room
         room.receiveComment(pendingComment);
         // update comment status
