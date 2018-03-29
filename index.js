@@ -112,13 +112,13 @@ class QiscusSDK extends EventEmitter {
     self.userAdapter.updateCommentStatus(roomId, null, commentId)
     .then( res => {
       // get this room
-      const roomToFind = self.rooms.find(room => room.id == roomId);
-      if (roomToFind) {
-        roomToFind.comments
-          .filter(comment => comment.isSent == true && comment.isDelivered == false)
-          .map(comment => comment.markAsDelivered())
-      }
-      self.emit('comment-delivered', {roomId, commentId});
+      // const roomToFind = self.rooms.find(room => room.id == roomId);
+      // if (roomToFind) {
+      //   roomToFind.comments
+      //     .filter(comment => comment.isSent == true && comment.isDelivered == false)
+      //     .map(comment => comment.markAsDelivered())
+      // }
+      // self.emit('comment-delivered', {roomId, commentId});
       self.sortComments()
     })
   }
@@ -182,12 +182,12 @@ class QiscusSDK extends EventEmitter {
         // get last comment and update room status for it
         if(!isAlreadyRead && self.user_id != comment.email) {
             self.receiveComment(comment.room_id, comment.id);
-            if(isRoomSelected){
-              self.selected.comments
-                .filter(comment => comment.status != 'delivered')
-                .filter(comment => comment.status != 'read')
-                .map(comment => comment.markAsDelivered);              
-            }
+            // if(isRoomSelected){
+            //   self.selected.comments
+            //     .filter(comment => comment.status != 'delivered')
+            //     .filter(comment => comment.status != 'read')
+            //     .map(comment => comment.markAsDelivered);              
+            // }
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
