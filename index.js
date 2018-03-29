@@ -159,6 +159,9 @@ class QiscusSDK extends EventEmitter {
         const isAlreadyRead  = (comment.id <= self.last_received_comment_id) ? true : false;
         if (!room) {
           if(!isAlreadyRead) {
+            if(self.user_id != comment.email) {
+                self.receiveComment(comment.room_id, comment.id);
+            }
             self.updateLastReceivedComment(comment.id);
           }
           return false;
@@ -188,10 +191,12 @@ class QiscusSDK extends EventEmitter {
         // get last comment and update room status for it
         if(!isAlreadyRead && self.user_id != comment.email) {
             self.receiveComment(comment.room_id, comment.id);
-            self.selected.comments
-              .filter(comment => comment.status != 'delivered')
-              .filter(comment => comment.status != 'read')
-              .map(comment => comment.markAsDelivered);
+            if(isRoomSelected){
+              self.selected.comments
+                .filter(comment => comment.status != 'delivered')
+                .filter(comment => comment.status != 'read')
+                .map(comment => comment.markAsDelivered);              
+            }
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
