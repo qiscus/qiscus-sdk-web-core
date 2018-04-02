@@ -168,8 +168,11 @@ class QiscusSDK extends EventEmitter {
           const roomLastCommentId = (room.comments.length > 0)
             ? room.comments[room.comments.length-1].id
             : self.last_received_comment_id;
-          self.synchronize(roomLastCommentId);
-          self.synchronizeEvent(roomLastCommentId);
+          const commentBeforeThis = room.comments.find(cmt => cmt.id == comment.comment_before_id);
+          if (!commentBeforeThis) {
+            self.synchronize(roomLastCommentId);
+            self.synchronizeEvent(roomLastCommentId);
+          }
         }
 
         // pastikan dulu komen ini komen baru, klo komen lama ga usah panggil cb
@@ -184,12 +187,6 @@ class QiscusSDK extends EventEmitter {
         // get last comment and update room status for it
         if(!isAlreadyRead && self.user_id != comment.email) {
             self.receiveComment(comment.room_id, comment.id);
-            // if(isRoomSelected){
-            //   self.selected.comments
-            //     .filter(comment => comment.status != 'delivered')
-            //     .filter(comment => comment.status != 'read')
-            //     .map(comment => comment.markAsDelivered);              
-            // }
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
@@ -427,8 +424,8 @@ class QiscusSDK extends EventEmitter {
     const self = this;
     const idToBeSynced = last_id || this.last_received_comment_id;
     this.userAdapter.syncEvent(idToBeSynced)
-    .then((events) => {
-      events.map(e => {
+    .then((res) => {
+      res.events.map(e => {
         if('deleted_messages' in e.payload.data) {
           e.payload.data.deleted_messages.map(msgRoom => {
             self.emit('comment-deleted', {roomId: msgRoom.room_id, commentUniqueIds: msgRoom.message_unique_ids, isForEveryone: true, isHard: parsedMessage.payload.data.is_hard_delete});
