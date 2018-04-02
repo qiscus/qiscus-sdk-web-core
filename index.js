@@ -43,6 +43,7 @@ class QiscusSDK extends EventEmitter {
     this.isSynced        = false;
     this.sync            = 'socket'; // possible values 'socket', 'http', 'both'
     this.httpsync        = null;
+    this.eventsync       = null;
     this.extras          = null;
     this.last_received_comment_id = 0;
     this.options = {
@@ -168,6 +169,7 @@ class QiscusSDK extends EventEmitter {
             ? room.comments[room.comments.length-1].id
             : self.last_received_comment_id;
           self.synchronize(roomLastCommentId);
+          self.synchronizeEvent(roomLastCommentId);
         }
 
         // pastikan dulu komen ini komen baru, klo komen lama ga usah panggil cb
@@ -399,12 +401,14 @@ class QiscusSDK extends EventEmitter {
     if (self.isSynced) return false;
     self.isSynced = true;
     self.httpsync = window.setInterval(() => self.synchronize(), 3500);
+    self.eventsync = window.setInterval(() => self.synchronizeEvent(), 3500);
   }
 
   disableSync() {
     const self = this;
     self.isSynced = false;
     window.clearInterval(self.httpsync);
+    window.clearInterval(self.eventsync);
   }
 
   /**
@@ -416,6 +420,26 @@ class QiscusSDK extends EventEmitter {
     this.userAdapter.sync(idToBeSynced)
     .then((comments) => {
       if (comments.length > 0) this.emit('newmessages', comments)
+    })
+  }
+
+  synchronizeEvent(last_id) {
+    const self = this;
+    const idToBeSynced = last_id || this.last_received_comment_id;
+    this.userAdapter.syncEvent(idToBeSynced)
+    .then((events) => {
+      events.map(e => {
+        if('deleted_messages' in e.payload.data) {
+          e.payload.data.deleted_messages.map(msgRoom => {
+            self.emit('comment-deleted', {roomId: msgRoom.room_id, commentUniqueIds: msgRoom.message_unique_ids, isForEveryone: true, isHard: parsedMessage.payload.data.is_hard_delete});
+          })
+        } else if('deleted_rooms' in e.payload.data) {
+          // get id of all rooms available
+          e.payload.data.deleted_rooms.forEach(room => {
+            self.emit('room-cleared', room);
+          });
+        }
+      })
     })
   }
 
