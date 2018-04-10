@@ -518,8 +518,10 @@ class QiscusSDK extends EventEmitter {
     this.isTypingStatus = null;
     this.selected = room;
     // we need to subscribe to new room typing event now
-    this.realtimeAdapter.subscribeTyping(room.id);
-    this.emit("room-changed", this.selected);
+    if (!this.selected.isChannel) {
+      this.realtimeAdapter.subscribeTyping(room.id);
+      this.emit('room-changed', this.selected);
+    }
   }
 
   /**
@@ -587,16 +589,14 @@ class QiscusSDK extends EventEmitter {
           .sendComment(topicId, message)
           .then()
           .catch(err => {
-            console.error("Error when submit comment", err);
-          });
-        return Promise.resolve(room);
-      },
-      err => {
-        console.error("Error when creating room", err);
-        self.isLoading = false;
-        return Promise.reject(err);
-      }
-    );
+            console.error('Error when submit comment', err)
+          })
+        return Promise.resolve(room)
+      }, (err) => {
+        console.error('Error when creating room', err)
+        self.isLoading = false
+        return Promise.reject(err)
+      })
   }
 
   /**
@@ -673,38 +673,29 @@ class QiscusSDK extends EventEmitter {
     const self = this;
     self.isLoading = true;
     self.isTypingStatus = "";
-    return self.roomAdapter
-      .getOrCreateRoomByUniqueId(id, room_name, avatar_url)
-      .then(
-        response => {
-          // make sure the room hasn't been pushed yet
-          let room;
-          let roomToFind = self.rooms.find(room => {
-            id: id;
-          });
-          if (!roomToFind) {
-            room = new Room(response);
-            self.room_name_id_map[room.name] = room.id;
-            self.rooms.push(room);
-          } else {
-            room = roomToFind;
-          }
-          self.last_received_comment_id =
-            self.last_received_comment_id < room.last_comment_id
-              ? room.last_comment_id
-              : self.last_received_comment_id;
-          self.setActiveRoom(room);
-          self.isLoading = false;
-          const last_comment = room.comments[room.comments.length - 1];
-          if (last_comment) self.readComment(room.id, last_comment.id);
-          return Promise.resolve(room);
-          // self.emit('group-room-created', self.selected)
-        },
-        error => {
-          // console.error('Error getting room by id', error)
-          return Promise.reject(error);
+    return self.roomAdapter.getOrCreateRoomByUniqueId(id, room_name, avatar_url)
+      .then((response) => {
+        // make sure the room hasn't been pushed yet
+        let room
+        let roomToFind = self.rooms.find(room => { id: id});
+        if (!roomToFind) {
+          room = new Room(response)
+          self.room_name_id_map[room.name] = room.id
+          self.rooms.push(room)
+        } else {
+          room = roomToFind
         }
-      );
+        self.last_received_comment_id = (self.last_received_comment_id < room.last_comment_id) ? room.last_comment_id : self.last_received_comment_id
+        self.setActiveRoom(room)
+        self.isLoading = false
+        const last_comment = room.comments[room.comments.length-1];
+        if (last_comment) self.readComment(room.id, last_comment.id);
+        return Promise.resolve(room);
+        // self.emit('group-room-created', self.selected)
+      }, (error) => {
+        // console.error('Error getting room by id', error)
+        return Promise.reject(error);
+      })
   }
 
   getOrCreateRoomByChannel(channel, name, avatar_url) {
@@ -834,17 +825,13 @@ class QiscusSDK extends EventEmitter {
     if (type == "reply") {
       // change payload for pendingComment
       // get the comment for current replied id
-      var parsedPayload = JSON.parse(payload);
-      var replied_message = self.selected.comments.find(
-        cmt => cmt.id == parsedPayload.replied_comment_id
-      );
+      var parsedPayload = JSON.parse(payload)
+      var replied_message = self.selected.comments.find(cmt => cmt.id == parsedPayload.replied_comment_id)
       parsedPayload.replied_comment_message =
-        replied_message.type == "reply"
-          ? replied_message.payload.text
-          : replied_message.message;
-      parsedPayload.replied_comment_sender_username =
-        replied_message.username_as;
-      pendingComment.payload = parsedPayload;
+        (replied_message.type == 'reply') ? replied_message.payload.text
+                                          : replied_message.message;
+      parsedPayload.replied_comment_sender_username = replied_message.username_as
+      pendingComment.payload = parsedPayload
     }
     self.selected.comments.push(pendingComment);
 
