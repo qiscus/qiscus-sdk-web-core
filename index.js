@@ -510,6 +510,7 @@ class QiscusSDK extends EventEmitter {
           );
       }
     }
+    if (room.participants == null) room.participants = []
     const targetUserId = room.participants.filter(p => p.email != this.user_id);
     if (room.room_type === "single" && targetUserId.length > 0)
       this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
