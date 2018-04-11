@@ -201,7 +201,7 @@ class QiscusSDK extends EventEmitter {
         );
         const pendingComment = new Comment(comment);
         // set comment metadata (read or delivered) based on current selected room
-        const isRoomSelected = room.isCurrentlySelected(self.selected);
+        const isRoomSelected = !self.selected ? false : room.isCurrentlySelected(self.selected);
 
         // fetch the comment inside the room
         room.receiveComment(pendingComment);
@@ -716,7 +716,7 @@ class QiscusSDK extends EventEmitter {
    * @memberof QiscusSDK
    */
   sortComments() {
-    this.selected.comments.sort(function(leftSideComment, rightSideComment) {
+    this.selected && this.selected.comments.sort(function(leftSideComment, rightSideComment) {
       return leftSideComment.id - rightSideComment.id;
     });
   }
