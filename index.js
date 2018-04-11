@@ -102,33 +102,33 @@ class QiscusSDK extends EventEmitter {
 
   readComment(roomId, commentId) {
     const self = this;
-    if (!self.selected || self.selected.id != roomId) return false;
-    self.userAdapter.updateCommentStatus(roomId, commentId, null).then(
-      res => {
-        // ambil semua yang belum di read selain komen ini, kemudian mark as read
-        self.sortComments();
-      },
-      err => console.log("Fail update read status", err)
-    );
+    const isSelected = self.selected || self.selected.id !== roomId;
+    const isChannel = self.selected.isChannel;
+    if(!isSelected || isChannel) return false;
+    self.userAdapter.updateCommentStatus(roomId, commentId, null)
+    .then( res => {
+      // ambil semua yang belum di read selain komen ini, kemudian mark as read
+      self.sortComments()
+    })
   }
 
   receiveComment(roomId, commentId) {
     const self = this;
-    if (!self.selected) return false;
-    self.userAdapter.updateCommentStatus(roomId, null, commentId).then(
-      res => {
-        // get this room
-        // const roomToFind = self.rooms.find(room => room.id == roomId);
-        // if (roomToFind) {
-        //   roomToFind.comments
-        //     .filter(comment => comment.isSent == true && comment.isDelivered == false)
-        //     .map(comment => comment.markAsDelivered())
-        // }
-        // self.emit('comment-delivered', {roomId, commentId});
-        self.sortComments();
-      },
-      err => console.log("Fail receiving comment", err)
-    );
+    const isSelected = self.selected != null;
+    const isChannel = self.selected.isChannel;
+    if(!isSelected || isChannel) return false;
+    self.userAdapter.updateCommentStatus(roomId, null, commentId)
+    .then( res => {
+      // get this room
+      // const roomToFind = self.rooms.find(room => room.id == roomId);
+      // if (roomToFind) {
+      //   roomToFind.comments
+      //     .filter(comment => comment.isSent == true && comment.isDelivered == false)
+      //     .map(comment => comment.markAsDelivered())
+      // }
+      // self.emit('comment-delivered', {roomId, commentId});
+      self.sortComments()
+    })
   }
 
   setEventListeners() {
