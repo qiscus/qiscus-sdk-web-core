@@ -36,7 +36,7 @@ class QiscusSDK extends EventEmitter {
     // SDK Configuration
     this.AppId = null;
     this.baseURL = null;
-    this.mqttURL = "wss://mqtt.qisc.us:1900/mqtt";
+    this.mqttURL = "wss://mqtt.qiscus.com:1886/mqtt";
     this.HTTPAdapter = null;
     this.realtimeAdapter = null;
     this.isInit = false;
@@ -189,9 +189,14 @@ class QiscusSDK extends EventEmitter {
           const commentBeforeThis = room.comments.find(
             cmt => cmt.id == comment.comment_before_id
           );
-          if (!commentBeforeThis) {
-            self.synchronize(roomLastCommentId);
-            self.synchronizeEvent(roomLastCommentId);
+          if (!commentBeforeThis && comment.room_id == self.selected.id) {
+            this.logging("comment before id not found! ", comment.comment_before_id);
+
+            // need to fix, these method does not work
+            // self.synchronize(roomLastCommentId);
+            // self.synchronizeEvent(roomLastCommentId);
+
+            this.chatGroup(comment.room_id);
           }
         }
 
@@ -545,6 +550,8 @@ class QiscusSDK extends EventEmitter {
     // We need to get room id 1st, based on room_name_id_map
     const roomId = self.room_name_id_map[userId] || null;
     let room = self.rooms.find(r => r.id == roomId);
+
+    // for now, lets user always reload since message unreliabilit
     if (room) {
       // => Room is Found, just use this, no need to reload
       room.last_comment_id =
@@ -562,7 +569,21 @@ class QiscusSDK extends EventEmitter {
       // id of last comment on this room
       const last_comment = room.comments[room.comments.length - 1];
       if (last_comment) self.readComment(room.id, last_comment.id);
-      return Promise.resolve(room);
+
+      return this.roomAdapter.getOrCreateRoom(userId, options, distinctId).then(
+      response => {
+        const loaded_room = new Room(response);
+        room.comments = loaded_room.comments;
+        room.participants = loaded_room.participants;
+        room.options = loaded_room.options;
+
+        return Promise.resolve(room)
+      }, (err) => {
+        console.error('Error when creating room', err)
+        self.isLoading = false
+        return Promise.reject(err)
+      })
+
     }
 
     // Create room
@@ -631,19 +652,22 @@ class QiscusSDK extends EventEmitter {
         // make sure the room hasn't been pushed yet
         let room;
         let roomToFind = self.rooms.find(r => r.id == id);
+        let roomData = response.results.room;
+        roomData.name = roomData.room_name;
+        roomData.comments = response.results.comments.reverse();
+        room = new Room(roomData);
+
         if (!roomToFind) {
-          let roomData = response.results.room;
-          roomData.name = roomData.room_name;
-          roomData.comments = response.results.comments.reverse();
-          room = new Room(roomData);
           self.room_name_id_map[room.name] = room.id;
           self.rooms.push(room);
         } else {
           if (roomToFind.comments.length > 0)
             roomToFind.last_comment_id =
               roomToFind.comments[roomToFind.comments.length - 1].id;
+          roomToFind.comments = room.comments;
           room = roomToFind;
         }
+
         self.last_received_comment_id =
           self.last_received_comment_id < room.last_comment_id
             ? room.last_comment_id
@@ -813,7 +837,7 @@ class QiscusSDK extends EventEmitter {
       username_as: this.username,
       username_real: this.user_id,
       user_avatar_url: this.userData.avatar_url,
-      id: self.pendingCommentId,
+      id: parseInt(Math.random() * 100000000),
       type: type || "text",
       timestamp: format(new Date()),
       unique_id: uniqueId
@@ -852,6 +876,20 @@ class QiscusSDK extends EventEmitter {
           pendingComment.markAsSent();
           pendingComment.id = res.id;
           pendingComment.before_id = res.comment_before_id;
+
+          const commentBeforeThis = self.selected.comments.find(
+            cmt => cmt.id == res.comment_before_id
+          );
+          if (!commentBeforeThis && res.room_id == self.selected.id) {
+            this.logging("comment before id not found! ", res.comment_before_id);
+
+            // need to fix, these method does not work
+            // self.synchronize(roomLastCommentId);
+            // self.synchronizeEvent(roomLastCommentId);
+
+            this.chatGroup(res.room_id);
+          }
+
           return new Promise((resolve, reject) => resolve(res));
         },
         err => {
