@@ -115,7 +115,7 @@ class QiscusSDK extends EventEmitter {
   receiveComment(roomId, commentId) {
     const self = this;
     const isSelected = self.selected != null;
-    const isChannel = self.selected.isChannel;
+    const isChannel = (self.selected) ? self.selected.isChannel : false;
     if(!isSelected || isChannel) return false;
     self.userAdapter.updateCommentStatus(roomId, null, commentId)
     .then( res => {
