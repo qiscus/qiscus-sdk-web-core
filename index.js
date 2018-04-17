@@ -36,7 +36,7 @@ class QiscusSDK extends EventEmitter {
     // SDK Configuration
     this.AppId = null;
     this.baseURL = null;
-    this.mqttURL = "wss://mqtt.qiscus.com:1886/mqtt";
+    this.mqttURL = "wss://mqtt.qisc.us:1900/mqtt";
     this.HTTPAdapter = null;
     this.realtimeAdapter = null;
     this.isInit = false;
