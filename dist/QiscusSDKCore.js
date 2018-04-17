@@ -22878,7 +22878,6 @@ var QiscusSDK = function (_EventEmitter) {
       // set AppID
       if (!config.AppId) throw new Error("Please provide valid AppId");
       this.AppId = config.AppId;
-      this.baseURL = "https://" + config.AppId + ".qiscus.com";
 
       if (config.baseURL) this.baseURL = config.baseURL;
       if (config.mqttURL) this.mqttURL = config.mqttURL;
@@ -23204,7 +23203,7 @@ var QiscusSDK = function (_EventEmitter) {
       // return resp
       return new Promise(function (resolve, reject) {
         var req = _superagent2.default.post(_this5.baseURL + "/api/v2/sdk/login_or_register");
-        req.send(body).set("Content-Type", "application/x-www-form-urlencoded").end(function (err, res) {
+        req.send(body).set("Content-Type", "application/x-www-form-urlencoded").set("qiscus_sdk_app_id", "" + _this5.AppId).end(function (err, res) {
           if (err) return resolve(res);
           return resolve(res.body);
         });

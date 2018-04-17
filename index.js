@@ -78,7 +78,6 @@ class QiscusSDK extends EventEmitter {
     // set AppID
     if (!config.AppId) throw new Error("Please provide valid AppId");
     this.AppId = config.AppId;
-    this.baseURL = `https://${config.AppId}.qiscus.com`;
 
     if (config.baseURL) this.baseURL = config.baseURL;
     if (config.mqttURL) this.mqttURL = config.mqttURL;
@@ -416,6 +415,7 @@ class QiscusSDK extends EventEmitter {
       req
         .send(body)
         .set("Content-Type", "application/x-www-form-urlencoded")
+        .set("qiscus_sdk_app_id", `${this.AppId}`)
         .end((err, res) => {
           if (err) return resolve(res);
           return resolve(res.body);
