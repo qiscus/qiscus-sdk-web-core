@@ -22789,6 +22789,10 @@ var _MqttCallback2 = _interopRequireDefault(_MqttCallback);
 
 var _utils = __webpack_require__(152);
 
+var _package = __webpack_require__(454);
+
+var _package2 = _interopRequireDefault(_package);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
@@ -22826,6 +22830,7 @@ var QiscusSDK = function (_EventEmitter) {
     _this.pendingCommentId = 0;
     _this.uploadedFiles = [];
     _this.chatmateStatus = null;
+    _this.version = "WEB_" + _package2.default.version;
 
     _this.userData = {};
     // SDK Configuration
@@ -23029,7 +23034,7 @@ var QiscusSDK = function (_EventEmitter) {
 
         // now that we have the token, etc, we need to set all our adapters
         // /////////////// API CLIENT /////////////////
-        self.HTTPAdapter = new _http2.default(self.baseURL, self.AppId, self.user_id);
+        self.HTTPAdapter = new _http2.default(self.baseURL, self.AppId, self.user_id, self.version);
         self.HTTPAdapter.setToken(self.userData.token);
 
         // ////////////// CORE BUSINESS LOGIC ////////////////////////
@@ -23203,7 +23208,7 @@ var QiscusSDK = function (_EventEmitter) {
       // return resp
       return new Promise(function (resolve, reject) {
         var req = _superagent2.default.post(_this5.baseURL + "/api/v2/sdk/login_or_register");
-        req.send(body).set("Content-Type", "application/x-www-form-urlencoded").set("qiscus_sdk_app_id", "" + _this5.AppId).end(function (err, res) {
+        req.send(body).set("Content-Type", "application/x-www-form-urlencoded").set("qiscus_sdk_app_id", "" + _this5.AppId).set("qiscus_sdk_version", "" + _this5.version).end(function (err, res) {
           if (err) return resolve(res);
           return resolve(res.body);
         });
@@ -23653,7 +23658,7 @@ var QiscusSDK = function (_EventEmitter) {
     value: function getNonce() {
       // request.set('qiscus_sdk_user_id', `${this.userId}`);
       // request.set('qiscus_sdk_to', `${this.token}`);
-      return _superagent2.default.post(this.baseURL + "/api/v2/sdk/auth/nonce").send().set("qiscus_sdk_app_id", "" + this.AppId).then(function (res) {
+      return _superagent2.default.post(this.baseURL + "/api/v2/sdk/auth/nonce").send().set("qiscus_sdk_app_id", "" + this.AppId).set("qiscus_sdk_version", "" + this.version).then(function (res) {
         return Promise.resolve(res.body.results);
       }, function (err) {
         return Promise.reject(err);
@@ -23662,7 +23667,7 @@ var QiscusSDK = function (_EventEmitter) {
   }, {
     key: "verifyIdentityToken",
     value: function verifyIdentityToken(identity_token) {
-      return _superagent2.default.post(this.baseURL + "/api/v2/sdk/auth/verify_identity_token").send({ identity_token: identity_token }).set("qiscus_sdk_app_id", "" + this.AppId).then(function (res) {
+      return _superagent2.default.post(this.baseURL + "/api/v2/sdk/auth/verify_identity_token").send({ identity_token: identity_token }).set("qiscus_sdk_app_id", "" + this.AppId).set("qiscus_sdk_version", "" + this.version).then(function (res) {
         return Promise.resolve(res.body.results);
       }, function (err) {
         return Promise.reject(err);
@@ -23855,6 +23860,7 @@ var QiscusSDK = function (_EventEmitter) {
       xhr.setRequestHeader("qiscus_sdk_app_id", "" + self.AppId);
       xhr.setRequestHeader("qiscus_sdk_user_id", "" + self.user_id);
       xhr.setRequestHeader("qiscus_sdk_token", "" + self.userData.token);
+      xhr.setRequestHeader("qiscus_sdk_version", "" + self.version);
       xhr.onload = function () {
         if (xhr.status === 200) {
           // file(s) uploaded), let's post to comment
@@ -26288,13 +26294,14 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var HttpAdapter = function () {
-  function HttpAdapter(baseURL, AppId, userId) {
+  function HttpAdapter(baseURL, AppId, userId, version) {
     _classCallCheck(this, HttpAdapter);
 
     this.baseURL = baseURL;
     this.token = null;
     this.userId = userId;
     this.AppId = AppId;
+    this.version = version;
   }
 
   _createClass(HttpAdapter, [{
@@ -26395,6 +26402,7 @@ var HttpAdapter = function () {
       req.set('QISCUS_SDK_APP_ID', '' + this.AppId);
       req.set('QISCUS_SDK_USER_ID', '' + this.userId);
       req.set('QISCUS_SDK_TOKEN', '' + this.token);
+      req.set('QISCUS_SDK_VERSION', '' + this.version);
       // Return the req if no headers attached
       if (Object.keys(headers).length < 1) return req;
       // now let's process custom header
@@ -31859,6 +31867,12 @@ exports.default = {
   },
   delivered: function delivered(topic, message) {}
 };
+
+/***/ }),
+/* 454 */
+/***/ (function(module, exports) {
+
+module.exports = {"name":"qiscus-sdk-core","version":"2.6.3","description":"Qiscus Web SDK Core","license":"MIT","main":"dist/QiscusSDKCore.min.js","scripts":{"build":"cross-env WEBPACK_ENV=build webpack","dev":"cross-env WEBPACK_ENV=dev webpack --progress --colors --watch","test":"mocha --compilers js:babel-core/register --colors -w test/test*.js"},"devDependencies":{"babel-core":"^6.26.0","babel-eslint":"^8.0.0","babel-loader":"^7.1.2","babel-minify-webpack-plugin":"^0.2.0","babel-plugin-date-fns":"^0.1.0","babel-polyfill":"^6.26.0","babel-preset-env":"^1.6.0","babel-preset-es2015":"^6.24.1","chai":"^4.1.2","cross-env":"^5.1.4","esdoc":"^1.0.2","esdoc-standard-plugin":"^1.0.0","eslint":"^4.7.0","eslint-loader":"^1.9.0","mocha":"^3.5.3","webpack":"^3.6.0","webpack-bundle-analyzer":"^2.10.1"},"dependencies":{"date-fns":"^1.28.5","mqtt":"2.15.3","r2":"^2.0.0","superagent":"^3.6.3"}}
 
 /***/ })
 /******/ ]);
