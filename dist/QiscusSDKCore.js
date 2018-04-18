@@ -23155,6 +23155,13 @@ var QiscusSDK = function (_EventEmitter) {
       self.on("typing", function (data) {
         if (self.options.typingCallback) self.options.typingCallback(data);
       });
+
+      /**
+       * Called when user clicked on Message Info
+       */
+      self.on("message-info", function (response) {
+        if (self.options.messageInfoCallback) self.options.messageInfoCallback(response);
+      });
     }
   }, {
     key: "_callNewMessagesCallback",
