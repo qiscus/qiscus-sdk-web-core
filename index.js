@@ -210,6 +210,8 @@ class QiscusSDK extends EventEmitter {
 
         // fetch the comment inside the room
         room.receiveComment(pendingComment);
+        room.last_comment_id = pendingComment.id;
+        room.last_comment_message = pendingComment.message;
         // update comment status
         // get last comment and update room status for it
         if (!isAlreadyRead && self.user_id != comment.email) {
