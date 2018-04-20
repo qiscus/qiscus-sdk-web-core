@@ -735,7 +735,7 @@ class QiscusSDK extends EventEmitter {
    */
   sortComments() {
     this.selected && this.selected.comments.sort(function(leftSideComment, rightSideComment) {
-      return leftSideComment.id - rightSideComment.id;
+      return leftSideComment.unix_timestamp - rightSideComment.unix_timestamp;
     });
   }
 
