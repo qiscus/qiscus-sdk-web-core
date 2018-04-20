@@ -955,6 +955,7 @@ class QiscusSDK extends EventEmitter {
     commentToBeSubmitted.isDelivered = false;
     commentToBeSubmitted.isSent = false;
     commentToBeSubmitted.isRead = false;
+    commentToBeSubmitted.unix_timestamp = Math.round((new Date()).getTime() / 1000);
     return commentToBeSubmitted;
   }
 
