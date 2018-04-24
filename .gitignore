@@ -2,4 +2,3 @@ node_modules
 .vscode
 docs
 yarn-error.log
-dist
