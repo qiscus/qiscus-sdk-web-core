@@ -210,6 +210,8 @@ class QiscusSDK extends EventEmitter {
 
         // fetch the comment inside the room
         room.receiveComment(pendingComment);
+        room.last_comment_id = pendingComment.id;
+        room.last_comment_message = pendingComment.message;
         // update comment status
         // get last comment and update room status for it
         if (!isAlreadyRead && self.user_id != comment.email) {
@@ -733,7 +735,7 @@ class QiscusSDK extends EventEmitter {
    */
   sortComments() {
     this.selected && this.selected.comments.sort(function(leftSideComment, rightSideComment) {
-      return leftSideComment.id - rightSideComment.id;
+      return leftSideComment.unix_timestamp - rightSideComment.unix_timestamp;
     });
   }
 
@@ -953,6 +955,7 @@ class QiscusSDK extends EventEmitter {
     commentToBeSubmitted.isDelivered = false;
     commentToBeSubmitted.isSent = false;
     commentToBeSubmitted.isRead = false;
+    commentToBeSubmitted.unix_timestamp = Math.round((new Date()).getTime() / 1000);
     return commentToBeSubmitted;
   }
 
