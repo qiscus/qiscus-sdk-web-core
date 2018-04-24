@@ -1,8 +1,4 @@
 {
-  "ecmaFeatures": {
-    "globalReturn": true,
-    "modules": true
-  },
   "env": {
     "browser": true,
     "es6": true,
@@ -23,6 +19,5 @@
   "parser": "babel-eslint",
   "plugins": [],
   "rules": {
-    // ... lots of lots of rules here
   }
 }

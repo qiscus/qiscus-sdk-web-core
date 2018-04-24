@@ -818,6 +818,7 @@ class QiscusSDK extends EventEmitter {
    * @param {String} commentMessage - comment to be submitted
    * @return {Promise}
    */
+  // #region
   sendComment(
     topicId,
     commentMessage,
@@ -898,6 +899,7 @@ class QiscusSDK extends EventEmitter {
         }
       );
   }
+  // #endregion
 
   resendComment(comment) {
     var self = this;
@@ -1097,6 +1099,12 @@ class QiscusSDK extends EventEmitter {
     if (this.debugMode) {
       console.log(message, params);
     }
+  }
+
+  getTotalUnreadCount() {
+    const token = this.HTTPAdapter.token;
+    return this.HTTPAdapter.get(`api/v2/sdk/total_unread_count?token=${token}`)
+      .then((resp) => resp.body.results.total_unread_count);
   }
 }
 

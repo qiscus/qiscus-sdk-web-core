@@ -10,10 +10,10 @@ const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPl
 if (env === 'build') {
   // plugins.push(new UglifyJsPlugin({ minimize: true }));
   plugins.push(new MinifyPlugin({}, {comments: false}));
-  plugins.push(new BundleAnalyzerPlugin());
+  // plugins.push(new BundleAnalyzerPlugin());
   outputFile = libraryName + '.min.js';
 } else {
-  plugins.push(new BundleAnalyzerPlugin());
+  // plugins.push(new BundleAnalyzerPlugin());
   outputFile = libraryName + '.js';
 };
 
