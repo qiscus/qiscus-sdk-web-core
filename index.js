@@ -714,6 +714,7 @@ class QiscusSDK extends EventEmitter {
         self.isLoading = false
         const last_comment = room.comments[room.comments.length-1];
         if (last_comment) self.readComment(room.id, last_comment.id);
+        this.realtimeAdapter.subscribeChannel(this.AppId, room.unique_id);
         return Promise.resolve(room);
         // self.emit('group-room-created', self.selected)
       }, (error) => {
