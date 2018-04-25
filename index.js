@@ -10,6 +10,7 @@ import RoomAdapter from "./lib/adapters/room";
 import MqttAdapter from "./lib/adapters/MqttAdapter";
 import MqttCallback from "./lib/adapters/MqttCallback";
 import { GroupChatBuilder, scrollToBottom } from "./lib/utils";
+import Package from './package.json';
 
 /**
  * Qiscus Web SDK Core Class
@@ -31,11 +32,12 @@ class QiscusSDK extends EventEmitter {
     this.pendingCommentId = 0;
     this.uploadedFiles = [];
     this.chatmateStatus = null;
+    this.version = `WEB_${Package.version}`;
 
     this.userData = {};
     // SDK Configuration
     this.AppId = null;
-    this.baseURL = null;
+    this.baseURL = "https://api.qiscus.com";
     this.mqttURL = "wss://mqtt.qisc.us:1900/mqtt";
     this.HTTPAdapter = null;
     this.realtimeAdapter = null;
@@ -78,7 +80,6 @@ class QiscusSDK extends EventEmitter {
     // set AppID
     if (!config.AppId) throw new Error("Please provide valid AppId");
     this.AppId = config.AppId;
-    this.baseURL = `https://${config.AppId}.qiscus.com`;
 
     if (config.baseURL) this.baseURL = config.baseURL;
     if (config.mqttURL) this.mqttURL = config.mqttURL;
@@ -240,7 +241,8 @@ class QiscusSDK extends EventEmitter {
       self.HTTPAdapter = new HttpAdapter(
         self.baseURL,
         self.AppId,
-        self.user_id
+        self.user_id,
+        self.version
       );
       self.HTTPAdapter.setToken(self.userData.token);
 
@@ -370,6 +372,14 @@ class QiscusSDK extends EventEmitter {
     self.on("typing", function(data) {
       if (self.options.typingCallback) self.options.typingCallback(data);
     });
+
+    /**
+     * Called when user clicked on Message Info
+     */
+    self.on("message-info", function(response) {
+      if (self.options.messageInfoCallback)
+        self.options.messageInfoCallback(response);
+    });
   }
 
   _callNewMessagesCallback(comments) {
@@ -418,6 +428,8 @@ class QiscusSDK extends EventEmitter {
       req
         .send(body)
         .set("Content-Type", "application/x-www-form-urlencoded")
+        .set("qiscus_sdk_app_id", `${this.AppId}`)
+        .set("qiscus_sdk_version", `${this.version}`)
         .end((err, res) => {
           if (err) return resolve(res);
           return resolve(res.body);
@@ -794,6 +806,7 @@ class QiscusSDK extends EventEmitter {
       .post(`${this.baseURL}/api/v2/sdk/auth/nonce`)
       .send()
       .set("qiscus_sdk_app_id", `${this.AppId}`)
+      .set("qiscus_sdk_version", `${this.version}`)
       .then(
         res => Promise.resolve(res.body.results),
         err => Promise.reject(err)
@@ -805,6 +818,7 @@ class QiscusSDK extends EventEmitter {
       .post(`${this.baseURL}/api/v2/sdk/auth/verify_identity_token`)
       .send({ identity_token })
       .set("qiscus_sdk_app_id", `${this.AppId}`)
+      .set("qiscus_sdk_version", `${this.version}`)
       .then(
         res => Promise.resolve(res.body.results),
         err => Promise.reject(err)
@@ -1008,6 +1022,7 @@ class QiscusSDK extends EventEmitter {
     xhr.setRequestHeader("qiscus_sdk_app_id", `${self.AppId}`);
     xhr.setRequestHeader("qiscus_sdk_user_id", `${self.user_id}`);
     xhr.setRequestHeader("qiscus_sdk_token", `${self.userData.token}`);
+    xhr.setRequestHeader("qiscus_sdk_version", `${self.version}`);
     xhr.onload = function() {
       if (xhr.status === 200) {
         // file(s) uploaded), let's post to comment
