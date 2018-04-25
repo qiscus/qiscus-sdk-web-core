@@ -716,6 +716,7 @@ class QiscusSDK extends EventEmitter {
         self.isLoading = false
         const last_comment = room.comments[room.comments.length-1];
         if (last_comment) self.readComment(room.id, last_comment.id);
+        this.realtimeAdapter.subscribeChannel(this.AppId, room.unique_id);
         return Promise.resolve(room);
         // self.emit('group-room-created', self.selected)
       }, (error) => {
@@ -820,6 +821,7 @@ class QiscusSDK extends EventEmitter {
    * @param {String} commentMessage - comment to be submitted
    * @return {Promise}
    */
+  // #region
   sendComment(
     topicId,
     commentMessage,
@@ -900,6 +902,7 @@ class QiscusSDK extends EventEmitter {
         }
       );
   }
+  // #endregion
 
   resendComment(comment) {
     var self = this;
@@ -1100,6 +1103,12 @@ class QiscusSDK extends EventEmitter {
     if (this.debugMode) {
       console.log(message, params);
     }
+  }
+
+  getTotalUnreadCount() {
+    const token = this.HTTPAdapter.token;
+    return this.HTTPAdapter.get(`api/v2/sdk/total_unread_count?token=${token}`)
+      .then((resp) => resp.body.results.total_unread_count);
   }
 }
 

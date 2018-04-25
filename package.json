@@ -1,6 +1,10 @@
 {
   "name": "qiscus-sdk-core",
+<<<<<<< HEAD
   "version": "2.6.4",
+=======
+  "version": "2.6.5",
+>>>>>>> afief-pr
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
   "main": "dist/QiscusSDKCore.min.js",
