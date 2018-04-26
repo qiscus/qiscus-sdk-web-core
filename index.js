@@ -135,12 +135,12 @@ class QiscusSDK extends EventEmitter {
   setEventListeners() {
     const self = this;
     self.on("start-init", function(response) {
-      self.HTTPAdapter = new HttpAdapter(
-        self.baseURL,
-        self.AppId,
-        self.user_id,
-        self.version
-      );
+      self.HTTPAdapter = new HttpAdapter({
+        baseURL: self.baseURL,
+        AppId: self.AppId,
+        userId: self.user_id,
+        version: self.version
+      });
       self.HTTPAdapter.setToken(self.userData.token);
       self.authAdapter = new AuthAdapter(self.HTTPAdapter);
     });
@@ -249,12 +249,12 @@ class QiscusSDK extends EventEmitter {
 
       // now that we have the token, etc, we need to set all our adapters
       // /////////////// API CLIENT /////////////////
-      self.HTTPAdapter = new HttpAdapter(
-        self.baseURL,
-        self.AppId,
-        self.user_id,
-        self.version
-      );
+      self.HTTPAdapter = new HttpAdapter({
+        baseURL: self.baseURL,
+        AppId: self.AppId,
+        userId: self.user_id,
+        version: self.version
+      });
       self.HTTPAdapter.setToken(self.userData.token);
 
       // ////////////// CORE BUSINESS LOGIC ////////////////////////
@@ -974,6 +974,23 @@ class QiscusSDK extends EventEmitter {
   updateRoom(args) {
     return this.roomAdapter.updateRoom(args);
   }
+
+  removeSelectedRoomParticipants(values = [], payload = 'id') {
+    if (!values) return Promise.reject({ message: 'Please gives an array values.' });
+    const participants = this.selected.participants;
+    if (!participants) return Promise.reject({ message: 'Nothing selected room chat.' });
+    // start to changes selected participants with newest values
+    let participantsExclude = participants;
+    if (payload === 'id')
+      participantsExclude = participants.filter(participant => values.indexOf(participant.id) <= -1);
+    if (payload === 'email')
+      participantsExclude = participants.filter(participant => values.indexOf(participant.email) <= -1);
+    if (payload === 'username')
+      participantsExclude = participants.filter(participant => values.indexOf(participant.username) <= -1);
+    this.selected.participants = participantsExclude;
+    return Promise.resolve(participants);
+  }
+
   /**
    * Create group chat room
    * @param {string} name - Chat room name
