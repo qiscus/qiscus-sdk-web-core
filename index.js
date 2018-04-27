@@ -228,7 +228,7 @@ class QiscusSDK extends EventEmitter {
      * This event will be called when login is sucess
      * Basically, it sets up necessary properties for qiscusSDK
      */
-    self.on("login-success", function(response) {
+    self.on("login-success", (response) => {
       this.logging("login-success", response);
 
       const mqttURL = self.mqttURL;
@@ -251,6 +251,7 @@ class QiscusSDK extends EventEmitter {
       self.roomAdapter = new RoomAdapter(self.HTTPAdapter);
       self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self);
       self.realtimeAdapter.subscribeUserChannel();
+      self.realtimeAdapter.mqtt.on('connect', () => this.onReconnectMqtt());
       window.setInterval(
         () => this.realtimeAdapter.publishPresence(this.user_id),
         3500
@@ -380,6 +381,13 @@ class QiscusSDK extends EventEmitter {
       if (self.options.messageInfoCallback)
         self.options.messageInfoCallback(response);
     });
+  }
+
+  onReconnectMqtt() {
+    console.log('on reconnected');
+    if (!this.selected) return;
+    if (this.options.onReconnectCallback) this.options.onReconnectedCallback();
+    this.loadComments(this.selected.id);
   }
 
   _callNewMessagesCallback(comments) {
