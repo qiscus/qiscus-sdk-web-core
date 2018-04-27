@@ -384,7 +384,6 @@ class QiscusSDK extends EventEmitter {
   }
 
   onReconnectMqtt() {
-    console.log('on reconnected');
     if (!this.selected) return;
     if (this.options.onReconnectCallback) this.options.onReconnectedCallback();
     this.loadComments(this.selected.id);
