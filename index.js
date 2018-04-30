@@ -1,10 +1,10 @@
-import request from "superagent";
 import { EventEmitter } from "events";
 import format from "date-fns/format";
 import distanceInWordsToNow from "date-fns/distance_in_words_to_now";
 import Comment from "./lib/Comment";
 import Room from "./lib/Room";
 import HttpAdapter from "./lib/adapters/http";
+import AuthAdapter from "./lib/adapters/auth";
 import UserAdapter from "./lib/adapters/user";
 import RoomAdapter from "./lib/adapters/room";
 import MqttAdapter from "./lib/adapters/MqttAdapter";
@@ -134,6 +134,17 @@ class QiscusSDK extends EventEmitter {
 
   setEventListeners() {
     const self = this;
+    self.on("start-init", function(response) {
+      self.HTTPAdapter = new HttpAdapter({
+        baseURL: self.baseURL,
+        AppId: self.AppId,
+        userId: self.user_id,
+        version: self.version
+      });
+      self.HTTPAdapter.setToken(self.userData.token);
+      self.authAdapter = new AuthAdapter(self.HTTPAdapter);
+    });
+
     self.on("room-changed", function(room) {
       this.logging("room changed", room);
       if (self.options.roomChangedCallback)
@@ -233,17 +244,17 @@ class QiscusSDK extends EventEmitter {
 
       const mqttURL = self.mqttURL;
       self.isLogin = true;
-      self.userData = response.results.user;
+      self.userData = response.user;
       self.last_received_comment_id = self.userData.last_comment_id;
 
       // now that we have the token, etc, we need to set all our adapters
       // /////////////// API CLIENT /////////////////
-      self.HTTPAdapter = new HttpAdapter(
-        self.baseURL,
-        self.AppId,
-        self.user_id,
-        self.version
-      );
+      self.HTTPAdapter = new HttpAdapter({
+        baseURL: self.baseURL,
+        AppId: self.AppId,
+        userId: self.user_id,
+        version: self.version
+      });
       self.HTTPAdapter.setToken(self.userData.token);
 
       // ////////////// CORE BUSINESS LOGIC ////////////////////////
@@ -407,41 +418,28 @@ class QiscusSDK extends EventEmitter {
    * @return {void}
    */
   setUser(userId, key, username, avatarURL) {
-    this.user_id = userId;
-    this.key = key;
-    this.username = username;
-    this.avatar_url = avatarURL;
+    const self = this;
+    self.emit("start-init");
 
-    // Connect to Login or Register API
-    this.connectToQiscus().then(response => {
-      if (response.status != 200)
-        return this.emit("login-error", response.text);
-      this.isInit = true;
-      this.emit("login-success", response);
-    });
-  }
+    self.user_id = userId;
+    self.key = key;
+    self.username = username;
+    self.avatar_url = avatarURL;
 
-  connectToQiscus() {
-    let body = {
+    let params = {
       email: this.user_id,
       password: this.key,
       username: this.username
     };
-    if (this.avatar_url) body.avatar_url = this.avatar_url;
-    // let resp = await r2.post(`${this.baseURL}/api/v2/sdk/login_or_register`, {json: obj}).json
-    // return resp
-    return new Promise((resolve, reject) => {
-      let req = request.post(`${this.baseURL}/api/v2/sdk/login_or_register`);
-      req
-        .send(body)
-        .set("Content-Type", "application/x-www-form-urlencoded")
-        .set("qiscus_sdk_app_id", `${this.AppId}`)
-        .set("qiscus_sdk_version", `${this.version}`)
-        .end((err, res) => {
-          if (err) return resolve(res);
-          return resolve(res.body);
-        });
-    });
+    if (this.avatar_url) params.avatar_url = this.avatar_url;
+
+    return self.authAdapter.loginOrRegister(params)
+      .then((response) => {
+        self.isInit = true;
+        self.emit("login-success", response);
+      }, (error) => {
+        return self.emit("login-error", error);
+      });
   }
 
   setUserWithIdentityToken(data) {
@@ -452,7 +450,7 @@ class QiscusSDK extends EventEmitter {
     this.username = data.user.username;
     this.avatar_url = data.user.avatar_url;
     this.isInit = true;
-    this.emit("login-success", { results: data });
+    this.emit("login-success", data);
   }
 
   logout() {
@@ -807,29 +805,21 @@ class QiscusSDK extends EventEmitter {
   }
 
   getNonce() {
-    // request.set('qiscus_sdk_user_id', `${this.userId}`);
-    // request.set('qiscus_sdk_to', `${this.token}`);
-    return request
-      .post(`${this.baseURL}/api/v2/sdk/auth/nonce`)
-      .send()
-      .set("qiscus_sdk_app_id", `${this.AppId}`)
-      .set("qiscus_sdk_version", `${this.version}`)
-      .then(
-        res => Promise.resolve(res.body.results),
-        err => Promise.reject(err)
-      );
+    return self.authAdapter.getNonce()
+      .then((response) => {
+        return Promise.resolve(response);
+      }, (error) => {
+        return Promise.reject(error);
+      });
   }
 
   verifyIdentityToken(identity_token) {
-    return request
-      .post(`${this.baseURL}/api/v2/sdk/auth/verify_identity_token`)
-      .send({ identity_token })
-      .set("qiscus_sdk_app_id", `${this.AppId}`)
-      .set("qiscus_sdk_version", `${this.version}`)
-      .then(
-        res => Promise.resolve(res.body.results),
-        err => Promise.reject(err)
-      );
+    return self.authAdapter.verifyIdentityToken(identity_token)
+      .then((response) => {
+        return Promise.resolve(response);
+      }, (error) => {
+        return Promise.reject(error);
+      });
   }
 
   /**
@@ -991,6 +981,23 @@ class QiscusSDK extends EventEmitter {
   updateRoom(args) {
     return this.roomAdapter.updateRoom(args);
   }
+
+  removeSelectedRoomParticipants(values = [], payload = 'id') {
+    if (!values) return Promise.reject({ message: 'Please gives an array values.' });
+    const participants = this.selected.participants;
+    if (!participants) return Promise.reject({ message: 'Nothing selected room chat.' });
+    // start to changes selected participants with newest values
+    let participantsExclude = participants;
+    if (payload === 'id')
+      participantsExclude = participants.filter(participant => values.indexOf(participant.id) <= -1);
+    if (payload === 'email')
+      participantsExclude = participants.filter(participant => values.indexOf(participant.email) <= -1);
+    if (payload === 'username')
+      participantsExclude = participants.filter(participant => values.indexOf(participant.username) <= -1);
+    this.selected.participants = participantsExclude;
+    return Promise.resolve(participants);
+  }
+
   /**
    * Create group chat room
    * @param {string} name - Chat room name
@@ -1128,9 +1135,12 @@ class QiscusSDK extends EventEmitter {
   }
 
   getTotalUnreadCount() {
-    const token = this.HTTPAdapter.token;
-    return this.HTTPAdapter.get(`api/v2/sdk/total_unread_count?token=${token}`)
-      .then((resp) => resp.body.results.total_unread_count);
+    return this.roomAdapter.getTotalUnreadCount()
+      .then((response) => {
+        return Promise.resolve(response);
+      }, (error) => {
+        return Promise.reject(error);
+      });
   }
 }
 
