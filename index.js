@@ -1,3 +1,4 @@
+import request from "superagent";
 import { EventEmitter } from "events";
 import format from "date-fns/format";
 import distanceInWordsToNow from "date-fns/distance_in_words_to_now";
@@ -805,12 +806,17 @@ class QiscusSDK extends EventEmitter {
   }
 
   getNonce() {
-    return self.authAdapter.getNonce()
-      .then((response) => {
-        return Promise.resolve(response);
-      }, (error) => {
-        return Promise.reject(error);
-      });
+    // request.set('qiscus_sdk_user_id', `${this.userId}`);
+    // request.set('qiscus_sdk_to', `${this.token}`);
+    return request
+      .post(`${this.baseURL}/api/v2/sdk/auth/nonce`)
+      .send()
+      .set("qiscus_sdk_app_id", `${this.AppId}`)
+      .set("qiscus_sdk_version", `${this.version}`)
+      .then(
+        res => Promise.resolve(res.body.results),
+        err => Promise.reject(err)
+      );
   }
 
   verifyIdentityToken(identity_token) {
