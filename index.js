@@ -806,8 +806,11 @@ class QiscusSDK extends EventEmitter {
   }
 
   getNonce() {
+<<<<<<< HEAD
     // request.set('qiscus_sdk_user_id', `${this.userId}`);
     // request.set('qiscus_sdk_to', `${this.token}`);
+=======
+>>>>>>> b29b28247bbc3a8f4b491ab6534c99e70ac0df5e
     return request
       .post(`${this.baseURL}/api/v2/sdk/auth/nonce`)
       .send()
@@ -820,12 +823,15 @@ class QiscusSDK extends EventEmitter {
   }
 
   verifyIdentityToken(identity_token) {
-    return self.authAdapter.verifyIdentityToken(identity_token)
-      .then((response) => {
-        return Promise.resolve(response);
-      }, (error) => {
-        return Promise.reject(error);
-      });
+    return request
+      .post(`${this.baseURL}/api/v2/sdk/auth/verify_identity_token`)
+      .send({ identity_token })
+      .set("qiscus_sdk_app_id", `${this.AppId}`)
+      .set("qiscus_sdk_version", `${this.version}`)
+      .then(
+        res => Promise.resolve(res.body.results),
+        err => Promise.reject(err)
+      );
   }
 
   /**
