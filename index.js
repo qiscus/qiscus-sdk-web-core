@@ -806,11 +806,6 @@ class QiscusSDK extends EventEmitter {
   }
 
   getNonce() {
-<<<<<<< HEAD
-    // request.set('qiscus_sdk_user_id', `${this.userId}`);
-    // request.set('qiscus_sdk_to', `${this.token}`);
-=======
->>>>>>> b29b28247bbc3a8f4b491ab6534c99e70ac0df5e
     return request
       .post(`${this.baseURL}/api/v2/sdk/auth/nonce`)
       .send()
