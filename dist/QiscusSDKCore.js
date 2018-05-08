@@ -9794,8 +9794,10 @@ var Comment = function () {
         return p.email == options["actor"];
       });
 
-      actorId[0].last_comment_received_id = options["comment_id"];
-      actorId[0].last_comment_received_id_str = options["comment_id"].toString();
+      if (actorId[0]) {
+        actorId[0].last_comment_received_id = options["comment_id"];
+        actorId[0].last_comment_received_id_str = options["comment_id"].toString();
+      }
 
       var notYetDelivered = options["participants"].filter(function (p) {
         return p.last_comment_received_id < _this.id;
@@ -9828,10 +9830,12 @@ var Comment = function () {
         return p.email == options["actor"];
       });
 
-      actorId[0].last_comment_read_id = options["comment_id"];
-      actorId[0].last_comment_read_id_str = options["comment_id"].toString();
-      actorId[0].last_comment_received_id = options["comment_id"];
-      actorId[0].last_comment_received_id_str = options["comment_id"].toString();
+      if (actorId[0]) {
+        actorId[0].last_comment_read_id = options["comment_id"];
+        actorId[0].last_comment_read_id_str = options["comment_id"].toString();
+        actorId[0].last_comment_received_id = options["comment_id"];
+        actorId[0].last_comment_received_id_str = options["comment_id"].toString();
+      }
 
       var notYetRead = options["participants"].filter(function (p) {
         return p.last_comment_read_id < _this2.id;
@@ -32022,7 +32026,7 @@ exports.default = {
 /* 455 */
 /***/ (function(module, exports) {
 
-module.exports = {"name":"qiscus-sdk-core","version":"2.6.5","description":"Qiscus Web SDK Core","license":"MIT","main":"dist/QiscusSDKCore.min.js","scripts":{"build":"cross-env WEBPACK_ENV=build webpack","dev":"cross-env WEBPACK_ENV=dev webpack --progress --colors --watch","test":"mocha --compilers js:babel-core/register --colors -w test/test*.js"},"devDependencies":{"babel-core":"^6.26.0","babel-eslint":"^8.0.0","babel-loader":"^7.1.2","babel-minify-webpack-plugin":"^0.2.0","babel-plugin-date-fns":"^0.1.0","babel-polyfill":"^6.26.0","babel-preset-env":"^1.6.0","babel-preset-es2015":"^6.24.1","chai":"^4.1.2","cross-env":"^5.1.4","esdoc":"^1.0.2","esdoc-standard-plugin":"^1.0.0","eslint":"^4.7.0","eslint-loader":"^1.9.0","mocha":"^3.5.3","webpack":"^3.6.0","webpack-bundle-analyzer":"^2.10.1"},"dependencies":{"date-fns":"^1.28.5","mqtt":"2.15.3","r2":"^2.0.0","superagent":"^3.6.3"}}
+module.exports = {"name":"qiscus-sdk-core","version":"2.6.5-alpha3","description":"Qiscus Web SDK Core","license":"MIT","main":"dist/QiscusSDKCore.min.js","scripts":{"build":"cross-env WEBPACK_ENV=build webpack","dev":"cross-env WEBPACK_ENV=dev webpack --progress --colors --watch","test":"mocha --compilers js:babel-core/register --colors -w test/test*.js"},"devDependencies":{"babel-core":"^6.26.0","babel-eslint":"^8.0.0","babel-loader":"^7.1.2","babel-minify-webpack-plugin":"^0.2.0","babel-plugin-date-fns":"^0.1.0","babel-polyfill":"^6.26.0","babel-preset-env":"^1.6.0","babel-preset-es2015":"^6.24.1","chai":"^4.1.2","cross-env":"^5.1.4","esdoc":"^1.0.2","esdoc-standard-plugin":"^1.0.0","eslint":"^4.7.0","eslint-loader":"^1.9.0","mocha":"^3.5.3","webpack":"^3.6.0","webpack-bundle-analyzer":"^2.10.1"},"dependencies":{"date-fns":"^1.28.5","mqtt":"2.15.3","r2":"^2.0.0","superagent":"^3.6.3"}}
 
 /***/ })
 /******/ ]);
