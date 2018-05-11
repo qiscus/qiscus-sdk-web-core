@@ -1,6 +1,1 @@
-{
-    "plugins": [
-        "date-fns"
-    ],
-    "presets": ["env"]
-} 
+{} 
