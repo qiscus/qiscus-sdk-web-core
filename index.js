@@ -898,6 +898,9 @@ class QiscusSDK extends EventEmitter {
           pendingComment.markAsSent();
           pendingComment.id = res.id;
           pendingComment.before_id = res.comment_before_id;
+          // update the timestamp also then re-sort the comment list
+          pendingComment.unix_timestamp = res.unix_timestamp;
+          self.sortComments();
 
           const commentBeforeThis = self.selected.comments.find(
             cmt => cmt.id == res.comment_before_id
