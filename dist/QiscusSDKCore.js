@@ -10228,10 +10228,17 @@ var formatters = {
     return addLeadingZeros(date.getMinutes(), 2)
   },
 
+<<<<<<< HEAD
   // Second: 0, 1, ..., 59
   's': function (date) {
     return date.getSeconds()
   },
+=======
+      if (actorId[0]) {
+        actorId[0].last_comment_received_id = options["comment_id"];
+        actorId[0].last_comment_received_id_str = options["comment_id"].toString();
+      }
+>>>>>>> Fix read status
 
   // Second: 00, 01, ..., 59
   'ss': function (date) {
@@ -10253,6 +10260,7 @@ var formatters = {
     return addLeadingZeros(date.getMilliseconds(), 3)
   },
 
+<<<<<<< HEAD
   // Timezone: -01:00, +00:00, ... +12:00
   'Z': function (date) {
     return formatTimezone(date.getTimezoneOffset(), ':')
@@ -10286,6 +10294,34 @@ function buildFormatFn (formatStr, localeFormatters, formattingTokensRegExp) {
       array[i] = formatter
     } else {
       array[i] = removeFormattingTokens(array[i])
+=======
+      var participants = options.participants;
+      var actor = options.actor;
+      var commentId = options.comment_id;
+
+      var actorId = participants.find(function (p) {
+        return p.email === actor;
+      });
+      if (actorId != null) {
+        actorId.last_comment_read_id = commentId;
+        actorId.last_comment_read_id_str = commentId.toString();
+        actorId.last_comment_received_id = commentId;
+        actorId.last_comment_received_id_str = commentId.toString();
+      }
+
+      var unreadComments = participants.filter(function (p) {
+        return p.last_comment_read_id < _this2.id;
+      });
+      var isSelfComment = unreadComments.includes(this.username_real);
+
+      if (unreadComments.length > 1 && isSelfComment || unreadComments.length === 0) {
+        this.isPending = false;
+        this.isSent = true;
+        this.isDelivered = true;
+        this.isRead = true;
+        this.status = 'read';
+      }
+>>>>>>> Fix read status
     }
   }
 
