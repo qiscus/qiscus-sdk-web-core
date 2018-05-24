@@ -1046,7 +1046,6 @@ class QiscusSDK extends EventEmitter {
     xhr.setRequestHeader("qiscus_sdk_app_id", `${self.AppId}`);
     xhr.setRequestHeader("qiscus_sdk_user_id", `${self.user_id}`);
     xhr.setRequestHeader("qiscus_sdk_token", `${self.userData.token}`);
-    xhr.setRequestHeader("qiscus_sdk_version", `${self.version}`);
     xhr.onload = function() {
       if (xhr.status === 200) {
         // file(s) uploaded), let's post to comment
