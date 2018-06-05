@@ -1,6 +1,6 @@
 {
   "name": "qiscus-sdk-core",
-  "version": "2.6.5-beta2",
+  "version": "2.6.5-beta3",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
   "main": "dist/QiscusSDKCore.min.js",
