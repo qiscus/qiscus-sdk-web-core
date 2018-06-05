@@ -31,6 +31,7 @@
   "dependencies": {
     "date-fns": "^1.28.5",
     "mqtt": "2.15.3",
+    "paho-mqtt": "^1.0.4",
     "r2": "^2.0.0",
     "superagent": "^3.6.3"
   }

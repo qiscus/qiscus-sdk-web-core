@@ -8,7 +8,8 @@ import HttpAdapter from "./lib/adapters/http";
 import AuthAdapter from "./lib/adapters/auth";
 import UserAdapter from "./lib/adapters/user";
 import RoomAdapter from "./lib/adapters/room";
-import MqttAdapter from "./lib/adapters/MqttAdapter";
+// import MqttAdapter from "./lib/adapters/MqttAdapter";
+import PahoMqttAdapter from "./lib/adapters/PahoMqttAdapter";
 import MqttCallback from "./lib/adapters/MqttCallback";
 import { GroupChatBuilder, scrollToBottom } from "./lib/utils";
 import Package from './package.json';
@@ -261,9 +262,8 @@ class QiscusSDK extends EventEmitter {
       // ////////////// CORE BUSINESS LOGIC ////////////////////////
       self.userAdapter = new UserAdapter(self.HTTPAdapter);
       self.roomAdapter = new RoomAdapter(self.HTTPAdapter);
-      self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self);
-      self.realtimeAdapter.subscribeUserChannel();
-      self.realtimeAdapter.mqtt.on('connect', () => this.onReconnectMqtt());
+      // self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self);
+      self.realtimeAdapter = new PahoMqttAdapter(mqttURL, MqttCallback, self);
       window.setInterval(
         () => this.realtimeAdapter.publishPresence(this.user_id),
         3500
@@ -393,12 +393,6 @@ class QiscusSDK extends EventEmitter {
       if (self.options.messageInfoCallback)
         self.options.messageInfoCallback(response);
     });
-  }
-
-  onReconnectMqtt() {
-    if (!this.selected) return;
-    if (this.options.onReconnectCallback) this.options.onReconnectedCallback();
-    this.loadComments(this.selected.id);
   }
 
   _callNewMessagesCallback(comments) {
@@ -537,16 +531,22 @@ class QiscusSDK extends EventEmitter {
     }
     if (room.participants == null) room.participants = []
     const targetUserId = room.participants.filter(p => p.email != this.user_id);
-    if (room.room_type === "single" && targetUserId.length > 0)
-      this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
     this.chatmateStatus = null;
     this.isTypingStatus = null;
     this.selected = room;
-    // we need to subscribe to new room typing event now
-    if (!this.selected.isChannel) {
-      this.realtimeAdapter.subscribeTyping(room.id);
-      this.emit('room-changed', this.selected);
-    }
+    // found a bug where there's a race condition, subscribing to mqtt
+    // while mqtt is still connecting, so we'll have to do this hack
+    window.setTimeout(() => {
+      console.info('mqtt connected:', this.realtimeAdapter.mqtt.isConnected());
+      if (room.room_type === "single" && targetUserId.length > 0)
+        this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
+
+      // we need to subscribe to new room typing event now
+      if (!this.selected.isChannel) {
+        this.realtimeAdapter.subscribeTyping(room.id);
+        this.emit('room-changed', this.selected);
+      }
+    }, 3000)
   }
 
   /**
