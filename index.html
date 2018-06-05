@@ -16,13 +16,14 @@
     // initiate qiscus sdk
     qiscus = new QiscusSDKCore();
     // init
+    qiscus.debugMQTTMode = true;
     qiscus.init({
       AppId: 'sdksample',
       options: {
         loginSuccessCallback: function() {
           console.info('successfully logged in');
-          qiscus.chatTarget('niwang@qiscus.com').then(res => {
-            console.info('chat with niwang@qiscus.com', qiscus.selected);
+          qiscus.chatTarget('guest@qiscus.com').then(res => {
+            // console.info('chat with niwang@qiscus.com', qiscus.selected);
           });
         },
         loginErrorCallback: function(err) { console.error(err); },
