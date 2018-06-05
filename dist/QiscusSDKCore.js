@@ -13532,7 +13532,7 @@ var QiscusSDK = function (_EventEmitter) {
     // SDK Configuration
     _this.AppId = null;
     _this.baseURL = "https://api.qiscus.com";
-    _this.mqttURL = "wss://mqtt.qisc.us:1900/mqtt";
+    _this.mqttURL = "wss://mqtt.qiscus.com:1886/mqtt";
     _this.HTTPAdapter = null;
     _this.realtimeAdapter = null;
     _this.isInit = false;
