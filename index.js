@@ -393,6 +393,26 @@ class QiscusSDK extends EventEmitter {
       if (self.options.messageInfoCallback)
         self.options.messageInfoCallback(response);
     });
+    
+    /**
+     * Called when new particant was added into a group
+     */
+    self.on("participants-added", function(response) {
+      const self = this;
+      if (!response) return;
+      const participants = self.selected.participants.concat(response);
+      self.selected.participants = participants;
+    });
+    
+    /**
+     * Called when particant was removed from a group
+     */
+    self.on("participants-removed", function(response) {
+      if (!response) return;
+      const participants = this.selected
+        .participants.filter(participant => response.indexOf(participant.email) <= -1);
+      this.selected.participants = participants;
+    });
   }
 
   _callNewMessagesCallback(comments) {
@@ -1025,6 +1045,44 @@ class QiscusSDK extends EventEmitter {
         self.emit("group-room-created", res);
         return Promise.resolve(res);
       });
+  }
+
+  /**
+   * Add array of participant into a group
+   *
+   * @param {any} roomId the room id this file is required for selected room_id to be process
+   * @param {any} emails emails is must be an array
+   * @returns Promise
+   * @memberof QiscusSDK
+   */
+  addParticipantsToGroup(roomId, emails) {
+    const self = this;
+    if (!Array.isArray(emails))
+      throw new Error(`emails' must be type of Array`);
+    return self.roomAdapter.addParticipantsToGroup(roomId, emails)
+      .then((res) => {
+        self.emit("participants-added", res);
+        return Promise.resolve(res);
+      }, err => Promise.reject(err));
+  }
+  
+  /**
+   * Remove array of participant from a group
+   *
+   * @param {any} roomId the room id this file is required for selected room_id to be process
+   * @param {any} emails emails is must be an array
+   * @returns Promise
+   * @memberof QiscusSDK
+   */
+  removeParticipantsFromGroup(roomId, emails) {
+    const self = this;
+    if (!Array.isArray(emails))
+      throw new Error(`emails' must be type of Array`);
+    return self.roomAdapter.removeParticipantsFromGroup(roomId, emails)
+      .then((res) => {
+        self.emit("participants-removed", emails);
+        return Promise.resolve(res);
+      }, err => Promise.reject(err));
   }
 
   /**
