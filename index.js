@@ -498,6 +498,7 @@ class QiscusSDK extends EventEmitter {
   synchronize(last_id) {
     const idToBeSynced = last_id || this.last_received_comment_id;
     this.userAdapter.sync(idToBeSynced).then(comments => {
+      if (!comments) return false;
       if (comments.length > 0) this.emit("newmessages", comments);
     });
   }
