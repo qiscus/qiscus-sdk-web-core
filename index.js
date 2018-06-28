@@ -8,8 +8,8 @@ import HttpAdapter from "./lib/adapters/http";
 import AuthAdapter from "./lib/adapters/auth";
 import UserAdapter from "./lib/adapters/user";
 import RoomAdapter from "./lib/adapters/room";
-// import MqttAdapter from "./lib/adapters/MqttAdapter";
-import PahoMqttAdapter from "./lib/adapters/PahoMqttAdapter";
+import MqttAdapter from "./lib/adapters/MqttAdapter";
+// import PahoMqttAdapter from "./lib/adapters/PahoMqttAdapter";
 import MqttCallback from "./lib/adapters/MqttCallback";
 import { GroupChatBuilder, scrollToBottom } from "./lib/utils";
 import Package from './package.json';
@@ -262,8 +262,8 @@ class QiscusSDK extends EventEmitter {
       // ////////////// CORE BUSINESS LOGIC ////////////////////////
       self.userAdapter = new UserAdapter(self.HTTPAdapter);
       self.roomAdapter = new RoomAdapter(self.HTTPAdapter);
-      // self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self);
-      self.realtimeAdapter = new PahoMqttAdapter(mqttURL, MqttCallback, self);
+      self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self);
+      // self.realtimeAdapter = new PahoMqttAdapter(mqttURL, MqttCallback, self);
       window.setInterval(
         () => this.realtimeAdapter.publishPresence(this.user_id),
         3500
@@ -393,7 +393,7 @@ class QiscusSDK extends EventEmitter {
       if (self.options.messageInfoCallback)
         self.options.messageInfoCallback(response);
     });
-    
+
     /**
      * Called when new particant was added into a group
      */
@@ -403,7 +403,7 @@ class QiscusSDK extends EventEmitter {
       const participants = self.selected.participants.concat(response);
       self.selected.participants = participants;
     });
-    
+
     /**
      * Called when particant was removed from a group
      */
@@ -557,7 +557,6 @@ class QiscusSDK extends EventEmitter {
     // found a bug where there's a race condition, subscribing to mqtt
     // while mqtt is still connecting, so we'll have to do this hack
     window.setTimeout(() => {
-      console.info('mqtt connected:', this.realtimeAdapter.mqtt.isConnected());
       if (room.room_type === "single" && targetUserId.length > 0)
         this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
 
@@ -872,6 +871,14 @@ class QiscusSDK extends EventEmitter {
     // set extra data, etc
     if (self.options.prePostCommentCallback)
       self.options.prePostCommentCallback(commentMessage);
+    /**
+     * example:
+     * commentFormaterCallback(msg) {
+     *  return filterBadWords(msg) // define your own filter function and return its' value
+     * }
+     */
+    if (self.options.commentFormaterCallback)
+      commentMessage = self.options.commentFormaterCallback(commentMessage);
     self.pendingCommentId--;
     var pendingCommentDate = new Date();
     var commentData = {
@@ -1066,7 +1073,7 @@ class QiscusSDK extends EventEmitter {
         return Promise.resolve(res);
       }, err => Promise.reject(err));
   }
-  
+
   /**
    * Remove array of participant from a group
    *
@@ -1104,7 +1111,6 @@ class QiscusSDK extends EventEmitter {
     xhr.setRequestHeader("qiscus_sdk_app_id", `${self.AppId}`);
     xhr.setRequestHeader("qiscus_sdk_user_id", `${self.user_id}`);
     xhr.setRequestHeader("qiscus_sdk_token", `${self.userData.token}`);
-    xhr.setRequestHeader("qiscus_sdk_version", `${self.version}`);
     xhr.onload = function() {
       if (xhr.status === 200) {
         // file(s) uploaded), let's post to comment
