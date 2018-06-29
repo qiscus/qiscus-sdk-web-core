@@ -9,6 +9,7 @@ import AuthAdapter from "./lib/adapters/auth";
 import UserAdapter from "./lib/adapters/user";
 import RoomAdapter from "./lib/adapters/room";
 import MqttAdapter from "./lib/adapters/MqttAdapter";
+// import PahoMqttAdapter from "./lib/adapters/PahoMqttAdapter";
 import MqttCallback from "./lib/adapters/MqttCallback";
 import { GroupChatBuilder, scrollToBottom } from "./lib/utils";
 import Package from './package.json';
@@ -39,7 +40,7 @@ class QiscusSDK extends EventEmitter {
     // SDK Configuration
     this.AppId = null;
     this.baseURL = "https://api.qiscus.com";
-    this.mqttURL = "wss://mqtt.qisc.us:1900/mqtt";
+    this.mqttURL = "wss://mqtt.qiscus.com:1886/mqtt";
     this.HTTPAdapter = null;
     this.realtimeAdapter = null;
     this.isInit = false;
@@ -262,8 +263,7 @@ class QiscusSDK extends EventEmitter {
       self.userAdapter = new UserAdapter(self.HTTPAdapter);
       self.roomAdapter = new RoomAdapter(self.HTTPAdapter);
       self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self);
-      self.realtimeAdapter.subscribeUserChannel();
-      self.realtimeAdapter.mqtt.on('connect', () => this.onReconnectMqtt());
+      // self.realtimeAdapter = new PahoMqttAdapter(mqttURL, MqttCallback, self);
       window.setInterval(
         () => this.realtimeAdapter.publishPresence(this.user_id),
         3500
@@ -393,7 +393,7 @@ class QiscusSDK extends EventEmitter {
       if (self.options.messageInfoCallback)
         self.options.messageInfoCallback(response);
     });
-    
+
     /**
      * Called when new particant was added into a group
      */
@@ -403,7 +403,7 @@ class QiscusSDK extends EventEmitter {
       const participants = self.selected.participants.concat(response);
       self.selected.participants = participants;
     });
-    
+
     /**
      * Called when particant was removed from a group
      */
@@ -413,12 +413,6 @@ class QiscusSDK extends EventEmitter {
         .participants.filter(participant => response.indexOf(participant.email) <= -1);
       this.selected.participants = participants;
     });
-  }
-
-  onReconnectMqtt() {
-    if (!this.selected) return;
-    if (this.options.onReconnectCallback) this.options.onReconnectedCallback();
-    this.loadComments(this.selected.id);
   }
 
   _callNewMessagesCallback(comments) {
@@ -504,6 +498,7 @@ class QiscusSDK extends EventEmitter {
   synchronize(last_id) {
     const idToBeSynced = last_id || this.last_received_comment_id;
     this.userAdapter.sync(idToBeSynced).then(comments => {
+      if (!comments) return false;
       if (comments.length > 0) this.emit("newmessages", comments);
     });
   }
@@ -557,16 +552,21 @@ class QiscusSDK extends EventEmitter {
     }
     if (room.participants == null) room.participants = []
     const targetUserId = room.participants.filter(p => p.email != this.user_id);
-    if (room.room_type === "single" && targetUserId.length > 0)
-      this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
     this.chatmateStatus = null;
     this.isTypingStatus = null;
     this.selected = room;
-    // we need to subscribe to new room typing event now
-    if (!this.selected.isChannel) {
-      this.realtimeAdapter.subscribeTyping(room.id);
-      this.emit('room-changed', this.selected);
-    }
+    // found a bug where there's a race condition, subscribing to mqtt
+    // while mqtt is still connecting, so we'll have to do this hack
+    window.setTimeout(() => {
+      if (room.room_type === "single" && targetUserId.length > 0)
+        this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
+
+      // we need to subscribe to new room typing event now
+      if (!this.selected.isChannel) {
+        this.realtimeAdapter.subscribeTyping(room.id);
+        this.emit('room-changed', this.selected);
+      }
+    }, 3000)
   }
 
   /**
@@ -872,6 +872,14 @@ class QiscusSDK extends EventEmitter {
     // set extra data, etc
     if (self.options.prePostCommentCallback)
       self.options.prePostCommentCallback(commentMessage);
+    /**
+     * example:
+     * commentFormaterCallback(msg) {
+     *  return filterBadWords(msg) // define your own filter function and return its' value
+     * }
+     */
+    if (self.options.commentFormaterCallback)
+      commentMessage = self.options.commentFormaterCallback(commentMessage);
     self.pendingCommentId--;
     var pendingCommentDate = new Date();
     var commentData = {
@@ -1066,7 +1074,7 @@ class QiscusSDK extends EventEmitter {
         return Promise.resolve(res);
       }, err => Promise.reject(err));
   }
-  
+
   /**
    * Remove array of participant from a group
    *
