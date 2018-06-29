@@ -507,6 +507,7 @@ class QiscusSDK extends EventEmitter {
     const self = this;
     const idToBeSynced = last_id || this.last_received_comment_id;
     this.userAdapter.syncEvent(idToBeSynced).then(res => {
+      if (!res) return false;
       res.events.map(e => {
         if ("deleted_messages" in e.payload.data) {
           e.payload.data.deleted_messages.map(msgRoom => {
