@@ -263,6 +263,8 @@ class QiscusSDK extends EventEmitter {
       self.userAdapter = new UserAdapter(self.HTTPAdapter);
       self.roomAdapter = new RoomAdapter(self.HTTPAdapter);
       self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self);
+      self.realtimeAdapter.subscribeUserChannel();
+      self.realtimeAdapter.mqtt.on('connect', () => this.onReconnectMqtt());
       // self.realtimeAdapter = new PahoMqttAdapter(mqttURL, MqttCallback, self);
       window.setInterval(
         () => this.realtimeAdapter.publishPresence(this.user_id),
@@ -413,6 +415,12 @@ class QiscusSDK extends EventEmitter {
         .participants.filter(participant => response.indexOf(participant.email) <= -1);
       this.selected.participants = participants;
     });
+  }
+
+  onReconnectMqtt() {	
+    if (!this.selected) return;	
+    if (this.options.onReconnectCallback) this.options.onReconnectedCallback();	
+    this.loadComments(this.selected.id);	
   }
 
   _callNewMessagesCallback(comments) {
