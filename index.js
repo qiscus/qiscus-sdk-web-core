@@ -908,7 +908,7 @@ class QiscusSDK extends EventEmitter {
       parsedPayload.replied_comment_sender_username = replied_message.username_as
       pendingComment.payload = parsedPayload
     }
-    self.selected.comments.push(pendingComment);
+    if(self.selected) self.selected.comments.push(pendingComment);
 
     const extrasToBeSubmitted = extras || self.extras;
     return this.userAdapter
@@ -922,6 +922,7 @@ class QiscusSDK extends EventEmitter {
       )
       .then(
         res => {
+          if(!self.selected) return Promise.resolve(res);
           // When the posting succeeded, we mark the Comment as sent,
           // so all the interested party can be notified.
           pendingComment.markAsSent();
