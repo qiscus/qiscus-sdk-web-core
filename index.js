@@ -419,17 +419,17 @@ class QiscusSDK extends EventEmitter {
     /**
      * Called when user was added to blocked list
      */
-    self.on("user-add-block", function(response) {
-      if (self.options.userAddBlockCallback)
-        self.options.userAddBlockCallback(response);
+    self.on("block-user", function(response) {
+      if (self.options.blockUserCallback)
+        self.options.blockUserCallback(response);
     });
     
     /**
      * Called when user was removed from blocked list
      */
-    self.on("user-remove-block", function(response) {
-      if (self.options.userRemoveBlockCallback)
-        self.options.userRemoveBlockCallback(response);
+    self.on("unblock-user", function(response) {
+      if (self.options.unblockUserCallback)
+        self.options.unblockUserCallback(response);
     });
   }
 
@@ -1127,9 +1127,9 @@ class QiscusSDK extends EventEmitter {
    * @returns Promise
    * @memberof QiscusSDK
    */
-  getUserBlock(page = 1, limit = 20) {
+  getBlockedUser(page = 1, limit = 20) {
     const self = this;
-    return self.userAdapter.getUserBlock(page, limit)
+    return self.userAdapter.getBlockedUser(page, limit)
       .then((res) => {
         return Promise.resolve(res);
       }, err => Promise.reject(err));
@@ -1142,11 +1142,11 @@ class QiscusSDK extends EventEmitter {
    * @returns Promise
    * @memberof QiscusSDK
    */
-  userAddBlock(email) {
+  blockUser(email) {
     const self = this;
-    return self.userAdapter.userAddBlock(email)
+    return self.userAdapter.blockUser(email)
       .then((res) => {
-        self.emit("user-add-block", res);
+        self.emit("block-user", res);
         return Promise.resolve(res);
       }, err => Promise.reject(err));
   }
@@ -1158,11 +1158,11 @@ class QiscusSDK extends EventEmitter {
    * @returns Promise
    * @memberof QiscusSDK
    */
-  userRemoveBlock(email) {
+  unblockUser(email) {
     const self = this;
-    return self.userAdapter.userRemoveBlock(email)
+    return self.userAdapter.unblockUser(email)
       .then((res) => {
-        self.emit("user-remove-block", res);
+        self.emit("unblock-user", res);
         return Promise.resolve(res);
       }, err => Promise.reject(err));
   }
