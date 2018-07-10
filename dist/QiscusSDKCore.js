@@ -26331,10 +26331,11 @@ var QiscusSDK = function (_EventEmitter) {
         parsedPayload.replied_comment_sender_username = replied_message.username_as;
         pendingComment.payload = parsedPayload;
       }
-      self.selected.comments.push(pendingComment);
+      if (self.selected) self.selected.comments.push(pendingComment);
 
       var extrasToBeSubmitted = extras || self.extras;
       return this.userAdapter.postComment(topicId, commentMessage, pendingComment.unique_id, type, payload, extrasToBeSubmitted).then(function (res) {
+        if (!self.selected) return Promise.resolve(res);
         // When the posting succeeded, we mark the Comment as sent,
         // so all the interested party can be notified.
         pendingComment.markAsSent();
@@ -39164,7 +39165,7 @@ exports.default = {
 /* 596 */
 /***/ (function(module, exports) {
 
-module.exports = {"name":"qiscus-sdk-core","version":"2.6.5-beta5","description":"Qiscus Web SDK Core","license":"MIT","main":"dist/QiscusSDKCore.min.js","scripts":{"build":"cross-env WEBPACK_ENV=build webpack","dev":"cross-env WEBPACK_ENV=dev webpack --progress --colors --watch","test":"mocha --compilers js:babel-core/register --colors -w test/test*.js"},"devDependencies":{"babel-core":"^6.26.0","babel-eslint":"^8.0.0","babel-loader":"^7.1.2","babel-minify-webpack-plugin":"^0.2.0","babel-plugin-date-fns":"^0.1.0","babel-polyfill":"^6.26.0","babel-preset-env":"^1.6.0","babel-preset-es2015":"^6.24.1","chai":"^4.1.2","cross-env":"^5.1.4","esdoc":"^1.0.2","esdoc-standard-plugin":"^1.0.0","eslint":"^4.7.0","eslint-loader":"^1.9.0","mocha":"^3.5.3","webpack":"^3.6.0","webpack-bundle-analyzer":"^2.10.1"},"dependencies":{"date-fns":"^1.28.5","mqtt":"^2.18.1","paho-mqtt":"^1.0.4","r2":"^2.0.0","superagent":"^3.6.3"}}
+module.exports = {"name":"qiscus-sdk-core","version":"2.6.5-beta6","description":"Qiscus Web SDK Core","license":"MIT","main":"dist/QiscusSDKCore.min.js","scripts":{"build":"cross-env WEBPACK_ENV=build webpack","dev":"cross-env WEBPACK_ENV=dev webpack --progress --colors --watch","test":"mocha --compilers js:babel-core/register --colors -w test/test*.js"},"devDependencies":{"babel-core":"^6.26.0","babel-eslint":"^8.0.0","babel-loader":"^7.1.2","babel-minify-webpack-plugin":"^0.2.0","babel-plugin-date-fns":"^0.1.0","babel-polyfill":"^6.26.0","babel-preset-env":"^1.6.0","babel-preset-es2015":"^6.24.1","chai":"^4.1.2","cross-env":"^5.1.4","esdoc":"^1.0.2","esdoc-standard-plugin":"^1.0.0","eslint":"^4.7.0","eslint-loader":"^1.9.0","mocha":"^3.5.3","webpack":"^3.6.0","webpack-bundle-analyzer":"^2.10.1"},"dependencies":{"date-fns":"^1.28.5","mqtt":"^2.18.1","paho-mqtt":"^1.0.4","r2":"^2.0.0","superagent":"^3.6.3"}}
 
 /***/ })
 /******/ ]);
