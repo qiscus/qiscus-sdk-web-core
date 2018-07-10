@@ -415,6 +415,22 @@ class QiscusSDK extends EventEmitter {
         .participants.filter(participant => response.indexOf(participant.email) <= -1);
       this.selected.participants = participants;
     });
+
+    /**
+     * Called when user was added to blocked list
+     */
+    self.on("user-add-block", function(response) {
+      if (self.options.userAddBlockCallback)
+        self.options.userAddBlockCallback(response);
+    });
+    
+    /**
+     * Called when user was removed from blocked list
+     */
+    self.on("user-remove-block", function(response) {
+      if (self.options.userRemoveBlockCallback)
+        self.options.userRemoveBlockCallback(response);
+    });
   }
 
   onReconnectMqtt() {	
@@ -1100,6 +1116,54 @@ class QiscusSDK extends EventEmitter {
     return self.roomAdapter.removeParticipantsFromGroup(roomId, emails)
       .then((res) => {
         self.emit("participants-removed", emails);
+        return Promise.resolve(res);
+      }, err => Promise.reject(err));
+  }
+
+  /**
+   * Get user block list
+   *
+   * @param {any} page the page is optional, default=1
+   * @param {any} limit the limit is optional, default=20
+   * @returns Promise
+   * @memberof QiscusSDK
+   */
+  getUserBlock(page = 1, limit = 20) {
+    const self = this;
+    return self.userAdapter.getUserBlock(page, limit)
+      .then((res) => {
+        return Promise.resolve(res);
+      }, err => Promise.reject(err));
+  }
+  
+  /**
+   * Add user to block list
+   *
+   * @param {any} email the email is required
+   * @returns Promise
+   * @memberof QiscusSDK
+   */
+  userAddBlock(email) {
+    const self = this;
+    return self.userAdapter.userAddBlock(email)
+      .then((res) => {
+        self.emit("user-add-block", res);
+        return Promise.resolve(res);
+      }, err => Promise.reject(err));
+  }
+
+  /**
+   * Remove user from block list
+   *
+   * @param {any} email the email is required
+   * @returns Promise
+   * @memberof QiscusSDK
+   */
+  userRemoveBlock(email) {
+    const self = this;
+    return self.userAdapter.userRemoveBlock(email)
+      .then((res) => {
+        self.emit("user-remove-block", res);
         return Promise.resolve(res);
       }, err => Promise.reject(err));
   }
