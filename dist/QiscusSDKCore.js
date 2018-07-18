@@ -25737,6 +25737,20 @@ var QiscusSDK = function (_EventEmitter) {
         });
         this.selected.participants = participants;
       });
+
+      /**
+       * Called when user was added to blocked list
+       */
+      self.on("block-user", function (response) {
+        if (self.options.blockUserCallback) self.options.blockUserCallback(response);
+      });
+
+      /**
+       * Called when user was removed from blocked list
+       */
+      self.on("unblock-user", function (response) {
+        if (self.options.unblockUserCallback) self.options.unblockUserCallback(response);
+      });
     }
   }, {
     key: "onReconnectMqtt",
@@ -26317,10 +26331,11 @@ var QiscusSDK = function (_EventEmitter) {
         parsedPayload.replied_comment_sender_username = replied_message.username_as;
         pendingComment.payload = parsedPayload;
       }
-      self.selected.comments.push(pendingComment);
+      if (self.selected) self.selected.comments.push(pendingComment);
 
       var extrasToBeSubmitted = extras || self.extras;
       return this.userAdapter.postComment(topicId, commentMessage, pendingComment.unique_id, type, payload, extrasToBeSubmitted).then(function (res) {
+        if (!self.selected) return Promise.resolve(res);
         // When the posting succeeded, we mark the Comment as sent,
         // so all the interested party can be notified.
         pendingComment.markAsSent();
@@ -26499,6 +26514,69 @@ var QiscusSDK = function (_EventEmitter) {
       if (!Array.isArray(emails)) throw new Error("emails' must be type of Array");
       return self.roomAdapter.removeParticipantsFromGroup(roomId, emails).then(function (res) {
         self.emit("participants-removed", emails);
+        return Promise.resolve(res);
+      }, function (err) {
+        return Promise.reject(err);
+      });
+    }
+
+    /**
+     * Get user block list
+     *
+     * @param {any} page the page is optional, default=1
+     * @param {any} limit the limit is optional, default=20
+     * @returns Promise
+     * @memberof QiscusSDK
+     */
+
+  }, {
+    key: "getBlockedUser",
+    value: function getBlockedUser() {
+      var page = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
+      var limit = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 20;
+
+      var self = this;
+      return self.userAdapter.getBlockedUser(page, limit).then(function (res) {
+        return Promise.resolve(res);
+      }, function (err) {
+        return Promise.reject(err);
+      });
+    }
+
+    /**
+     * Add user to block list
+     *
+     * @param {any} email the email is required
+     * @returns Promise
+     * @memberof QiscusSDK
+     */
+
+  }, {
+    key: "blockUser",
+    value: function blockUser(email) {
+      var self = this;
+      return self.userAdapter.blockUser(email).then(function (res) {
+        self.emit("block-user", res);
+        return Promise.resolve(res);
+      }, function (err) {
+        return Promise.reject(err);
+      });
+    }
+
+    /**
+     * Remove user from block list
+     *
+     * @param {any} email the email is required
+     * @returns Promise
+     * @memberof QiscusSDK
+     */
+
+  }, {
+    key: "unblockUser",
+    value: function unblockUser(email) {
+      var self = this;
+      return self.userAdapter.unblockUser(email).then(function (res) {
+        self.emit("unblock-user", res);
         return Promise.resolve(res);
       }, function (err) {
         return Promise.reject(err);
@@ -31910,6 +31988,52 @@ var User = function () {
         return Promise.resolve(res.body);
       }).catch(function (error) {
         return Promise.reject(error);
+      });
+    }
+  }, {
+    key: 'getBlockedUser',
+    value: function getBlockedUser() {
+      var page = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
+      var limit = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 20;
+
+      var url = 'api/v2/mobile/get_blocked_user?token=' + this.token + '&page=' + page + '&limit=' + limit;
+      return this.HTTPAdapter.get(url).then(function (res) {
+        if (res.body.status !== 200) return Promise.reject(res);
+        return Promise.resolve(res.body.results);
+      }, function (err) {
+        return Promise.reject(err);
+      });
+    }
+  }, {
+    key: 'blockUser',
+    value: function blockUser(email) {
+      if (!email) throw new Error('email is required');
+      var params = {
+        token: this.token,
+        user_email: email
+      };
+
+      return this.HTTPAdapter.post('api/v2/mobile/block_user', params).then(function (res) {
+        if (res.body.status !== 200) return Promise.reject(res);
+        return Promise.resolve(res.body.results.user);
+      }, function (err) {
+        return Promise.reject(err);
+      });
+    }
+  }, {
+    key: 'unblockUser',
+    value: function unblockUser(email) {
+      if (!email) throw new Error('email is required');
+      var params = {
+        token: this.token,
+        user_email: email
+      };
+
+      return this.HTTPAdapter.post('api/v2/mobile/unblock_user', params).then(function (res) {
+        if (res.body.status !== 200) return Promise.reject(res);
+        return Promise.resolve(res.body.results.user);
+      }, function (err) {
+        return Promise.reject(err);
       });
     }
   }]);
@@ -39041,7 +39165,7 @@ exports.default = {
 /* 596 */
 /***/ (function(module, exports) {
 
-module.exports = {"name":"qiscus-sdk-core","version":"2.6.5-beta4","description":"Qiscus Web SDK Core","license":"MIT","main":"dist/QiscusSDKCore.min.js","scripts":{"build":"cross-env WEBPACK_ENV=build webpack","dev":"cross-env WEBPACK_ENV=dev webpack --progress --colors --watch","test":"mocha --compilers js:babel-core/register --colors -w test/test*.js"},"devDependencies":{"babel-core":"^6.26.0","babel-eslint":"^8.0.0","babel-loader":"^7.1.2","babel-minify-webpack-plugin":"^0.2.0","babel-plugin-date-fns":"^0.1.0","babel-polyfill":"^6.26.0","babel-preset-env":"^1.6.0","babel-preset-es2015":"^6.24.1","chai":"^4.1.2","cross-env":"^5.1.4","esdoc":"^1.0.2","esdoc-standard-plugin":"^1.0.0","eslint":"^4.7.0","eslint-loader":"^1.9.0","mocha":"^3.5.3","webpack":"^3.6.0","webpack-bundle-analyzer":"^2.10.1"},"dependencies":{"date-fns":"^1.28.5","mqtt":"^2.18.1","paho-mqtt":"^1.0.4","r2":"^2.0.0","superagent":"^3.6.3"}}
+module.exports = {"name":"qiscus-sdk-core","version":"2.6.5-beta6","description":"Qiscus Web SDK Core","license":"MIT","main":"dist/QiscusSDKCore.min.js","scripts":{"build":"cross-env WEBPACK_ENV=build webpack","dev":"cross-env WEBPACK_ENV=dev webpack --progress --colors --watch","test":"mocha --compilers js:babel-core/register --colors -w test/test*.js"},"devDependencies":{"babel-core":"^6.26.0","babel-eslint":"^8.0.0","babel-loader":"^7.1.2","babel-minify-webpack-plugin":"^0.2.0","babel-plugin-date-fns":"^0.1.0","babel-polyfill":"^6.26.0","babel-preset-env":"^1.6.0","babel-preset-es2015":"^6.24.1","chai":"^4.1.2","cross-env":"^5.1.4","esdoc":"^1.0.2","esdoc-standard-plugin":"^1.0.0","eslint":"^4.7.0","eslint-loader":"^1.9.0","mocha":"^3.5.3","webpack":"^3.6.0","webpack-bundle-analyzer":"^2.10.1"},"dependencies":{"date-fns":"^1.28.5","mqtt":"^2.18.1","paho-mqtt":"^1.0.4","r2":"^2.0.0","superagent":"^3.6.3"}}
 
 /***/ })
 /******/ ]);

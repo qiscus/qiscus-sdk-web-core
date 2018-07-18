@@ -415,6 +415,22 @@ class QiscusSDK extends EventEmitter {
         .participants.filter(participant => response.indexOf(participant.email) <= -1);
       this.selected.participants = participants;
     });
+
+    /**
+     * Called when user was added to blocked list
+     */
+    self.on("block-user", function(response) {
+      if (self.options.blockUserCallback)
+        self.options.blockUserCallback(response);
+    });
+    
+    /**
+     * Called when user was removed from blocked list
+     */
+    self.on("unblock-user", function(response) {
+      if (self.options.unblockUserCallback)
+        self.options.unblockUserCallback(response);
+    });
   }
 
   onReconnectMqtt() {	
@@ -1100,6 +1116,54 @@ class QiscusSDK extends EventEmitter {
     return self.roomAdapter.removeParticipantsFromGroup(roomId, emails)
       .then((res) => {
         self.emit("participants-removed", emails);
+        return Promise.resolve(res);
+      }, err => Promise.reject(err));
+  }
+
+  /**
+   * Get user block list
+   *
+   * @param {any} page the page is optional, default=1
+   * @param {any} limit the limit is optional, default=20
+   * @returns Promise
+   * @memberof QiscusSDK
+   */
+  getBlockedUser(page = 1, limit = 20) {
+    const self = this;
+    return self.userAdapter.getBlockedUser(page, limit)
+      .then((res) => {
+        return Promise.resolve(res);
+      }, err => Promise.reject(err));
+  }
+  
+  /**
+   * Add user to block list
+   *
+   * @param {any} email the email is required
+   * @returns Promise
+   * @memberof QiscusSDK
+   */
+  blockUser(email) {
+    const self = this;
+    return self.userAdapter.blockUser(email)
+      .then((res) => {
+        self.emit("block-user", res);
+        return Promise.resolve(res);
+      }, err => Promise.reject(err));
+  }
+
+  /**
+   * Remove user from block list
+   *
+   * @param {any} email the email is required
+   * @returns Promise
+   * @memberof QiscusSDK
+   */
+  unblockUser(email) {
+    const self = this;
+    return self.userAdapter.unblockUser(email)
+      .then((res) => {
+        self.emit("unblock-user", res);
         return Promise.resolve(res);
       }, err => Promise.reject(err));
   }
