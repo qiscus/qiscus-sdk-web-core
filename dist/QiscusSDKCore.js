@@ -25489,6 +25489,12 @@ var QiscusSDK = function (_EventEmitter) {
         if (self.options.fileUploadedCallback) self.options.fileUploadedCallback(url);
       });
 
+      self.on("profile-updated", function (user) {
+        self.username = user.name;
+        self.avatar_url = user.avatar_url;
+        if (self.options.updateProfileCallback) self.options.updateProfileCallback(url);
+      });
+
       /**
        * This event will be called when there's new post messages
        * @param {string} data - JSON Response from SYNC API / MQTT
@@ -25593,7 +25599,7 @@ var QiscusSDK = function (_EventEmitter) {
         self.realtimeAdapter = new _MqttAdapter2.default(mqttURL, _MqttCallback2.default, self);
         self.realtimeAdapter.subscribeUserChannel();
         self.realtimeAdapter.mqtt.on('connect', function () {
-          return _this3.onReconnectMqtt();
+          _this3.onReconnectMqtt();
         });
         // self.realtimeAdapter = new PahoMqttAdapter(mqttURL, MqttCallback, self);
         window.setInterval(function () {
@@ -25925,13 +25931,39 @@ var QiscusSDK = function (_EventEmitter) {
       this.selected = room;
       // found a bug where there's a race condition, subscribing to mqtt
       // while mqtt is still connecting, so we'll have to do this hack
-      window.setTimeout(function () {
-        if (room.room_type === "single" && targetUserId.length > 0) _this5.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
+      var initialSubscribe = window.setInterval(function () {
+        //Clear Interval when realtimeAdapter has been Populated
 
-        // we need to subscribe to new room typing event now
-        if (!_this5.selected.isChannel) {
-          _this5.realtimeAdapter.subscribeTyping(room.id);
-          _this5.emit('room-changed', _this5.selected);
+        if (_this5.debugMode) {
+          console.log("Trying Initial Subscribe");
+        }
+
+        if (_this5.realtimeAdapter !== null) {
+          if (_this5.debugMode) {
+            console.log(_this5.realtimeAdapter);
+            console.log("MQTT Connected");
+          }
+          clearInterval(initialSubscribe);
+
+          // before we unsubscribe, we need to get the userId first
+          // and only unsubscribe if the previous room is having a type of 'single'
+          if (room.room_type === "single" && targetUserId.length > 0) {
+            // this.realtimeAdapter.unsubscribeRoomPresence(targetUserId[0].email);
+            _this5.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email);
+          }
+          // we need to subscribe to new room typing event now
+          if (!_this5.selected.isChannel) {
+            // this.realtimeAdapter.unsubscribeTyping();
+            _this5.realtimeAdapter.subscribeTyping(room.id);
+            _this5.emit('room-changed', _this5.selected);
+          }
+          if (_this5.debugMode && _this5.realtimeAdapter === null) {
+            console.log("Retry");
+          }
+        } else {
+          if (_this5.debugMode) {
+            console.log("MQTT Not Connected, yet");
+          }
         }
       }, 3000);
     }
@@ -26254,6 +26286,17 @@ var QiscusSDK = function (_EventEmitter) {
       return searchMessages;
     }()
   }, {
+    key: "updateProfile",
+    value: function updateProfile(user) {
+      var _this7 = this;
+
+      return this.userAdapter.updateProfile(user).then(function (res) {
+        _this7.emit('profile-updated', user);
+      }, function (err) {
+        return console.log(err);
+      });
+    }
+  }, {
     key: "getNonce",
     value: function getNonce() {
       return _superagent2.default.post(this.baseURL + "/api/v2/sdk/auth/nonce").send().set("qiscus_sdk_app_id", "" + this.AppId).set("qiscus_sdk_version", "" + this.version).then(function (res) {
@@ -26289,7 +26332,7 @@ var QiscusSDK = function (_EventEmitter) {
     value: function sendComment(topicId, commentMessage, uniqueId) {
       var type = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : "text";
 
-      var _this7 = this;
+      var _this8 = this;
 
       var payload = arguments[4];
       var extras = arguments[5];
@@ -26349,13 +26392,13 @@ var QiscusSDK = function (_EventEmitter) {
           return cmt.id == res.comment_before_id;
         });
         if (!commentBeforeThis && res.room_id == self.selected.id) {
-          _this7.logging("comment before id not found! ", res.comment_before_id);
+          _this8.logging("comment before id not found! ", res.comment_before_id);
 
           // need to fix, these method does not work
           // self.synchronize(roomLastCommentId);
           // self.synchronizeEvent(roomLastCommentId);
 
-          _this7.chatGroup(res.room_id);
+          _this8.chatGroup(res.room_id);
         }
 
         return new Promise(function (resolve, reject) {
@@ -26654,11 +26697,11 @@ var QiscusSDK = function (_EventEmitter) {
   }, {
     key: "deleteComment",
     value: function deleteComment(roomId, commentUniqueIds, isForEveryone, isHard) {
-      var _this8 = this;
+      var _this9 = this;
 
       if (!Array.isArray(commentUniqueIds)) throw new Error("unique ids' must be type of Array");
       return this.userAdapter.deleteComment(roomId, commentUniqueIds, isForEveryone, isHard).then(function (res) {
-        _this8.emit("comment-deleted", {
+        _this9.emit("comment-deleted", {
           roomId: roomId,
           commentUniqueIds: commentUniqueIds,
           isForEveryone: isForEveryone,
@@ -26672,7 +26715,7 @@ var QiscusSDK = function (_EventEmitter) {
   }, {
     key: "clearRoomsCache",
     value: function clearRoomsCache() {
-      var _this9 = this;
+      var _this10 = this;
 
       // remove all room except currently selected
       if (this.selected) {
@@ -26681,12 +26724,12 @@ var QiscusSDK = function (_EventEmitter) {
         // get current index and array length
         var roomLength = this.rooms.length;
         var curIndex = this.rooms.findIndex(function (room) {
-          return room.id == _this9.selected.id;
+          return room.id == _this10.selected.id;
         });
         if (!(curIndex + 1 == roomLength)) this.rooms.splice(curIndex + 1, roomLength - (curIndex + 1));
         // ambil ulang cur index nya, klo udah di awal ga perlu lagi kode dibawah ini
         curIndex = this.rooms.findIndex(function (room) {
-          return room.id == _this9.selected.id;
+          return room.id == _this10.selected.id;
         });
         if (curIndex > 0 && this.rooms.length > 1) this.rooms.splice(1, this.rooms.length - 1);
       }
@@ -31659,16 +31702,33 @@ var HttpAdapter = function () {
       });
     }
   }, {
-    key: 'del',
-    value: function del(path) {
+    key: 'patch',
+    value: function patch(path) {
       var _this5 = this;
 
       var body = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
       var headers = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
 
       return new Promise(function (resolve, reject) {
-        var req = _superagent2.default.del(_this5.baseURL + '/' + path);
+        var req = _superagent2.default.patch(_this5.baseURL + '/' + path);
         req = _this5.setupHeaders(req, headers);
+        req.send(body).set('Content-Type', 'application/x-www-form-urlencoded').end(function (err, res) {
+          if (err) return reject(err);
+          return resolve(res);
+        });
+      });
+    }
+  }, {
+    key: 'del',
+    value: function del(path) {
+      var _this6 = this;
+
+      var body = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+      var headers = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+
+      return new Promise(function (resolve, reject) {
+        var req = _superagent2.default.del(_this6.baseURL + '/' + path);
+        req = _this6.setupHeaders(req, headers);
         req.send(body).set('Content-Type', 'application/json').end(function (err, res) {
           if (err) return reject(err);
           return resolve(res);
@@ -31892,6 +31952,20 @@ var User = function () {
       };
       return this.HTTPAdapter.post('api/v2/sdk/search_messages', body).then(function (res) {
         return Promise.resolve(res.body.results.comments);
+      }).catch(function (error) {
+        return Promise.reject(error);
+      });
+    }
+  }, {
+    key: 'updateProfile',
+    value: function updateProfile(params) {
+      var body = {
+        token: this.token,
+        name: params.name || null,
+        avatar_url: params.avatar_url || null
+      };
+      return this.HTTPAdapter.patch('api/v2/sdk/my_profile', body).then(function (res) {
+        return Promise.resolve(res.body.results.user);
       }).catch(function (error) {
         return Promise.reject(error);
       });
@@ -32358,6 +32432,7 @@ var MqttAdapter = function () {
         // callbacks.delivered(topic[3], message);
       }
     });
+
     this.mqtt.on('reconnect', function () {
       context.disableSync();
       // call sync once again

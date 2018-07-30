@@ -158,6 +158,13 @@ class QiscusSDK extends EventEmitter {
         self.options.fileUploadedCallback(url);
     });
 
+    self.on("profile-updated", function(user) {
+      self.username = user.name;
+      self.avatar_url = user.avatar_url;
+      if (self.options.updateProfileCallback)
+        self.options.updateProfileCallback(url);
+    });
+
     /**
      * This event will be called when there's new post messages
      * @param {string} data - JSON Response from SYNC API / MQTT
@@ -425,7 +432,7 @@ class QiscusSDK extends EventEmitter {
       if (self.options.blockUserCallback)
         self.options.blockUserCallback(response);
     });
-    
+
     /**
      * Called when user was removed from blocked list
      */
@@ -435,10 +442,10 @@ class QiscusSDK extends EventEmitter {
     });
   }
 
-  onReconnectMqtt() {	
-    if (!this.selected) return;	
-    if (this.options.onReconnectCallback) this.options.onReconnectedCallback();	
-    this.loadComments(this.selected.id);	
+  onReconnectMqtt() {
+    if (!this.selected) return;
+    if (this.options.onReconnectCallback) this.options.onReconnectedCallback();
+    this.loadComments(this.selected.id);
   }
 
   _callNewMessagesCallback(comments) {
@@ -586,11 +593,11 @@ class QiscusSDK extends EventEmitter {
     // while mqtt is still connecting, so we'll have to do this hack
     let initialSubscribe = window.setInterval(() => {
       //Clear Interval when realtimeAdapter has been Populated
-      
+
       if (this.debugMode) {
         console.log("Trying Initial Subscribe");
       }
-      
+
       if(this.realtimeAdapter !== null){
         if (this.debugMode) {
           console.log(this.realtimeAdapter);
@@ -609,7 +616,7 @@ class QiscusSDK extends EventEmitter {
           // this.realtimeAdapter.unsubscribeTyping();
           this.realtimeAdapter.subscribeTyping(room.id);
           this.emit('room-changed', this.selected);
-          
+
         }
         if (this.debugMode && this.realtimeAdapter === null) {
           console.log("Retry");
@@ -876,6 +883,13 @@ class QiscusSDK extends EventEmitter {
     return messages.map(message => {
       return new Comment(message);
     });
+  }
+
+  updateProfile(user) {
+    return this.userAdapter.updateProfile(user)
+      .then(res => {
+        this.emit('profile-updated', user);
+      }, err => console.log(err));
   }
 
   getNonce() {
@@ -1163,7 +1177,7 @@ class QiscusSDK extends EventEmitter {
         return Promise.resolve(res);
       }, err => Promise.reject(err));
   }
-  
+
   /**
    * Add user to block list
    *
