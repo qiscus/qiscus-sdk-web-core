@@ -465,7 +465,7 @@ class QiscusSDK extends EventEmitter {
    * @param {string} avatar_url - the url for chat avatar (optional)
    * @return {void}
    */
-  setUser(userId, key, username, avatarURL) {
+  setUser(userId, key, username, avatarURL, extras) {
     const self = this;
     self.emit("start-init");
 
@@ -477,7 +477,8 @@ class QiscusSDK extends EventEmitter {
     let params = {
       email: this.user_id,
       password: this.key,
-      username: this.username
+      username: this.username,
+      extras: extras ? JSON.stringify(extras) : null,
     };
     if (this.avatar_url) params.avatar_url = this.avatar_url;
 
