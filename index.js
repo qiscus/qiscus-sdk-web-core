@@ -114,7 +114,7 @@ class QiscusSDK extends EventEmitter {
     self.userAdapter.updateCommentStatus(roomId, commentId, null)
     .then( res => {
       // ambil semua yang belum di read selain komen ini, kemudian mark as read
-      self.sortComments()
+      // self.sortComments()
     })
   }
 
@@ -125,15 +125,7 @@ class QiscusSDK extends EventEmitter {
     if(!isSelected || isChannel) return false;
     self.userAdapter.updateCommentStatus(roomId, null, commentId)
     .then( res => {
-      // get this room
-      // const roomToFind = self.rooms.find(room => room.id == roomId);
-      // if (roomToFind) {
-      //   roomToFind.comments
-      //     .filter(comment => comment.isSent == true && comment.isDelivered == false)
-      //     .map(comment => comment.markAsDelivered())
-      // }
-      // self.emit('comment-delivered', {roomId, commentId});
-      self.sortComments()
+      // self.sortComments()
     })
   }
 
@@ -189,7 +181,7 @@ class QiscusSDK extends EventEmitter {
       this.lastReceiveMessages = comments;
 
       self._callNewMessagesCallback(comments);
-      comments.map(comment => {
+      comments.forEach(comment => {
         // find this comment room
         const room = self.rooms.find(r => r.id.toString() == comment.room_id.toString());
         const isAlreadyRead =
@@ -241,7 +233,7 @@ class QiscusSDK extends EventEmitter {
         // get last comment and update room status for it
         if (!isAlreadyRead && self.user_id != comment.email) {
           self.receiveComment(comment.room_id, comment.id);
-          self.readComment(comment.room_id, comment.id);
+        //   if(isExistingComment && !isExistingComment.isRead) self.readComment(comment.room_id, comment.id);
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
