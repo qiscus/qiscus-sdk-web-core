@@ -3,7 +3,7 @@
   "version": "2.6.6-beta1",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
-  "main": "dist/qiscus-sdk-core.min.js",
+  "main": "dist/qiscus-sdk-core.js",
   "scripts": {
     "build": "webpack --env.production",
     "dev": "webpack --env.development --progress --colors --watch",
@@ -22,7 +22,7 @@
     "esdoc-standard-plugin": "^1.0.0",
     "eslint": "^4.7.0",
     "eslint-loader": "^1.9.0",
-    "mocha": "^3.5.3",
+    "mocha": "^5.2.0",
     "webpack": "^4.22.0",
     "webpack-bundle-analyzer": "^2.10.1",
     "webpack-cli": "^3.1.2"

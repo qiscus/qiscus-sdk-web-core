@@ -1341,4 +1341,4 @@ class FileUploaded {
   }
 }
 
-module.exports = QiscusSDK;
+export default QiscusSDK;
