@@ -15,13 +15,7 @@ module.exports = (env) => {
     module: {
       rules: [{
         test: /\.js$/,
-        use: {
-          loader: 'babel-loader',
-          options: {
-            presets: ['@babel/preset-env'],
-            plugins: ['date-fns']
-          }
-        },
+        use: 'babel-loader',
         exclude: /(node_modules|bower_components)/
       }]
     },

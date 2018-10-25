@@ -3,16 +3,18 @@
   "version": "2.6.6-beta1",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
-  "main": "dist/qiscus-sdk-core.js",
+  "main": "dist/qiscus-sdk-core.min.js",
   "scripts": {
     "build": "webpack --env.production",
     "dev": "webpack --env.development --progress --colors --watch",
-    "test": "mocha --compilers js:babel-core/register --colors -w test/test*.js"
+    "test": "mocha --require @babel/register --colors 'test/**/*test.js'",
+    "test:watch": "npm run test -- -w"
   },
   "devDependencies": {
     "@babel/core": "^7.1.2",
     "@babel/polyfill": "^7.0.0",
     "@babel/preset-env": "^7.1.0",
+    "@babel/register": "^7.0.0",
     "babel-eslint": "^8.0.0",
     "babel-loader": "^8.0.4",
     "babel-minify-webpack-plugin": "^0.2.0",
@@ -29,6 +31,7 @@
   },
   "dependencies": {
     "date-fns": "^1.28.5",
+    "is_js": "^0.9.0",
     "mqtt": "^2.18.1",
     "paho-mqtt": "^1.0.4",
     "r2": "^2.0.0",
