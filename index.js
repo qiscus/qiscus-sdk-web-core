@@ -9,6 +9,7 @@ import AuthAdapter from "./lib/adapters/auth";
 import UserAdapter from "./lib/adapters/user";
 import RoomAdapter from "./lib/adapters/room";
 import MqttAdapter from "./lib/adapters/MqttAdapter";
+import CustomEventAdapter from './lib/adapters/custom-event'
 // import PahoMqttAdapter from "./lib/adapters/PahoMqttAdapter";
 import MqttCallback from "./lib/adapters/MqttCallback";
 import { GroupChatBuilder, scrollToBottom } from "./lib/utils";
@@ -43,6 +44,7 @@ class QiscusSDK extends EventEmitter {
     this.mqttURL = "wss://mqtt.qiscus.com:1886/mqtt";
     this.HTTPAdapter = null;
     this.realtimeAdapter = null;
+    this.customEventAdapter = null
     this.isInit = false;
     this.isSynced = false;
     this.sync = "socket"; // possible values 'socket', 'http', 'both'
@@ -280,6 +282,8 @@ class QiscusSDK extends EventEmitter {
       if (self.sync == "http" || self.sync == "both") self.activateSync();
       if (self.options.loginSuccessCallback)
         self.options.loginSuccessCallback(response);
+
+      self.customEventAdapter = CustomEventAdapter(self.realtimeAdapter, self.user_id)
     });
 
     /**
@@ -1332,10 +1336,14 @@ class QiscusSDK extends EventEmitter {
       });
   }
 
-  publishEvent(roomId, payload) {
-    if (is.undefined(roomId)) throw new Error('`roomId` required')
-    if (is.not.string(roomId)) throw new Error('`roomId` must have type of string')
-    if (is.not.json(payload)) throw new Error('`payload` must have type of object')
+  publishEvent(...args) {
+    this.customEventAdapter.publishEvent(...args)
+  }
+  subscribeEvent(...args) {
+    this.customEventAdapter.subscribeEvent(...args)
+  }
+  unsubscribeEvent(...args) {
+    this.customEventAdapter.unsubscribeEvent(...args)
   }
 }
 

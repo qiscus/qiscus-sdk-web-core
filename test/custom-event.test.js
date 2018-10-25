@@ -74,18 +74,20 @@ describe('CustomEvent', function () {
     })
 
     it('should receive data from with the correct data', () => {
-      const realPayload = { event: 'playing music', active: true }
+      const userId = 'user123'
       const roomId = '12345'
+      const realPayload = { event: 'playing music', active: true }
+      const payload = { sender: userId, data: realPayload }
       const cb = chai.spy(() => {})
 
       customEvent.subscribeEvent(roomId, cb)
       mqttAdapter.mqtt.sendEvent(roomId, JSON.stringify({
-        sender: 'user123',
+        sender: userId,
         data: realPayload
       }))
 
       expect(cb).to.be.called.once
-      expect(cb).to.be.called.with(realPayload)
+      expect(cb).to.be.called.with(payload)
     })
   })
 
