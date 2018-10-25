@@ -1331,6 +1331,12 @@ class QiscusSDK extends EventEmitter {
         return Promise.reject(error);
       });
   }
+
+  publishEvent(roomId, payload) {
+    if (is.undefined(roomId)) throw new Error('`roomId` required')
+    if (is.not.string(roomId)) throw new Error('`roomId` must have type of string')
+    if (is.not.json(payload)) throw new Error('`payload` must have type of object')
+  }
 }
 
 class FileUploaded {
