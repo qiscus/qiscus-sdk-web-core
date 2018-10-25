@@ -1,6 +1,8 @@
-import {expect} from 'chai'
+import chai, {expect} from 'chai'
+import spy from 'chai-spies'
 import CustomEvent from '../lib/adapters/custom-event'
 
+chai.use(spy)
 
 describe('CustomEvent', function () {
   let customEvent = null
@@ -71,17 +73,19 @@ describe('CustomEvent', function () {
       expect(fn).to.throw(TypeError, '`callback` must have type of function')
     })
 
-    it('should receive data from with the correct data', (done) => {
+    it('should receive data from with the correct data', () => {
       const realPayload = { event: 'playing music', active: true }
       const roomId = '12345'
-      customEvent.subscribeEvent(roomId, (payload) => {
-        expect(payload).to.deep.equal(realPayload)
-        done()
-      })
+      const cb = chai.spy(() => {})
+
+      customEvent.subscribeEvent(roomId, cb)
       mqttAdapter.mqtt.sendEvent(roomId, JSON.stringify({
         sender: 'user123',
         data: realPayload
       }))
+
+      expect(cb).to.be.called.once
+      expect(cb).to.be.called.with(realPayload)
     })
   })
 
@@ -93,6 +97,14 @@ describe('CustomEvent', function () {
     it('should throw error when roomId are not string', () => {
       const fn = () => customEvent.unsubscribeEvent(123)
       expect(fn).to.throw(TypeError, '`roomId` must have type of string')
+    })
+    it('should not calling callback after unsubscribe', () => {
+      const roomId = '12345'
+      const callback = chai.spy(() => {})
+      customEvent.subscribeEvent(roomId, callback)
+      customEvent.unsubscribeEvent(roomId)
+      mqttAdapter.mqtt.sendEvent(roomId, { s: 'something' })
+      expect(callback).to.not.be.called()
     })
   })
 })
