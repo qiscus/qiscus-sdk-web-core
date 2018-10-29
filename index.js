@@ -50,7 +50,7 @@ class QiscusSDK extends EventEmitter {
     this.eventsync = null;
     this.extras = null;
     this.last_received_comment_id = 0;
-    this.singleRoomSubscribe = true;
+    this.googleMapKey = '';
     this.options = {
       avatar: true
     };
@@ -65,7 +65,6 @@ class QiscusSDK extends EventEmitter {
     this.isInit = false;
     this.emoji = false;
     this.isTypingStatus = "";
-    this.typingStatus = {};
     this.customTemplate = false;
     this.templateFunction = null;
     this.debugMode = false;
@@ -89,7 +88,7 @@ class QiscusSDK extends EventEmitter {
     if (config.mqttURL) this.mqttURL = config.mqttURL;
     if (config.sync) this.sync = config.sync;
     if (config.mode) this.mode = config.mode;
-    if (config.singleRoomSubscribe) this.singleRoomSubscribe = config.singleRoomSubscribe;
+    if (config.googleMapKey) this.googleMapKey = config.googleMapKey;
     if (config.allowedFileTypes)
       this.allowedFileTypes = config.allowedFileTypes;
     // Let's initialize the app based on options
@@ -108,7 +107,7 @@ class QiscusSDK extends EventEmitter {
 
   readComment(roomId, commentId) {
     const self = this;
-    const isSelected = self.selected && self.selected.id.toString() === roomId.toString();
+    const isSelected = self.selected || self.selected.id !== roomId;
     const isChannel = self.selected.isChannel;
     if(!isSelected || isChannel) return false;
     self.userAdapter.updateCommentStatus(roomId, commentId, null)
@@ -183,7 +182,7 @@ class QiscusSDK extends EventEmitter {
       self._callNewMessagesCallback(comments);
       comments.forEach(comment => {
         // find this comment room
-        const room = self.rooms.find(r => r.id.toString() == comment.room_id.toString());
+        const room = self.rooms.find(r => r.id == comment.room_id);
         const isAlreadyRead =
           comment.id <= self.last_received_comment_id ? true : false;
         if (!room) {
@@ -210,10 +209,10 @@ class QiscusSDK extends EventEmitter {
             this.logging("comment before id not found! ", comment.comment_before_id);
 
             // need to fix, these method does not work
-            // self.synchronize(roomLastCommentId);
+            self.synchronize(roomLastCommentId);
             // self.synchronizeEvent(roomLastCommentId);
 
-            this.chatGroup(comment.room_id);
+            // this.chatGroup(comment.room_id);
           }
         }
 
@@ -233,7 +232,7 @@ class QiscusSDK extends EventEmitter {
         // get last comment and update room status for it
         if (!isAlreadyRead && self.user_id != comment.email) {
           self.receiveComment(comment.room_id, comment.id);
-        //   if(isExistingComment && !isExistingComment.isRead) self.readComment(comment.room_id, comment.id);
+          if(comment.room_id == self.selected.id) self.readComment(comment.room_id, comment.id);
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
@@ -569,14 +568,14 @@ class QiscusSDK extends EventEmitter {
     // when we activate a room
     // we need to unsubscribe from typing event
     if (this.selected) {
-      if (this.singleRoomSubscribe) this.realtimeAdapter.unsubscribeTyping();
+      this.realtimeAdapter.unsubscribeTyping();
       // before we unsubscribe, we need to get the userId first
       // and only unsubscribe if the previous room is having a type of 'single'
       if (this.selected.room_type == "single") {
         const unsubscribedUserId = this.selected.participants.filter(
           p => p.email != this.user_id
         );
-        if (unsubscribedUserId.length > 0 && this.singleRoomSubscribe)
+        if (unsubscribedUserId.length > 0)
           this.realtimeAdapter.unsubscribeRoomPresence(
             unsubscribedUserId[0].email
           );
