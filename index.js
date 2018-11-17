@@ -191,7 +191,7 @@ class QiscusSDK extends EventEmitter {
           if (!isAlreadyRead) {
             if (self.user_id != comment.email) {
               self.receiveComment(comment.room_id, comment.id);
-              if(comment.room_id == self.selected.id) self.readComment(comment.room_id, comment.id);
+              if(self.selected && comment.room_id == self.selected.id) self.readComment(comment.room_id, comment.id);
             }
             self.updateLastReceivedComment(comment.id);
           }
@@ -207,7 +207,7 @@ class QiscusSDK extends EventEmitter {
           const commentBeforeThis = room.comments.find(
             cmt => cmt.id == comment.comment_before_id
           );
-          if (!commentBeforeThis && comment.room_id == self.selected.id) {
+          if (self.selected && !commentBeforeThis && comment.room_id == self.selected.id) {
             this.logging("comment before id not found! ", comment.comment_before_id);
 
             // need to fix, these method does not work
@@ -234,7 +234,7 @@ class QiscusSDK extends EventEmitter {
         // get last comment and update room status for it
         if (!isAlreadyRead && self.user_id != comment.email) {
           self.receiveComment(comment.room_id, comment.id);
-          if(comment.room_id == self.selected.id) self.readComment(comment.room_id, comment.id);
+          if(self.selected && comment.room_id == self.selected.id) self.readComment(comment.room_id, comment.id);
         }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
