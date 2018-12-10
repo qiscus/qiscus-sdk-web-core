@@ -41,6 +41,7 @@ class QiscusSDK extends EventEmitter {
     // SDK Configuration
     this.AppId = null;
     this.baseURL = "https://api.qiscus.com";
+    this.uploadURL = `${this.baseURL}/api/v2/sdk/upload`;
     this.mqttURL = "wss://mqtt.qiscus.com:1886/mqtt";
     this.HTTPAdapter = null;
     this.realtimeAdapter = null;
@@ -88,6 +89,7 @@ class QiscusSDK extends EventEmitter {
 
     if (config.baseURL) this.baseURL = config.baseURL;
     if (config.mqttURL) this.mqttURL = config.mqttURL;
+    if (config.uploadURL) this.uploadURL = config.uploadURL;
     if (config.sync) this.sync = config.sync;
     if (config.mode) this.mode = config.mode;
     if (config.googleMapKey) this.googleMapKey = config.googleMapKey;
