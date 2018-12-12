@@ -125,7 +125,7 @@ class QiscusSDK extends EventEmitter {
     const self = this;
     const isSelected = self.selected != null;
     const isChannel = (self.selected) ? self.selected.isChannel : false;
-    if(!isSelected || isChannel) return false;
+    if(isChannel) return false;
     self.userAdapter.updateCommentStatus(roomId, null, commentId)
     .then( res => {
       // self.sortComments()
@@ -337,8 +337,9 @@ class QiscusSDK extends EventEmitter {
      * Called when the comment has been delivered
      */
     self.on("comment-delivered", function(response) {
+      if(!response) return false;
       if (self.options.commentDeliveredCallback)
-        self.options.commentDeliveredCallback(response);
+        return self.options.commentDeliveredCallback(response);
       // find comment with the id or unique id listed from response
       // const commentToFind = self.selected.comments.find(comment =>
       //   comment.id === response.id || comment.uniqueId === response.uniqueId);
