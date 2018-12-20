@@ -9,6 +9,7 @@ import AuthAdapter from "./lib/adapters/auth";
 import UserAdapter from "./lib/adapters/user";
 import RoomAdapter from "./lib/adapters/room";
 import MqttAdapter from "./lib/adapters/MqttAdapter";
+import CustomEventAdapter from './lib/adapters/custom-event'
 // import PahoMqttAdapter from "./lib/adapters/PahoMqttAdapter";
 import MqttCallback from "./lib/adapters/MqttCallback";
 import { GroupChatBuilder, scrollToBottom } from "./lib/utils";
@@ -40,9 +41,11 @@ class QiscusSDK extends EventEmitter {
     // SDK Configuration
     this.AppId = null;
     this.baseURL = "https://api.qiscus.com";
+    this.uploadURL = `${this.baseURL}/api/v2/sdk/upload`;
     this.mqttURL = "wss://mqtt.qiscus.com:1886/mqtt";
     this.HTTPAdapter = null;
     this.realtimeAdapter = null;
+    this.customEventAdapter = null
     this.isInit = false;
     this.isSynced = false;
     this.sync = "socket"; // possible values 'socket', 'http', 'both'
@@ -50,6 +53,7 @@ class QiscusSDK extends EventEmitter {
     this.eventsync = null;
     this.extras = null;
     this.last_received_comment_id = 0;
+    this.googleMapKey = '';
     this.options = {
       avatar: true
     };
@@ -85,8 +89,10 @@ class QiscusSDK extends EventEmitter {
 
     if (config.baseURL) this.baseURL = config.baseURL;
     if (config.mqttURL) this.mqttURL = config.mqttURL;
+    if (config.uploadURL) this.uploadURL = config.uploadURL;
     if (config.sync) this.sync = config.sync;
     if (config.mode) this.mode = config.mode;
+    if (config.googleMapKey) this.googleMapKey = config.googleMapKey;
     if (config.allowedFileTypes)
       this.allowedFileTypes = config.allowedFileTypes;
     // Let's initialize the app based on options
@@ -111,7 +117,7 @@ class QiscusSDK extends EventEmitter {
     self.userAdapter.updateCommentStatus(roomId, commentId, null)
     .then( res => {
       // ambil semua yang belum di read selain komen ini, kemudian mark as read
-      self.sortComments()
+      // self.sortComments()
     })
   }
 
@@ -119,18 +125,10 @@ class QiscusSDK extends EventEmitter {
     const self = this;
     const isSelected = self.selected != null;
     const isChannel = (self.selected) ? self.selected.isChannel : false;
-    if(!isSelected || isChannel) return false;
+    if(isChannel) return false;
     self.userAdapter.updateCommentStatus(roomId, null, commentId)
     .then( res => {
-      // get this room
-      // const roomToFind = self.rooms.find(room => room.id == roomId);
-      // if (roomToFind) {
-      //   roomToFind.comments
-      //     .filter(comment => comment.isSent == true && comment.isDelivered == false)
-      //     .map(comment => comment.markAsDelivered())
-      // }
-      // self.emit('comment-delivered', {roomId, commentId});
-      self.sortComments()
+      // self.sortComments()
     })
   }
 
@@ -186,58 +184,38 @@ class QiscusSDK extends EventEmitter {
       this.lastReceiveMessages = comments;
 
       self._callNewMessagesCallback(comments);
-      comments.map(comment => {
-        // find this comment room
-        const room = self.rooms.find(r => r.id == comment.room_id);
-        const isAlreadyRead =
-          comment.id <= self.last_received_comment_id ? true : false;
-        if (!room) {
-          if (!isAlreadyRead) {
-            if (self.user_id != comment.email) {
-              self.receiveComment(comment.room_id, comment.id);
-            }
-            self.updateLastReceivedComment(comment.id);
-          }
-          return false;
-        } else {
-          // sync ulang jika before id dari komen ini tidak ada di listing komen
-          // (ada komen yang hilang berarti)
-          // ambil room id, ambil komen terakhir, sync
-          const roomLastCommentId =
-            room.comments.length > 0
-              ? room.comments[room.comments.length - 1].id
-              : self.last_received_comment_id;
-          const commentBeforeThis = room.comments.find(
-            cmt => cmt.id == comment.comment_before_id
-          );
-          if (!commentBeforeThis && comment.room_id == self.selected.id) {
+      comments.forEach(comment => {
+        // we have this comment, so means it's already delivered, update it's delivered status
+        self.receiveComment(comment.room_id, comment.id);
+
+        const isActiveRoom = self.selected ? comment.room_id == self.selected.id : false;
+        const isAlreadyRead = comment.id <= self.last_received_comment_id ? true : false;
+
+        // kalau comment ini ada di currently selected
+        if (isActiveRoom) {
+          const selected = self.selected;
+          const lastComment = self.selected.comments[self.selected.comments.length - 1];
+          // kirim event read kalau ini bukan komen kita sendiri
+          if (!isAlreadyRead && self.user_id != comment.email) self.readComment(comment.room_id, comment.id);
+          // pastiin sync
+          const roomLastCommentId = lastComment.id;
+          const commentBeforeThis = self.selected.comments.find(c => c.id == lastComment.comment_before_id);
+          if (!commentBeforeThis) {
             this.logging("comment before id not found! ", comment.comment_before_id);
-
             // need to fix, these method does not work
-            // self.synchronize(roomLastCommentId);
-            // self.synchronizeEvent(roomLastCommentId);
-
-            this.chatGroup(comment.room_id);
+            self.synchronize(roomLastCommentId);
           }
+          // pastikan dulu komen ini komen baru, klo komen lama ga usah panggil cb
+          const isExistingComment = selected.comments.find(
+            cmt => cmt.id == comment.id
+          );
+          const pendingComment = new Comment(comment);
+          // fetch the comment inside the room
+          selected.receiveComment(pendingComment);
+          selected.last_comment_id = pendingComment.id;
+          selected.last_comment_message = pendingComment.message;
         }
 
-        // pastikan dulu komen ini komen baru, klo komen lama ga usah panggil cb
-        const isExistingComment = room.comments.find(
-          cmt => cmt.id == comment.id
-        );
-        const pendingComment = new Comment(comment);
-        // set comment metadata (read or delivered) based on current selected room
-        const isRoomSelected = !self.selected ? false : room.isCurrentlySelected(self.selected);
-
-        // fetch the comment inside the room
-        room.receiveComment(pendingComment);
-        room.last_comment_id = pendingComment.id;
-        room.last_comment_message = pendingComment.message;
-        // update comment status
-        // get last comment and update room status for it
-        if (!isAlreadyRead && self.user_id != comment.email) {
-          self.receiveComment(comment.room_id, comment.id);
-        }
         // let's update last_received_comment_id
         self.updateLastReceivedComment(comment.id);
         this.sortComments();
@@ -283,6 +261,8 @@ class QiscusSDK extends EventEmitter {
       if (self.sync == "http" || self.sync == "both") self.activateSync();
       if (self.options.loginSuccessCallback)
         self.options.loginSuccessCallback(response);
+
+      self.customEventAdapter = CustomEventAdapter(self.realtimeAdapter, self.user_id)
     });
 
     /**
@@ -295,33 +275,30 @@ class QiscusSDK extends EventEmitter {
 
     self.on("room-cleared", function(room) {
       // find room
-      const roomToClear = self.rooms.find(r => r.unique_id == room.unique_id);
-      if (roomToClear) {
-        roomToClear.comments.length = 0;
-        if (roomToClear.id == self.selected.id) {
+      if (self.selected) {
+        const currentRoom = self.selected;
+        if(self.selected.unique_id == room.unique_id) {
           self.selected = null;
-          self.selected = roomToClear;
+          self.selected = currentRoom;
         }
       }
-      if (self.options.roomClearedCallback)
-        self.options.roomClearedCallback(room);
+      if (self.options.roomClearedCallback) self.options.roomClearedCallback(room);
     });
 
     self.on("comment-deleted", function(data) {
       // get to the room id and delete the comment
       const { roomId, commentUniqueIds, isForEveryone, isHard } = data;
-      const roomToBeFound = self.rooms.find(room => room.id == roomId);
-      if (roomToBeFound) {
+      if (self.selected && self.selected.id == roomId) {
         // loop through the array of unique_ids
         commentUniqueIds.map(id => {
-          const commentToBeFound = roomToBeFound.comments.findIndex(
+          const commentToBeFound = self.selected.comments.findIndex(
             comment => comment.unique_id == id
           );
           if (commentToBeFound > -1) {
             if (isHard) {
-              roomToBeFound.comments.splice(commentToBeFound, 1);
+              self.selected.comments.splice(commentToBeFound, 1);
             } else {
-              roomToBeFound.comments[commentToBeFound].message =
+              self.selected.comments[commentToBeFound].message =
                 "this message has been deleted";
             }
           }
@@ -335,8 +312,9 @@ class QiscusSDK extends EventEmitter {
      * Called when the comment has been delivered
      */
     self.on("comment-delivered", function(response) {
+      if(!response) return false;
       if (self.options.commentDeliveredCallback)
-        self.options.commentDeliveredCallback(response);
+        return self.options.commentDeliveredCallback(response);
       // find comment with the id or unique id listed from response
       // const commentToFind = self.selected.comments.find(comment =>
       //   comment.id === response.id || comment.uniqueId === response.uniqueId);
@@ -465,7 +443,7 @@ class QiscusSDK extends EventEmitter {
    * @param {string} avatar_url - the url for chat avatar (optional)
    * @return {void}
    */
-  setUser(userId, key, username, avatarURL) {
+  setUser(userId, key, username, avatarURL, extras) {
     const self = this;
     self.emit("start-init");
 
@@ -477,7 +455,8 @@ class QiscusSDK extends EventEmitter {
     let params = {
       email: this.user_id,
       password: this.key,
-      username: this.username
+      username: this.username,
+      extras: extras ? JSON.stringify(extras) : null,
     };
     if (this.avatar_url) params.avatar_url = this.avatar_url;
 
@@ -647,55 +626,14 @@ class QiscusSDK extends EventEmitter {
     self.isLoading = true;
     self.isTypingStatus = "";
 
-    // We need to get room id 1st, based on room_name_id_map
-    const roomId = self.room_name_id_map[userId] || null;
-    let room = self.rooms.find(r => r.id == roomId);
-
-    // for now, lets user always reload since message unreliabilit
-    if (room) {
-      // => Room is Found, just use this, no need to reload
-      room.last_comment_id =
-        room.comments.length <= 0
-          ? null
-          : room.comments[room.comments.length - 1].id;
-      self.setActiveRoom(room);
-      // make sure we always get the highest value of last_received_comment_id
-      self.last_received_comment_id =
-        self.last_received_comment_id < room.last_comment_id
-          ? room.last_comment_id
-          : self.last_received_comment_id;
-      self.isLoading = false;
-      self.emit("chat-room-created", { room: room });
-      // id of last comment on this room
-      const last_comment = room.comments[room.comments.length - 1];
-      if (last_comment) self.readComment(room.id, last_comment.id);
-
-      return this.roomAdapter.getOrCreateRoom(userId, options, distinctId).then(
-      response => {
-        const loaded_room = new Room(response);
-        room.comments = loaded_room.comments;
-        room.participants = loaded_room.participants;
-        room.options = loaded_room.options;
-
-        return Promise.resolve(room)
-      }, (err) => {
-        console.error('Error when creating room', err)
-        self.isLoading = false
-        return Promise.reject(err)
-      })
-
-    }
-
     // Create room
     return this.roomAdapter.getOrCreateRoom(userId, options, distinctId).then(
       response => {
-        room = new Room(response);
-        self.room_name_id_map[userId] = room.id;
+        let room = new Room(response);
         self.last_received_comment_id =
           self.last_received_comment_id < room.last_comment_id
             ? room.last_comment_id
             : self.last_received_comment_id;
-        self.rooms.push(room);
         self.isLoading = false;
         self.setActiveRoom(room);
         // id of last comment on this room
@@ -751,29 +689,16 @@ class QiscusSDK extends EventEmitter {
       response => {
         // make sure the room hasn't been pushed yet
         let room;
-        let roomToFind = self.rooms.find(r => r.id == id);
         let roomData = response.results.room;
         roomData.name = roomData.room_name;
         roomData.comments = response.results.comments.reverse();
         room = new Room(roomData);
 
-        if (!roomToFind) {
-          self.room_name_id_map[room.name] = room.id;
-          self.rooms.push(room);
-        } else {
-          if (roomToFind.comments.length > 0)
-            roomToFind.last_comment_id =
-              roomToFind.comments[roomToFind.comments.length - 1].id;
-          roomToFind.comments = room.comments;
-          room = roomToFind;
-        }
-
         self.last_received_comment_id =
           self.last_received_comment_id < room.last_comment_id
             ? room.last_comment_id
             : self.last_received_comment_id;
-        const roomToBeActivated = room || roomFind;
-        self.setActiveRoom(roomToBeActivated);
+        self.setActiveRoom(room);
         self.isLoading = false;
         // id of last comment on this room
         const last_comment = room.comments[room.comments.length - 1];
@@ -800,15 +725,7 @@ class QiscusSDK extends EventEmitter {
     return self.roomAdapter.getOrCreateRoomByUniqueId(id, room_name, avatar_url)
       .then((response) => {
         // make sure the room hasn't been pushed yet
-        let room
-        let roomToFind = self.rooms.find(room => { id: id});
-        if (!roomToFind) {
-          room = new Room(response)
-          self.room_name_id_map[room.name] = room.id
-          self.rooms.push(room)
-        } else {
-          room = roomToFind
-        }
+        let room = new Room(response)
         self.last_received_comment_id = (self.last_received_comment_id < room.last_comment_id) ? room.last_comment_id : self.last_received_comment_id
         self.setActiveRoom(room)
         self.isLoading = false
@@ -1333,6 +1250,16 @@ class QiscusSDK extends EventEmitter {
         return Promise.reject(error);
       });
   }
+
+  publishEvent(...args) {
+    this.customEventAdapter.publishEvent(...args)
+  }
+  subscribeEvent(...args) {
+    this.customEventAdapter.subscribeEvent(...args)
+  }
+  unsubscribeEvent(...args) {
+    this.customEventAdapter.unsubscribeEvent(...args)
+  }
 }
 
 class FileUploaded {
@@ -1343,4 +1270,4 @@ class FileUploaded {
   }
 }
 
-module.exports = QiscusSDK;
+export default QiscusSDK;

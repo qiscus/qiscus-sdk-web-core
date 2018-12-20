@@ -4,7 +4,7 @@ import Comment from '../lib/Comment.js';
 describe('Qiscus SDK Core', function() {
   describe('Comment', function() {
     const comment = new Comment({
-      type: 'unknown',
+      type: 'text',
       message: `<script>alert('test')</script>`
     });
     const imageComment = new Comment({
