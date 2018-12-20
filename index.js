@@ -629,7 +629,7 @@ class QiscusSDK extends EventEmitter {
     // Create room
     return this.roomAdapter.getOrCreateRoom(userId, options, distinctId).then(
       response => {
-        room = new Room(response);
+        let room = new Room(response);
         self.last_received_comment_id =
           self.last_received_comment_id < room.last_comment_id
             ? room.last_comment_id
