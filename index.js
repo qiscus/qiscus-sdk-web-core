@@ -509,35 +509,44 @@ class QiscusSDK extends EventEmitter {
    */
   synchronize(last_id) {
     const idToBeSynced = last_id || this.last_received_comment_id;
-    this.userAdapter.sync(idToBeSynced).then(comments => {
+    this.userAdapter.sync(idToBeSynced)
+    .then(comments => {
       if (!comments) return false;
       if (comments.length > 0) this.emit("newmessages", comments);
+    })
+    .catch((error) => {
+      console.error('Error when syncing', error);
     });
   }
 
   synchronizeEvent(last_id) {
     const self = this;
     const idToBeSynced = last_id || this.last_received_comment_id;
-    this.userAdapter.syncEvent(idToBeSynced).then(res => {
-      if (!res) return false;
-      res.events.map(e => {
-        if ("deleted_messages" in e.payload.data) {
-          e.payload.data.deleted_messages.map(msgRoom => {
-            self.emit("comment-deleted", {
-              roomId: msgRoom.room_id,
-              commentUniqueIds: msgRoom.message_unique_ids,
-              isForEveryone: true,
-              isHard: e.payload.data.is_hard_delete
+    this.userAdapter
+      .syncEvent(idToBeSynced)
+      .then(res => {
+        if (!res) return false;
+        const data = event.payload.data;
+        res.events.forEach(event => {
+          if (data.hasOwnProperty('deleted_messages')) {
+            data.deleted_messages.forEach((message) => {
+              self.emit('commend-deleted', {
+                roomId: message.room_id,
+                commentUniqueIds: message.message_unique_ids,
+                isForEveryone: true,
+                isHard: data.is_hard_delete
+              });
             });
-          });
-        } else if ("deleted_rooms" in e.payload.data) {
-          // get id of all rooms available
-          e.payload.data.deleted_rooms.forEach(room => {
-            self.emit("room-cleared", room);
-          });
-        }
+          } else if (data.hasOwnProperty('deleted_rooms')) {
+            data.deleted_rooms.forEach((room) => {
+              self.emit('room-cleared', room);
+            });
+          }
+        });
+      })
+      .catch((error) => {
+        console.error('Error when synchronizing event', error)
       });
-    });
   }
 
   disconnect() {
