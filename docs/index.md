@@ -15,7 +15,7 @@ Qiscus Chat SDK provides features such as:
 * Delete message
 * Offline message
 * Block user
-* Custom realtime event
+* Custom real-time event
 * Server side integration with Server API and Webhook
 * Embed bot engine in your App
 * Enable Push notification
@@ -160,7 +160,7 @@ This section help you to start building your integration, start with send your f
 
 ### Step 1 : Get your APP ID
 
-Firstly, you need to create your application in dashboard, by accessing [Qiscus Chat Dashboard](https://dashboard.qiscus.com/dashboard/login). You can create more than one APP ID, for further information you can refer to [How Qiscus works](#introduction)
+Firstly, you need to create your application in dashboard, by accessing [Qiscus Chat Dashboard](https://dashboard.qiscus.com/dashboard/login). You can create more than one APP ID, for further information you can refer to [How Qiscus Works](#how-qiscus-works)
 
 ### Step 2 : Install Qiscus Chat SDK
 
@@ -223,6 +223,12 @@ To use Qiscus Chat SDK features a user firstly need to authenticate to Qiscus Se
 
 ```
 qiscus.setUser('userId', 'uniqueKey', 'displayName', 'https://someurl.com/avatar.png')
+  .then(function (authData) {
+      // On success
+  })
+  .catch(function (error) {
+      // On error
+  })
 ```
 
 ### Step 5 : Create Chat Room
@@ -231,6 +237,12 @@ There are three Chat Room types, 1-on-1, group, and channel, for further detail 
 
 ```
 qiscus.chatTarget('userId')
+  .then(function (room) {
+    // On success
+  })
+  .catch(function (error) {
+    // On error
+  })
 ```
 
 > **Note**:  Make sure that your targeted user has been registered in Qiscus Chat SDK
@@ -242,6 +254,12 @@ with type value is **text**. For further detail about message you can find at [M
 
 ```
 qiscus.sendComment('roomId', 'Your message here')
+  .then(function (comment) {
+    // On success
+  })
+  .catch(function (error) {
+    // On error
+  })
 ```
 
 > Note : You can define type and data freely, you can use it for custom UI purposes
@@ -408,7 +426,7 @@ qiscus.disconnect()
 
 ## Term of User
 
-Qiscus Chat SDK has three user terms, Qiscus Account, Participant, and Blocked User. Qiscus Account is user who success through authentication phase, hence this user able to use Qiscus Chat SDK features. In other hand, Participant is user who in a Chat Room. At some case, you need add more user to your Chat Room, what you can do you can add participant, then your Chat Room increase the number of participant and decrease whenever you remove participant. To use add participant you can refer to this link [add participant link section](#chat-room)
+Qiscus Chat SDK has three user terms, Qiscus Account, Participant, and Blocked User. Qiscus Account is user who success through authentication phase, hence this user able to use Qiscus Chat SDK features. In other hand, Participant is user who in a Chat Room. At some case, you need add more user to your Chat Room, what you can do you can add participant, then your Chat Room increase the number of participant and decrease whenever you remove participant. To use add participant you can refer to this link [add participant link section](#add-participant-in-chat-room)
 
 Term of user table:
 
@@ -487,7 +505,7 @@ qiscus.isLogin // boolean
 
 ### Block User
 
-You can block a user with related **user Id** parameter, this block user only works in 1-on-1 Chat Room. When a user in same Group or Channel with blocked user, a user still receive message from blocked user, for further information you can see this link [User - blocked user section](#user). You can use this function by calling this method, for example:
+You can block a user with related **user Id** parameter, this block user only works in 1-on-1 Chat Room. When a user in same Group or Channel with blocked user, a user still receive message from blocked user, for further information you can see this link [User - blocked user section](#block-user). You can use this function by calling this method, for example:
 
 ```
 qiscus.blockUser(userId)
@@ -1131,11 +1149,7 @@ function showDesktopNotification (data) {
 
 ## Change Log
 
-https://github.com/qiscus/qiscus-sdk-web-core/releases
-
-## API Reference
-
-did not have atm
+You can see the changelog by clicking this [link](https://github.com/qiscus/qiscus-sdk-web-core/releases)
 
 ## On Premise
 
