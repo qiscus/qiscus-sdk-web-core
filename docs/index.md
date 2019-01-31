@@ -33,7 +33,7 @@ The messaging flow is simple: a user register to Qiscus Server, a user open a ro
 
 To start building your application using Qiscus Chat SDK you need a key called APP ID. This APP ID acts as identifier of your Application so that Qiscus Chat SDK can connect a user to other users. You can get your APP ID [here](https://www.qiscus.com/dashboard/register). You can find your APP ID on your Qiscus application dashboard. Here you can see the picture as a reference.
 
-[Image: ss_qiscus_chat_dashboard_app_id_docs.png]
+![Image](https://d3p8ijl4igpb16.cloudfront.net/docs/assets/app_id_docs.png)
 
 > **Note**
 *All users within the same APP ID are able to communicate with each other, across all platforms. This means users using iOS, Android, Web clients, etc. can all chat with one another. However, users in different Qiscus applications cannot talk to each other.*
@@ -302,7 +302,7 @@ Where:
 * **extras** (JSON, optional): to give additional information (metadata) to user, which consist key-value, for example **key: position**, and **value: engineer**.
 
 You can learn from the figure below to understand what really happened when calling `setUser()` function:
-[Image: 1511248335-Set+user.png]
+![Image](https://s3-ap-southeast-1.amazonaws.com/qiscus-sdk/docs/assets/docs-screenshot-android/docs_ss_set_user_client_auth.png)
 
 > **Note**
 Email addresses are a bad choice for user IDs because users may change their email address. It also unnecessarily exposes private information. We recommend to be *unique* for every user in your app, and *stable*, meaning that they can never change
@@ -310,7 +310,7 @@ Email addresses are a bad choice for user IDs because users may change their ema
 ### Server Authentication (JWT Token)
 
 Server Authentication is another option, which allow you to authenticate using JSON Web Tokens [(JWT)](https://jwt.io/). JSON Web Tokens contains your app account details which typically consists of a single string which contains information of two parts, JOSE Header, JWT Claims Set.
-[Image: jwt.png]
+![Image](https://s3-ap-southeast-1.amazonaws.com/qiscus-sdk/docs/assets/docs-screenshot-android/docs_ss_jwt_authentication.png)
 The steps to authenticate with JWT goes like this:
 
 1. Your App request a Nonce from Qiscus Server
