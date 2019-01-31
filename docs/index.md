@@ -1,7 +1,3 @@
-# Qiscus Docs [Draft 1.0 JS]
-
-> This docs refer to [Review Chat SDK Docs](https://quip.com/aerBAhMDtbPa)
-
 ## Introduction
 
 With Qiscus Chat SDK (Software Development Kit), You can embed chat feature inside your Application quickly and easily without dealing with complexity of real-time communication infrastructure. We provide powerful API to let you quickly and seamlessly implement it into your App.
