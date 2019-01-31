@@ -31,7 +31,7 @@ The messaging flow is simple: a user register to Qiscus Server, a user open a ro
 
 * Application
 
-To start building your application using Qiscus Chat SDK you need a key called APP ID. This APP ID acts as identifier of your Application so that Qiscus Chat SDK can connect a user to other users. You can get your APP ID [here](https://www.qiscus.com/dashboard/register). You can find your APP ID on your Qiscus application dashboard. Here you can see the picture as a reference.
+To start building your application using Qiscus Chat SDK you need a key called APP ID. This APP ID acts as identifier of your Application so that Qiscus Chat SDK can connect a user to other users. You can get your APP ID [here](https://dashboard.qiscus.com/dashboard/register). You can find your APP ID on your Qiscus application dashboard. Here you can see the picture as a reference.
 
 ![Image](https://d3p8ijl4igpb16.cloudfront.net/docs/assets/app_id_docs.png)
 
@@ -47,8 +47,11 @@ All created APP ID will be automatically recognised as a trial APP ID with certa
 
 In order to help you to get to know with our chat SDK, we have provided a sample app. This sample app is built with full functionalities so that you can figure out the flow and main activities using Qiscus Chat SDK. And you can freely customize your own UI, for further detail you can download [Sample](https://bitbucket.org/qiscus/qiscus-sdk-core-web-sample) . You can also build your own app on top of our sample app
 
+```
+git clone https://bitbucket.org/qiscus/qiscus-sdk-core-web-sample.git
+```
 
-This sample use **sample APP ID**, means, you will share data with others, in case you want to try by your own you can change the APP ID into your own APP ID, you can find your APP ID in your [dashboard](https://www.qiscus.com/dashboard/login).
+This sample use **sample APP ID**, means, you will share data with others, in case you want to try by your own you can change the APP ID into your own APP ID, you can find your APP ID in your [dashboard](https://dashboard.qiscus.com/dashboard/login).
 
 ## ReactNative (Web)
 
@@ -157,7 +160,7 @@ This section help you to start building your integration, start with send your f
 
 ### Step 1 : Get your APP ID
 
-Firstly, you need to create your application in dashboard, by accessing [Qiscus Chat Dashboard](https://www.qiscus.com/dashboard/login). You can create more than one APP ID, for further information you can refer to [How Qiscus works](#introduction)
+Firstly, you need to create your application in dashboard, by accessing [Qiscus Chat Dashboard](https://dashboard.qiscus.com/dashboard/login). You can create more than one APP ID, for further information you can refer to [How Qiscus works](#introduction)
 
 ### Step 2 : Install Qiscus Chat SDK
 
@@ -354,7 +357,7 @@ When your backend returns a JWT after receiving Nonce from your App, the JWT wil
 
 * Signature
 
-JWT need to be signed using **Qiscus Secret Key**, the one you get in [dashboard](https://www.qiscus.com/dashboard/login). The signature is used to verify that the sender of the JWT is who it says it is. To create the signature part you have to take the encoded JOSE Header, the encoded JWT Claim Set, a Qiscus Secret Key, the algorithm specified in the header, and sign that.
+JWT need to be signed using **Qiscus Secret Key**, the one you get in [dashboard](https://dashboard.qiscus.com/dashboard/login). The signature is used to verify that the sender of the JWT is who it says it is. To create the signature part you have to take the encoded JOSE Header, the encoded JWT Claim Set, a Qiscus Secret Key, the algorithm specified in the header, and sign that.
 
 The signature is computed using the following pseudo code :
 
