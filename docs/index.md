@@ -27,13 +27,12 @@ We recommend that you understand the concept before proceeding with the rest
 
 * Messaging
 
-The messaging flow is simple: a user register to Qiscus Server, a user open a room, send a message to a Chat Room, and then other participants will receive the message within the room. As long as user connect to Qiscus Server user will get events in event handler section [link event handler section], such as **on receive message, read receipt**, and so on.
+The messaging flow is simple: a user register to Qiscus Server, a user open a room, send a message to a Chat Room, and then other participants will receive the message within the room. As long as user connect to Qiscus Server user will get events in event handler section [Event Handler](#event-handler), such as **on receive message, read receipt**, and so on.
 
 * Application
 
 To start building your application using Qiscus Chat SDK you need a key called APP ID. This APP ID acts as identifier of your Application so that Qiscus Chat SDK can connect a user to other users. You can get your APP ID [here](https://www.qiscus.com/dashboard/register). You can find your APP ID on your Qiscus application dashboard. Here you can see the picture as a reference.
 
-[Image Dashboard APP ID]
 [Image: ss_qiscus_chat_dashboard_app_id_docs.png]
 
 > **Note**
@@ -46,11 +45,10 @@ All created APP ID will be automatically recognised as a trial APP ID with certa
 
 ## Try Sample App
 
-In order to help you to get to know with our chat SDK, we have provided a sample app. This sample app is built with full functionalities so that you can figure out the flow and main activities using Qiscus Chat SDK. And you can freely customize your own UI, for further detail you can download [Sample github link] . You can also build your own app on top of our sample app
+In order to help you to get to know with our chat SDK, we have provided a sample app. This sample app is built with full functionalities so that you can figure out the flow and main activities using Qiscus Chat SDK. And you can freely customize your own UI, for further detail you can download [Sample](https://bitbucket.org/qiscus/qiscus-sdk-core-web-sample) . You can also build your own app on top of our sample app
 
-[Image download sample]
 
-This sample use **sample APP ID**, means, you will share data with others, in case you want to try by your own you can change the APP ID into your own APP ID, you can find your APP ID in your dashboard. [dashboard link]
+This sample use **sample APP ID**, means, you will share data with others, in case you want to try by your own you can change the APP ID into your own APP ID, you can find your APP ID in your [dashboard](https://www.qiscus.com/dashboard/login).
 
 ## ReactNative (Web)
 
@@ -159,7 +157,7 @@ This section help you to start building your integration, start with send your f
 
 ### Step 1 : Get your APP ID
 
-Firstly, you need to create your application in dashboard, by accessing Qiscus Chat Dashboard [dashboard link https://www.qiscus.com/dashboard/login]. You can create more than one APP ID, for further information you can refer to [How Qiscus works - Application Link]
+Firstly, you need to create your application in dashboard, by accessing [Qiscus Chat Dashboard](https://www.qiscus.com/dashboard/login). You can create more than one APP ID, for further information you can refer to [How Qiscus works](#introduction)
 
 ### Step 2 : Install Qiscus Chat SDK  (minimum SDK API/ Table of supported browser/ Minimum SDK IOS)
 
@@ -218,7 +216,7 @@ window.addEventListener('DOMContentLoaded', function () {
 
 ### Step 4 : Authentication to Qiscus
 
-To use Qiscus Chat SDK features a user firstly need to authenticate to Qiscus Server, for further detail you might figure out [Authentication section link]. This authentication is done by calling `qiscus.setUser()` function. This function will retrieve or create user credential based on the unique **User Id**, for example:
+To use Qiscus Chat SDK features a user firstly need to authenticate to Qiscus Server, for further detail you might figure out [Authentication](#authentication). This authentication is done by calling `qiscus.setUser()` function. This function will retrieve or create user credential based on the unique **User Id**, for example:
 
 ```
 qiscus.setUser('userId', 'uniqueKey', 'displayName', 'https://someurl.com/avatar.png')
@@ -226,7 +224,7 @@ qiscus.setUser('userId', 'uniqueKey', 'displayName', 'https://someurl.com/avatar
 
 ### Step 5 : Create Chat Room
 
-There are three Chat Room types, 1-on-1, group, and channel, for further detail you can see [link](https://quip.com/qE8aAr4LK2TZ#TBJACA1CuiM) for this section let's use 1-on-1. We assume that you already know a targeted user you want to chat with. To start a conversation with your targeted user, it can be done with `chatTarget('userId')` method. Qiscus Chat SDK, then, will serve you a new Chat Room, asynchronously. When the room is successfully created, Qiscus Chat SDK will return a Chat Room package through `chatRoomCreatedCallback()`.
+There are three Chat Room types, 1-on-1, group, and channel, for further detail you can see [Chat Room Type](#chat-room-type) for this section let's use 1-on-1. We assume that you already know a targeted user you want to chat with. To start a conversation with your targeted user, it can be done with `chatTarget('userId')` method. Qiscus Chat SDK, then, will serve you a new Chat Room, asynchronously. When the room is successfully created, Qiscus Chat SDK will return a Chat Room package through `chatRoomCreatedCallback()`.
 
 ```
 qiscus.chatTarget('userId')
@@ -237,7 +235,7 @@ qiscus.chatTarget('userId')
 ### Step 6 : Send message
 
 You can send any type of data through Qiscus Chat SDK, in this section let's send a “Hi” **message**,
-with type value is **text**. For further detail about message you can find at [Message section link]
+with type value is **text**. For further detail about message you can find at [Message](#message)
 
 ```
 qiscus.sendComment('roomId', 'Your message here')
@@ -276,7 +274,7 @@ qiscus.init({
 })
 ```
 
-For further detail on premise information you can contact us [link contact.us@qiscus.com].
+For further detail on premise information you can [contact us](mailto:contact.us@qiscus.com).
 
 
 > **Note**:
@@ -407,7 +405,7 @@ qiscus.disconnect()
 
 ## Term of User
 
-Qiscus Chat SDK has three user terms, Qiscus Account, Participant, and Blocked User. Qiscus Account is user who success through authentication phase, hence this user able to use Qiscus Chat SDK features. In other hand, Participant is user who in a Chat Room. At some case, you need add more user to your Chat Room, what you can do you can add participant, then your Chat Room increase the number of participant and decrease whenever you remove participant. To use add participant you can refer to this link [add participant link section]
+Qiscus Chat SDK has three user terms, Qiscus Account, Participant, and Blocked User. Qiscus Account is user who success through authentication phase, hence this user able to use Qiscus Chat SDK features. In other hand, Participant is user who in a Chat Room. At some case, you need add more user to your Chat Room, what you can do you can add participant, then your Chat Room increase the number of participant and decrease whenever you remove participant. To use add participant you can refer to this link [add participant link section](#chat-room)
 
 Term of user table:
 
@@ -486,7 +484,7 @@ qiscus.isLogin // boolean
 
 ### Block user
 
-You can block a user with related **user Id** parameter, this block user only works in 1-on-1 Chat Room. When a user in same Group or Channel with blocked user, a user still receive message from blocked user, for further information you can see this link [User - blocked user section]. You can use this function by calling this method, for example:
+You can block a user with related **user Id** parameter, this block user only works in 1-on-1 Chat Room. When a user in same Group or Channel with blocked user, a user still receive message from blocked user, for further information you can see this link [User - blocked user section](#user). You can use this function by calling this method, for example:
 
 ```
 qiscus.blockUser(userId)
@@ -536,7 +534,7 @@ options consist string key-value pairs
 
 ### Create 1-on-1 Chat Room with METADATA
 
-The ideal creating 1-on-1 Chat Room is for use cases that require 2 users, for further information you can see this [link Chat Room-1-on-1 section]. After success creating a 1-on-1 Chat room, room name is another userId.
+The ideal creating 1-on-1 Chat Room is for use cases that require 2 users, for further information you can see this [link](#chat-room). After success creating a 1-on-1 Chat room, room name is another userId.
 
 ```
 qiscus.chatTarget(userId, options)
@@ -573,7 +571,7 @@ Where:
 * **userIds**: List of `user Id`
 * **options**:  metadata that can be as additional information to Chat Room, which consist key-value, for example **key: background**, and **value: red**.
 
-### Create or get channel with METADATA
+### Create or get channel with metadata
 
 The ideal creating Channel Chat Room is for use cases that requires a lot of number of participant. You need set `uniqueId` for identify a Channel Chat Room, If a Chat Room with predefined `unique id `is not exist then it create a new one with requester as the only one participant. Otherwise, if Chat Room with predefined unique id is already exist, it will return that room and add requester as a participant.
 
@@ -591,7 +589,7 @@ qiscus.getOrCreateRoomByChannel(uniqueId, name, avatarURL)
 
 ### Get chat room by Id (Enter existing Chat Room)
 
-You can enter existing Chat Room by using `roomId` and creating freely your own chat UI. The return as pair of a Chat Room and List of `Comments` that you can use to init data comment for the first time as reference you can see in sample [link sample github]. You can use to 1-on-1 Chat Room, Group Chat room or Channel, here's how to get a Chat Room by `roomId:`
+You can enter existing Chat Room by using `roomId` and creating freely your own chat UI. The return as pair of a Chat Room and List of `Comments` that you can use to init data comment for the first time as reference you can see in [sample](https://bitbucket.org/qiscus/qiscus-sdk-core-web-sample). You can use to 1-on-1 Chat Room, Group Chat room or Channel, here's how to get a Chat Room by `roomId:`
 
 ```
 qiscus.getRoomById(roomId)
@@ -617,7 +615,7 @@ qiscus.chatTarget(userId, options)
     })
 ```
 
-### Get CHAT rooms infoRMATION
+### Get CHAT rooms information
 
 You can get more than one Chat Room, by passing list of `roomId`, for `uniqueIds` will deprecate soon, for now you can set same as `roomIds` . You can see participant for each room by set `showMembers` to **true**, or you can set **false** to hide participant in each room.
 
@@ -660,7 +658,7 @@ Where:
 * **show_participants**: Whether to include participant data for each rooms
 * **show_empty**: Whether to include room with empty or no message inside
 
-### Update CHAT room WITH METADATA
+### Update CHAT room with metadata
 
 You can update your Chat Room metadata, you need `roomId`, your Chat Room `name`, your Chat Room `avatar Url`, and `options`, for example:
 
@@ -735,7 +733,7 @@ qiscus.getTotalUnreadCount()
 
 ## Message
 
-This section consist of Message Qiscus Chat SDK behaviour. In Message you can add metadata called **extras**. **extras** is automatically synchronized by each participant in the Chat Room. Qiscus Chat SDK has 3 statues, Sent, Delivered, and Read for a message. Once message is sent, the OnReceiveMessage event handler will be called, you can refer to [event handler section link]
+This section consist of Message Qiscus Chat SDK behaviour. In Message you can add metadata called **extras**. **extras** is automatically synchronized by each participant in the Chat Room. Qiscus Chat SDK has 3 statues, Sent, Delivered, and Read for a message. Once message is sent, the OnReceiveMessage event handler will be called, you can refer to [Event Handler](#event-handler)
 
 ### Send message
 
