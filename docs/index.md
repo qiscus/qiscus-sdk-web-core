@@ -59,7 +59,9 @@ This sample use **sample APP ID**, means, you will share data with others, in ca
 
 Qiscus Chat SDK supports developers who want to use React Native. You can use it seamlessly without any native bridging. To do so, you need to first install the Web chat SDK. You can do that by going to your app project and type the command bellow:
 
-`npm install --save git://github.com/qiscus/qiscus-sdk-web-core.git`
+```
+npm install --save git://github.com/qiscus/qiscus-sdk-web-core.git
+```
 
 Try sample app
 You can download the sample directly from our [github repository](https://github.com/qiscus/qiscus-rn-example), or if you already have Git installed, you can just clone it.
