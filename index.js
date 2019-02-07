@@ -805,6 +805,7 @@ class QiscusSDK extends EventEmitter {
    * @memberof qiscusSDK
    */
   async searchMessages(params = {}) {
+    console.warn('Deprecated: search message will be removed on next release');
     const messages = await this.userAdapter.searchMessages(params);
     return messages.map(message => {
       return new Comment(message);
