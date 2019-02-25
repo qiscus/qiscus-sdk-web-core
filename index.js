@@ -867,7 +867,7 @@ class QiscusSDK extends EventEmitter {
    * @param {String} commentMessage - comment to be submitted
    * @return {Promise}
    */
-  // #region
+  // #region sendComment
   sendComment(
     topicId,
     commentMessage,
@@ -961,6 +961,19 @@ class QiscusSDK extends EventEmitter {
       );
   }
   // #endregion
+
+  getUsers(query = '', page = 1, limit = 20) {
+    return this.HTTPAdapter.get_request('api/v2/sdk/get_user_list')
+      .query({
+        token: this.userData.token,
+        query,
+        page,
+        limit
+      })
+      .then((resp) => {
+        return Promise.resolve(resp.body.results)
+      })
+  }
 
   resendComment(comment) {
     var self = this;
@@ -1153,6 +1166,27 @@ class QiscusSDK extends EventEmitter {
         self.emit("unblock-user", res);
         return Promise.resolve(res);
       }, err => Promise.reject(err));
+  }
+
+  upload(file, callback) {
+    return request.post(this.uploadURL)
+      .attach('file', file)
+      .field('token', this.userData.token)
+      .set('qiscus_sdk_app_id', this.AppId)
+      .set('qiscus_sdk_token', this.userData.token)
+      .set('qiscus_sdk_user_id', this.user_id)
+      .on('progress', (event) => {
+        if (event.direction === 'upload') callback(null, event)
+      })
+      .then((resp) => {
+        const url = resp.body.results.file.url
+        callback(null, null, resp.body.results.file.url)
+        return Promise.resolve(url)
+      })
+      .catch((error) => {
+        callback(error)
+        return Promise.reject(error)
+      })
   }
 
   /**
