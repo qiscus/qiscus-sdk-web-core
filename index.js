@@ -1140,6 +1140,27 @@ class QiscusSDK extends EventEmitter {
       }, err => Promise.reject(err));
   }
 
+  upload(file, callback) {
+    return request.post(this.uploadURL)
+      .attach('file', file)
+      .field('token', this.userData.token)
+      .set('qiscus_sdk_app_id', this.AppId)
+      .set('qiscus_sdk_token', this.userData.token)
+      .set('qiscus_sdk_user_id', this.user_id)
+      .on('progress', (event) => {
+        if (event.direction === 'upload') callback(null, event)
+      })
+      .then((resp) => {
+        const url = resp.body.results.file.url
+        callback(null, null, resp.body.results.file.url)
+        return Promise.resolve(url)
+      })
+      .catch((error) => {
+        callback(error)
+        return Promise.reject(error)
+      })
+  }
+
   /**
    * Upload a file to qiscus sdk server
    *
