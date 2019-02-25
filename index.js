@@ -843,7 +843,7 @@ class QiscusSDK extends EventEmitter {
    * @param {String} commentMessage - comment to be submitted
    * @return {Promise}
    */
-  // #region
+  // #region sendComment
   sendComment(
     topicId,
     commentMessage,
@@ -937,6 +937,19 @@ class QiscusSDK extends EventEmitter {
       );
   }
   // #endregion
+
+  getUsers(query = '', page = 1, limit = 20) {
+    return this.HTTPAdapter.get_request('api/v2/sdk/get_user_list')
+      .query({
+        token: this.userData.token,
+        query,
+        page,
+        limit
+      })
+      .then((resp) => {
+        return Promise.resolve(resp.body.results)
+      })
+  }
 
   resendComment(comment) {
     var self = this;
