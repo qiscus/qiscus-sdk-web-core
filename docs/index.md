@@ -45,10 +45,10 @@ All created APP ID will be automatically recognised as a trial APP ID with certa
 
 ## Try Sample App
 
-In order to help you to get to know with our chat SDK, we have provided a sample app. This sample app is built with full functionalities so that you can figure out the flow and main activities using Qiscus Chat SDK. And you can freely customize your own UI, for further detail you can download [Sample](https://bitbucket.org/qiscus/qiscus-sdk-core-web-sample) . You can also build your own app on top of our sample app
+In order to help you to get to know with our chat SDK, we have provided a sample app. This sample app is built with full functionalities so that you can figure out the flow and main activities using Qiscus Chat SDK. And you can freely customize your own UI, for further detail you can download [Sample](https://github.com/qiscus/qiscus-sdk-js-sample) . You can also build your own app on top of our sample app
 
 ```
-git clone https://bitbucket.org/qiscus/qiscus-sdk-core-web-sample.git
+git clone https://github.com/qiscus/qiscus-sdk-js-sample
 ```
 
 This sample use **sample APP ID**, means, you will share data with others, in case you want to try by your own you can change the APP ID into your own APP ID, you can find your APP ID in your [dashboard](https://dashboard.qiscus.com/dashboard/login).
