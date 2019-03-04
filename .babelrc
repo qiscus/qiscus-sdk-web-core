@@ -1,4 +1,7 @@
 {
   "presets": ["@babel/preset-env"],
-  "plugins": ["date-fns"]
+  "plugins": [
+    "transform-export-default",
+    "date-fns"
+  ]
 }

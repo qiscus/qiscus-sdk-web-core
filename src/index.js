@@ -12,13 +12,12 @@ import UserAdapter from "./lib/adapters/user";
 import RoomAdapter from "./lib/adapters/room";
 import MqttAdapter from "./lib/adapters/MqttAdapter";
 import CustomEventAdapter from './lib/adapters/custom-event'
-// import PahoMqttAdapter from "./lib/adapters/PahoMqttAdapter";
 import MqttCallback from "./lib/adapters/MqttCallback";
 import {
   GroupChatBuilder,
   scrollToBottom
 } from "./lib/utils";
-import Package from './package.json';
+import Package from '../package.json';
 
 /**
  * Qiscus Web SDK Core Class
