@@ -1,11 +1,11 @@
-export function searchAndReplace(str, find, replace) {
-  return str.split(find).join(replace);
+export function searchAndReplace (str, find, replace) {
+  return str.split(find).join(replace)
 }
-export function escapeHTML(text) {
-  let comment;
-  comment = searchAndReplace(text, '<', '&lt;');
-  comment = searchAndReplace(comment, '>', '&gt;');
-  return comment;
+export function escapeHTML (text) {
+  let comment
+  comment = searchAndReplace(text, '<', '&lt;')
+  comment = searchAndReplace(comment, '>', '&gt;')
+  return comment
 }
 
 export class GroupChatBuilder {
@@ -67,17 +67,16 @@ export class GroupChatBuilder {
     return this.roomAdapter
       .createRoom(name, emails, {}, options)
   }
-
 }
 
-export function scrollToBottom(latestCommentId) {
-  requestAnimationFrame(function(){
-    if(latestCommentId > 0){
+export function scrollToBottom (latestCommentId) {
+  requestAnimationFrame(function () {
+    if (latestCommentId > 0) {
       const elementToScroll = document.getElementById(latestCommentId)
-      if(!elementToScroll) return false;
-      elementToScroll.scrollIntoView({block: 'end', behavior: 'smooth'})
+      if (!elementToScroll) return false
+      elementToScroll.scrollIntoView({ block: 'end', behavior: 'smooth' })
     }
-    //on entering the room, wait for data processed then focus on comment form
-    document.getElementsByClassName('qcw-comment-form').item(0).getElementsByTagName('textarea').item(0).focus();
+    // on entering the room, wait for data processed then focus on comment form
+    document.getElementsByClassName('qcw-comment-form').item(0).getElementsByTagName('textarea').item(0).focus()
   })
 }

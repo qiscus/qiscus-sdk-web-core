@@ -1,4 +1,4 @@
-import Comment from './Comment';
+import Comment from './Comment'
 /**
  * Holds chat rooms for qiscus chat sdk
  *
@@ -16,7 +16,7 @@ export class Room {
    * @param {string} last_comment_message
    * @memberof Room
    */
-  constructor(roomData) {
+  constructor (roomData) {
     this.id = roomData.id
     this.last_comment_id = roomData.last_comment_id
     this.last_comment_message = roomData.last_comment_message
@@ -42,11 +42,11 @@ export class Room {
     if (roomData.comments) this.receiveComments(roomData.comments)
   }
 
-  isCurrentlySelected(selected) {
-    return this.id == selected.id
+  isCurrentlySelected (selected) {
+    return this.id === selected.id
   }
 
-  getParticipantCount() {
+  getParticipantCount () {
     if (this.participants == null) {
       return this.participantNumber
     } else {
@@ -54,11 +54,11 @@ export class Room {
     }
   }
 
-  setTitle(title) {
+  setTitle (title) {
     this.custom_title = title
   }
 
-  setSubTitle(subtitle) {
+  setSubTitle (subtitle) {
     this.custom_subtitle = subtitle
   }
 
@@ -68,31 +68,31 @@ export class Room {
    * @param {Comment} comment
    * @memberof Room
    */
-  receiveComment(comment) {
+  receiveComment (comment) {
     // let's check first whether this room already has this specific comment
-    const commentToFind = this.comments.find(cmt => cmt.unique_id == comment.unique_id);
+    const commentToFind = this.comments.find(cmt => cmt.unique_id === comment.unique_id)
     if (commentToFind) {
-      commentToFind.id = comment.id;
-      commentToFind.message = comment.message;
-      commentToFind.date = comment.date;
-      commentToFind.time = comment.time;
-      commentToFind.unix_timestamp = comment.unix_timestamp;
+      commentToFind.id = comment.id
+      commentToFind.message = comment.message
+      commentToFind.date = comment.date
+      commentToFind.time = comment.time
+      commentToFind.unix_timestamp = comment.unix_timestamp
     } else {
-      this.comments.push(comment);
+      this.comments.push(comment)
     }
   }
 
-  receiveComments(comments) {
+  receiveComments (comments) {
     comments.forEach(comment => {
       this.receiveComment(new Comment(comment))
-    });
+    })
   }
 
-  getParticipant(participantEmail) {
-    return this.participants.find(p => p.email == participantEmail) || null;
+  getParticipant (participantEmail) {
+    return this.participants.find(p => p.email === participantEmail) || null
   }
 
-  addParticipant(participant) {
+  addParticipant (participant) {
     // get if there's existing participant, if any then push
     let participantToFind = this.getParticipant(participant.email)
     if (!participantToFind) this.participants.push(participant)

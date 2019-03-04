@@ -1,5 +1,5 @@
 import is from 'is_js'
-import {EventEmitter} from 'events'
+import { EventEmitter } from 'events'
 
 export default function CustomEventAdapter (mqttAdapter, userId) {
   const events = new EventEmitter()
@@ -11,24 +11,21 @@ export default function CustomEventAdapter (mqttAdapter, userId) {
   })
 
   const getTopic = (roomId) => `r/${roomId}/${roomId}/e`
-  const isSubscribingToTopic = (topic) => Object
-    .keys(mqttAdapter.mqtt._resubscribeTopics)
-    .includes(topic)
 
   return {
-    publishEvent(roomId, payload) {
+    publishEvent (roomId, payload) {
       if (is.undefined(roomId)) throw new Error('`roomId` required')
       if (is.not.string(roomId)) throw new TypeError('`roomId` must have type of string')
       if (is.undefined(payload)) throw new Error('`payload` required')
       if (is.not.object(payload)) throw new TypeError('`payload` must have type of object')
 
       const _payload = JSON.stringify({
-        sender: userId, //?
+        sender: userId, // ?
         data: payload
       })
       mqttAdapter.mqtt.publish(getTopic(roomId), _payload)
     },
-    subscribeEvent(roomId, callback) {
+    subscribeEvent (roomId, callback) {
       if (is.undefined(roomId)) throw new Error('`roomId` required')
       if (is.not.string(roomId)) throw new TypeError('`roomId` must have type of string')
       if (is.undefined(callback)) throw new Error('`callback` required')
@@ -46,7 +43,7 @@ export default function CustomEventAdapter (mqttAdapter, userId) {
       events.addListener(topic, cb)
       subscribedTopics[topic] = cb
     },
-    unsubscribeEvent(roomId) {
+    unsubscribeEvent (roomId) {
       if (is.undefined(roomId)) throw new Error('`roomId` required')
       if (is.not.string(roomId)) throw new TypeError('`roomId` must have type of string')
 

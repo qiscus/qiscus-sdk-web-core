@@ -2,14 +2,15 @@ const path = require('path')
 
 module.exports = (env) => {
   const config = {
-    entry: ['@babel/polyfill', path.join(__dirname, 'index.js')],
+    entry: ['@babel/polyfill', path.join(__dirname, 'src', 'index.js')],
     devtool: env.production ? 'source-map' : 'eval',
     mode: env.production ? 'production' : 'development',
     output: {
       path: path.join(__dirname, 'dist'),
-      filename: env.production ? 'qiscus-sdk-core.min.js' : 'qiscus-sdk-core.js',
+      filename: 'qiscus-sdk-core.min.js',
       library: 'QiscusSDKCore',
       libraryTarget: 'umd',
+      libraryExport: 'default',
       umdNamedDefine: true
     },
     module: {

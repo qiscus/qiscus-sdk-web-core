@@ -20,8 +20,8 @@ export default class RoomAdapter {
         if (res.body.status !== 200) return Promise.reject(res)
         const room = res.body.results.room
         room.avatar = room.avatar_url
-        room.comments = res.body.results.comments.reverse();
-        const rivalUser = room.participants.find(p => p.email === email);
+        room.comments = res.body.results.comments.reverse()
+        const rivalUser = room.participants.find(p => p.email === email)
         room.name = rivalUser ? rivalUser.username : 'Room name'
         return Promise.resolve(room)
       }, (err) => {
@@ -34,12 +34,12 @@ export default class RoomAdapter {
       .then((response) => Promise.resolve(response.body), error => Promise.reject(error))
   }
 
-  getOrCreateRoomByUniqueId (id, name, avatar_url) {
+  getOrCreateRoomByUniqueId (id, name, avatarURL) {
     let params = {
       token: this.token,
       unique_id: id,
       name: name,
-      avatar_url
+      avatar_url: avatarURL
     }
     return this.HTTPAdapter.post(`api/v2/mobile/get_or_create_room_with_unique_id`, params)
       .then((res) => {
@@ -54,17 +54,17 @@ export default class RoomAdapter {
       })
   }
 
-  createRoom (name, emails, opts = {},  optionalData = {}) {
+  createRoom (name, emails, opts = {}, optionalData = {}) {
     const optsData = Object.keys(optionalData).length <= 0
       ? null
-      : JSON.stringify(optionalData);
+      : JSON.stringify(optionalData)
     const body = {
       token: this.token,
       name: name,
       'participants[]': emails,
       avatar_url: opts.avatarURL,
-      options: optsData,
-    };
+      options: optsData
+    }
 
     return this.HTTPAdapter
       .post(`api/v2/mobile/create_room`, body)
@@ -90,12 +90,12 @@ export default class RoomAdapter {
       })
       .catch(err => {
         console.error('Error when creating room', err)
-        return Promise.reject('Error when creating room')
+        return Promise.reject(new Error('Error when creating room'))
       })
   }
 
   updateRoom (args) {
-    if(!args.id) throw new Error('id is required');
+    if (!args.id) throw new Error('id is required')
     let params = { token: this.token, id: args.id }
     if (args.room_name) params['room_name'] = args.room_name
     if (args.avatar_url) params['avatar_url'] = args.avatar_url
@@ -116,15 +116,15 @@ export default class RoomAdapter {
         return Promise.resolve(response.body.results.total_unread_count)
       }, (error) => {
         return Promise.reject(error)
-      });
+      })
   }
 
   addParticipantsToGroup (roomId, emails = []) {
-    if(!roomId || !emails) throw new Error('room_id and emails is required');
+    if (!roomId || !emails) throw new Error('room_id and emails is required')
     let params = {
       token: this.token,
       room_id: roomId,
-      'emails[]': emails,
+      'emails[]': emails
     }
 
     return this.HTTPAdapter.post(`api/v2/mobile/add_room_participants`, params)
@@ -137,11 +137,11 @@ export default class RoomAdapter {
   }
 
   removeParticipantsFromGroup (roomId, emails = []) {
-    if(!roomId || !emails) throw new Error('room_id and emails is required');
+    if (!roomId || !emails) throw new Error('room_id and emails is required')
     let params = {
       token: this.token,
       room_id: roomId,
-      'emails[]': emails,
+      'emails[]': emails
     }
 
     return this.HTTPAdapter.post(`api/v2/mobile/remove_room_participants`, params)
