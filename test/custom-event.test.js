@@ -1,4 +1,4 @@
-import chai, {expect} from 'chai'
+import chai, { expect } from 'chai'
 import spy from 'chai-spies'
 import CustomEvent from '../lib/adapters/custom-event'
 
@@ -12,21 +12,21 @@ describe('CustomEvent', function () {
     mqttAdapter = {
       mqtt: {
         _resubscribeTopics: [],
-        on(type, callback) {
+        on (type, callback) {
           mockedEvents[type] = callback
         },
-        sendEvent(roomId, payload) {
+        sendEvent (roomId, payload) {
           mockedEvents['message'](`r/${roomId}/${roomId}/e`, payload)
         },
-        publish(topic, payload) {
+        publish (topic, payload) {
           if (mockedEvents['message'] && mockedEvents[topic]) {
             mockedEvents['message'](topic, payload)
           }
         },
-        subscribe(topic) {
+        subscribe (topic) {
           mockedEvents[topic] = true
         },
-        unsubscribe(topic) {
+        unsubscribe (topic) {
           mockedEvents[topic] = null
           delete mockedEvents[topic]
         }
