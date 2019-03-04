@@ -74,11 +74,13 @@ export default class User {
   }
 
   loadRoomList (params = {}) {
-    let body = `?token=${this.token}`;
-    (params.page) ? body += '&page=' + params.page : null;
-    (params.show_participants) ? body += '&show_participants=' + params.show_participants : true;
-    (params.limit) ? body += '&limit=' + params.limit : null;
-    (params.show_empty) ? body += '&show_empty=' + params.show_empty : null
+    let body = `?token=${this.token}`
+
+    if (params.page) body += `&page=${params.page}`
+    if (params.show_participants) body += `&show_participants=${params.show_participants || true}`
+    if (params.limit) body += `&limit=${params.limit}`
+    if (params.show_empty) body += `&show_empty=${params.show_empty}`
+
     return this.HTTPAdapter.get(`api/v2/sdk/user_rooms${body}`)
       .then((res) => {
         return new Promise((resolve, reject) => {
@@ -143,8 +145,8 @@ export default class User {
       .catch(error => Promise.reject(error))
   }
 
-  loadComments (topic_id, options) {
-    let params = `token=${this.token}&topic_id=${topic_id}`
+  loadComments (topicId, options) {
+    let params = `token=${this.token}&topic_id=${topicId}`
     if (options.last_comment_id) params += `&last_comment_id=${options.last_comment_id}`
     if (options.timestamp) params += `&timestamp=${options.timestamp}`
     if (options.after) params += `&after=${options.after}`
@@ -152,7 +154,7 @@ export default class User {
     return this.HTTPAdapter.get(`api/v2/sdk/load_comments?${params}`)
       .then((res) => {
         return new Promise((resolve, reject) => {
-          if (res.status != 200) return new Promise((resolve, reject) => reject(res))
+          if (res.status !== 200) return new Promise((resolve, reject) => reject(res))
           const data = res.body.results.comments
           return resolve(data)
         })
@@ -179,10 +181,10 @@ export default class User {
       .catch(error => Promise.reject(error))
   }
 
-  clearRoomMessages (room_ids) {
+  clearRoomMessages (roomIds) {
     const body = {
       token: this.token,
-      room_channel_ids: room_ids
+      room_channel_ids: roomIds
     }
     return this.HTTPAdapter.del(`api/v2/sdk/clear_room_messages`, body)
       .then(res => Promise.resolve(res.body))

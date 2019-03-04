@@ -43,7 +43,7 @@ export class Room {
   }
 
   isCurrentlySelected (selected) {
-    return this.id == selected.id
+    return this.id === selected.id
   }
 
   getParticipantCount () {
@@ -70,7 +70,7 @@ export class Room {
    */
   receiveComment (comment) {
     // let's check first whether this room already has this specific comment
-    const commentToFind = this.comments.find(cmt => cmt.unique_id == comment.unique_id)
+    const commentToFind = this.comments.find(cmt => cmt.unique_id === comment.unique_id)
     if (commentToFind) {
       commentToFind.id = comment.id
       commentToFind.message = comment.message
@@ -89,7 +89,7 @@ export class Room {
   }
 
   getParticipant (participantEmail) {
-    return this.participants.find(p => p.email == participantEmail) || null
+    return this.participants.find(p => p.email === participantEmail) || null
   }
 
   addParticipant (participant) {

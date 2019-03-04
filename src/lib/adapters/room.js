@@ -34,12 +34,12 @@ export default class RoomAdapter {
       .then((response) => Promise.resolve(response.body), error => Promise.reject(error))
   }
 
-  getOrCreateRoomByUniqueId (id, name, avatar_url) {
+  getOrCreateRoomByUniqueId (id, name, avatarURL) {
     let params = {
       token: this.token,
       unique_id: id,
       name: name,
-      avatar_url
+      avatar_url: avatarURL
     }
     return this.HTTPAdapter.post(`api/v2/mobile/get_or_create_room_with_unique_id`, params)
       .then((res) => {
@@ -90,7 +90,7 @@ export default class RoomAdapter {
       })
       .catch(err => {
         console.error('Error when creating room', err)
-        return Promise.reject('Error when creating room')
+        return Promise.reject(new Error('Error when creating room'))
       })
   }
 

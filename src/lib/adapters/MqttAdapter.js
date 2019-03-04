@@ -1,5 +1,4 @@
 import mqtt from 'mqtt'
-import { format } from 'date-fns'
 
 export default class MqttAdapter {
   constructor (url, callbacks, context) {
@@ -23,45 +22,44 @@ export default class MqttAdapter {
       message = message.toString()
       topic = topic.split('/')
       // set event handler
-      if (topic.length == 2) {
+      if (topic.length === 2) {
         // it's a comment message -> {token}/c
-        if (topic[1] == 'c') {
-          self.context.emit('newmessages', [JSON.parse(message)])
-        } else if (topic[1] == 'n') {
+        if (topic[1] === 'c') {
+          self.context.events.emit('newmessages', [JSON.parse(message)])
+        } else if (topic[1] === 'n') {
           // notifications event (delete room)
           handleDeletedEvents(topic, message, self.context)
         }
-      } else if (topic[0] == 'u' && topic[2] == 's') {
+      } else if (topic[0] === 'u' && topic[2] === 's') {
         // it's a user status message -> u/{user}/s (online / offline)
-        const presencePayload = message.split(':')
-        self.context.emit('presence', message)
-      } else if (topic[2] == 'c') {
+        self.context.events.emit('presence', message)
+      } else if (topic[2] === 'c') {
         // this one is for channel subscribing
-        self.context.emit('newmessages', [JSON.parse(message)])
-      } else if (topic[0] == 'r' && topic[4] == 't') {
+        self.context.events.emit('newmessages', [JSON.parse(message)])
+      } else if (topic[0] === 'r' && topic[4] === 't') {
         if (!self.context.selected) return false
         // it's a typing message
-        if (topic[3] != self.context.user_id) {
-          self.context.emit('typing', {
+        if (topic[3] !== self.context.user_id) {
+          self.context.events.emit('typing', {
             message,
             username: topic[3],
             room_id: topic[1]
           })
-          // if (self.context.selected.id == topic[1]) self.context.isTypingStatus = `${topic[3]} is typing ...`;
-          if (message == '1' && topic[1] == self.context.selected.id) {
+          // if (self.context.selected.id === topic[1]) self.context.isTypingStatus = `${topic[3]} is typing ...`;
+          if (message === '1' && topic[1] === self.context.selected.id) {
             // ambil dulu usernya
             const participantIndex = self.context.selected.participants.findIndex(p => p.email === topic[3])
             if (participantIndex < 0) return
             const username = self.context.selected.participants[participantIndex].username
-           	 self.context.isTypingStatus = `${username} is typing ...`
+            self.context.isTypingStatus = `${username} is typing ...`
           } else {
-           	self.context.isTypingStatus = null
+            self.context.isTypingStatus = null
           }
-	      }
-      } else if (topic[0] == 'r' && topic[4] == 'r') {
+        }
+      } else if (topic[0] === 'r' && topic[4] === 'r') {
         if (!self.context.selected) {
           const messageData = message.split(':')
-          return self.context.emit('comment-read', {
+          return self.context.events.emit('comment-read', {
             comment_id: messageData[0],
             comment_unique_id: messageData[1],
             room_id: topic[1],
@@ -73,14 +71,14 @@ export default class MqttAdapter {
         const commentToFind = self.context.selected.comments.find(selectedComment => {
           return (
             message.split(':')[1]
-              ? selectedComment.unique_id == message.split(':')[1]
-              : selectedComment.id == message.split(':')[0]
+              ? selectedComment.unique_id === message.split(':')[1]
+              : selectedComment.id === message.split(':')[0]
           )
         })
-        if (commentToFind && commentToFind.status != 'read' &&
-          self.context.user_id == commentToFind.username_real &&
-          topic[3] != self.context.user_id) {
-          // if(topic[3] == commentToFind.username_real) return false;
+        if (commentToFind && commentToFind.status !== 'read' &&
+          self.context.user_id === commentToFind.username_real &&
+          topic[3] !== self.context.user_id) {
+          // if(topic[3] === commentToFind.username_real) return false;
           const options = {
             participants: self.context.selected.participants,
             actor: topic[3],
@@ -92,15 +90,15 @@ export default class MqttAdapter {
             }
           })
           if (!commentToFind.room_id) commentToFind.room_id = self.context.selected.id
-          self.context.emit('comment-read', {
+          self.context.events.emit('comment-read', {
             comment: commentToFind,
             actor: topic[3]
           })
         }
-      } else if (topic[0] == 'r' && topic[4] == 'd') {
+      } else if (topic[0] === 'r' && topic[4] === 'd') {
         if (!self.context.selected) {
           const messageData = message.split(':')
-          return self.context.emit('comment-delivered', {
+          return self.context.events.emit('comment-delivered', {
             comment_id: messageData[0],
             comment_unique_id: messageData[1],
             room_id: topic[1],
@@ -114,23 +112,23 @@ export default class MqttAdapter {
         const messageData = message.split(':')
         for (let j = 0; j < commentRoom.comments.length; j++) {
           let commentData = commentRoom.comments[j]
-          if (commentData.id == messageData[0] || commentData.unique_id == messageData[1]) {
+          if (commentData.id === messageData[0] || commentData.unique_id === messageData[1]) {
             commentToFind = commentData
             break
           }
         }
-        if (commentToFind && commentToFind.status != 'read') {
-          if (topic[3] == commentToFind.username_real) return false
+        if (commentToFind && commentToFind.status !== 'read') {
+          if (topic[3] === commentToFind.username_real) return false
           const options = {
             participants: commentRoom.participants,
             actor: topic[3],
             comment_id: message.split(':')[0]
           }
           commentRoom.comments.forEach(comment => {
-            if (comment.status != 'read' && comment.id <= commentToFind.id) comment.markAsDelivered(options)
+            if (comment.status !== 'read' && comment.id <= commentToFind.id) comment.markAsDelivered(options)
           })
           if (!commentToFind.room_id) commentToFind.room_id = commentRoom.id
-          self.context.emit('comment-delivered', {
+          self.context.events.emit('comment-delivered', {
             actor: topic[3],
             comment: commentToFind
           })
@@ -194,7 +192,7 @@ export default class MqttAdapter {
     // ambil semua yang mau di unsubscribe
     this.unsubscribe(`u/${userId}/s`)
     // Object.keys(this.mqtt._subscribedTopics)
-    //   .filter(filteredList => filteredList.slice(-2) === '/s')
+    //   .filter(filteredList => filteredList.slice(-2) ==== '/s')
     //   .forEach(unlist => {
     //     this.unsubscribe(unlist);
     //   })
@@ -208,12 +206,12 @@ function handleDeletedEvents (topic, message, context) {
   const parsedMessage = JSON.parse(message)
   if ('deleted_messages' in parsedMessage.payload.data) {
     parsedMessage.payload.data.deleted_messages.map(msgRoom => {
-      context.emit('comment-deleted', { roomId: msgRoom.room_id, commentUniqueIds: msgRoom.message_unique_ids, isForEveryone: true, isHard: parsedMessage.payload.data.is_hard_delete })
+      context.events.emit('comment-deleted', { roomId: msgRoom.room_id, commentUniqueIds: msgRoom.message_unique_ids, isForEveryone: true, isHard: parsedMessage.payload.data.is_hard_delete })
     })
   } else if ('deleted_rooms' in parsedMessage.payload.data) {
     // get id of all rooms available
     parsedMessage.payload.data.deleted_rooms.forEach(room => {
-      context.emit('room-cleared', room)
+      context.events.emit('room-cleared', room)
     })
   }
 }

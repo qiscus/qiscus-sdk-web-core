@@ -29,6 +29,7 @@ export default class HttpAdapter {
       })
     })
   }
+  // eslint-disable-next-line
   get_request (path) {
     let req = request.get(`${this.baseURL}/${path}`)
     req = this.setupHeaders(req, {})
@@ -47,6 +48,7 @@ export default class HttpAdapter {
     })
   }
 
+  // eslint-disable-next-line
   post_json (path, body = {}, headers = {}) {
     return new Promise((resolve, reject) => {
       let req = request.post(`${this.baseURL}/${path}`)

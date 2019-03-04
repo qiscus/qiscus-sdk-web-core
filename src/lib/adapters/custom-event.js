@@ -11,9 +11,6 @@ export default function CustomEventAdapter (mqttAdapter, userId) {
   })
 
   const getTopic = (roomId) => `r/${roomId}/${roomId}/e`
-  const isSubscribingToTopic = (topic) => Object
-    .keys(mqttAdapter.mqtt._resubscribeTopics)
-    .includes(topic)
 
   return {
     publishEvent (roomId, payload) {

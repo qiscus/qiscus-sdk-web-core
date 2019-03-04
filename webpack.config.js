@@ -7,7 +7,7 @@ module.exports = (env) => {
     mode: env.production ? 'production' : 'development',
     output: {
       path: path.join(__dirname, 'dist'),
-      filename: env.production ? `qiscus-sdk-core.min.js` : `qiscus-sdk-core.js`,
+      filename: 'qiscus-sdk-core.min.js',
       library: 'QiscusSDKCore',
       libraryTarget: 'umd',
       libraryExport: 'default',

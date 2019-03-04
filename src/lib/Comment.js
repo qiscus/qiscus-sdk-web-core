@@ -42,22 +42,22 @@ class Comment {
     this.subtype = (comment.type === 'custom') ? comment.payload.type : null
     // comment status
     // comment status
-    if (comment.status == 'sent') {
+    if (comment.status === 'sent') {
       this.markAsSent()
-    } else if (comment.status == 'delivered') {
+    } else if (comment.status === 'delivered') {
       this.markAsDelivered()
-    } else if (comment.status == 'read') {
+    } else if (comment.status === 'read') {
       this.markAsRead()
     };
   }
   isAttachment (message) {
-    return (message.substring(0, '[file]'.length) == '[file]')
+    return (message.substring(0, '[file]'.length) === '[file]')
   }
   isImageAttachment (message) {
     return (this.isAttachment(message) && message.match(/\.(jpg|jpeg|gif|png)/i) != null)
   }
-  attachUniqueId (unique_id) {
-    this.unique_id = unique_id
+  attachUniqueId (uniqueId) {
+    this.unique_id = uniqueId
   }
   getAttachmentURI (message) {
     if (!this.isAttachment(message)) return
@@ -81,7 +81,7 @@ class Comment {
     this.status = 'sent'
   }
   markAsDelivered (options = {}) {
-    if (Object.keys(options).length == 0) {
+    if (Object.keys(options).length === 0) {
       this.isSent = true
       this.isRead = false
       this.isDelivered = true
@@ -90,7 +90,7 @@ class Comment {
     }
 
     const actorId = options['participants'].filter(
-      p => p.email == options['actor']
+      p => p.email === options['actor']
     )
 
     if (actorId[0]) {
@@ -102,7 +102,7 @@ class Comment {
       p => p.last_comment_received_id < this.id
     )
 
-    if ((notYetDelivered.length == 1 && notYetDelivered[0].email == this.username_real) || notYetDelivered.length == 0) {
+    if ((notYetDelivered.length === 1 && notYetDelivered[0].email === this.username_real) || notYetDelivered.length === 0) {
       this.isSent = true
       this.isRead = false
       this.isDelivered = true
@@ -110,7 +110,7 @@ class Comment {
     }
   }
   markAsRead (options = {}) {
-    if (Object.keys(options).length == 0) {
+    if (Object.keys(options).length === 0) {
       this.isPending = false
       this.isSent = true
       this.isDelivered = true
@@ -136,7 +136,7 @@ class Comment {
     // console.log(unreadComments, participants.map(p => p.email));
 
     if (unreadComments.length < 2) {
-      if (unreadComments[0] == actor) return false
+      if (unreadComments[0] === actor) return false
       this.isPending = false
       this.isSent = true
       this.isDelivered = true
@@ -163,15 +163,15 @@ class Comment {
     // manage comment type
     if (data.type === 'reply') {
       this.payload.replied_comment_message = escapeHTML(data.payload.replied_comment_message)
-      this.payload.text = escapeHTML(comment.payload.text)
+      this.payload.text = escapeHTML(data.payload.text)
     }
 
     // comment status
-    if (data.status == 'sent') {
+    if (data.status === 'sent') {
       this.markAsSent()
-    } else if (data.status == 'delivered') {
+    } else if (data.status === 'delivered') {
       this.markAsDelivered()
-    } else if (data.status == 'read') {
+    } else if (data.status === 'read') {
       this.markAsRead()
     };
   }

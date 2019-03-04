@@ -1,3 +1,4 @@
+/* globals vStore */
 export default {
   typing: function (topic, message) {
     vStore.dispatch('setTyping', { topic, message })
