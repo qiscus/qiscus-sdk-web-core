@@ -837,13 +837,7 @@ You can set your message status into **read**, the ideal case of this is to noti
 You need to pass `roomId ` and `commentId`. When you have **10 messages**, and the latest message Id, let say is **10**, once you set **read** message status with the latest message, in this case is **10**, your previous messages will update into **read** as well. You can update message read status by calling `updateCommentStatus` method, for example:
 
 ```
-qiscus.updateCommentStatus(roomId, lastReadCommentId, lastReceivedCommentId)
-    .then(function (comments) {
-        // On success
-    })
-    .catch(function (error) {
-        // On error
-    })
+qiscus.readComment(roomId, lastReadCommentId)
 ```
 
 ### Load Message (with *limit* and *offset*)
