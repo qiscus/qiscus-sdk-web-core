@@ -388,7 +388,10 @@ HMACSHA256(
   Qiscus Secret Key)
 ```
 
-To make this easier, we provide sample backends in PHP   [identity token implementation example](https://bitbucket.org/qiscus/qiscus-sdk-php/src/ff4f04a59100?at=master) You can use any other language or platform
+To make this easier, we provide JWT sample backends in [PHP](https://bitbucket.org/qiscus/qiscus-sdk-jwt-sample/src/master/). You can use any other language or platform.
+
+> Note :
+JWT Sample backend in PHP can be found by clicking this [link](https://bitbucket.org/qiscus/qiscus-sdk-jwt-sample/src/master/)
 
 * Step 2 : Start to get a **Nonce**
 
