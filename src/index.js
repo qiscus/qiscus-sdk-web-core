@@ -8,9 +8,8 @@ import HttpAdapter from './lib/adapters/http'
 import AuthAdapter from './lib/adapters/auth'
 import UserAdapter from './lib/adapters/user'
 import RoomAdapter from './lib/adapters/room'
-import MqttAdapter from './lib/adapters/MqttAdapter'
+import MqttAdapter from './lib/adapters/mqtt'
 import CustomEventAdapter from './lib/adapters/custom-event'
-import MqttCallback from './lib/adapters/MqttCallback'
 import {
   GroupChatBuilder
 } from './lib/utils'
@@ -238,12 +237,11 @@ class QiscusSDK {
       // ////////////// CORE BUSINESS LOGIC ////////////////////////
       self.userAdapter = new UserAdapter(self.HTTPAdapter)
       self.roomAdapter = new RoomAdapter(self.HTTPAdapter)
-      self.realtimeAdapter = new MqttAdapter(mqttURL, MqttCallback, self)
+      self.realtimeAdapter = new MqttAdapter(mqttURL, self)
       self.realtimeAdapter.subscribeUserChannel()
       self.realtimeAdapter.mqtt.on('connect', () => {
         this.onReconnectMqtt()
       })
-      // self.realtimeAdapter = new PahoMqttAdapter(mqttURL, MqttCallback, self);
       window.setInterval(
         () => this.realtimeAdapter.publishPresence(this.user_id),
         3500
@@ -306,6 +304,7 @@ class QiscusSDK {
      * Called when the comment has been delivered
      */
     self.events.on('comment-delivered', function (response) {
+      self.logging('comment-delivered', response)
       if (!response) return false
       if (self.options.commentDeliveredCallback) { return self.options.commentDeliveredCallback(response) }
       // find comment with the id or unique id listed from response
@@ -340,6 +339,7 @@ class QiscusSDK {
      * Called when a comment has been read
      */
     self.events.on('comment-read', function (response) {
+      self.logging('comment-read', response)
       if (self.options.commentReadCallback) { self.options.commentReadCallback(response) }
     })
 
