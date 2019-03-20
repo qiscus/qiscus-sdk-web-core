@@ -1,65 +1,139 @@
 import mqtt from 'mqtt'
+import mitt from 'mitt'
 
 export default class MqttAdapter {
-  constructor (url, callbacks, context) {
+  constructor (url, callbacks, core) {
     const self = this
-    this.context = context
-    if (this.context.mqttURL) url = this.context.mqttURL
-    this.mqtt = mqtt.connect(url, {
+    this.core = context
+    this.emitter = mitt()
+    this.mqtt = mqtt.connect(this.core.mqttURL, {
       will: {
-        topic: `u/${self.context.userData.email}/s`,
+        topic: `u/${this.core.userData.email}/s`,
         payload: 0,
         retain: true
       }
     })
-    // console.log('connect mqtt');
-    this.mqtt.on('message', function (topic, message) {
-      if (self.context.debugMQTTMode) {
+    const reNewMessage = /^[\w]+\/c/i
+    const reNotification = /^[\w]+\/n/i
+    const reTyping = /^r\/[\d]+\/[\d]+\/([\S]+)\/t$/i
+    const reDelivery = /^r\/[\d]+\/[\d]+\/[\S]+\/d$/i
+    const reRead = /^r\/[\d]+\/[\d]+\/[\S]+\/r$/i
+    const reOnlineStatus = /^u\/[\S]+\/s$/i
+    const reChannelMessage = /^[\S]+\/[\S]+\/c/i
+
+    this.mqtt.on('message', (_topic, message) => {
+      if (this.core.debugMQTTMode) {
         console.log('get mqtt message topic', topic)
         console.log('get mqtt message message', message.toString())
       }
       // set the message to readable string
       message = message.toString()
-      topic = topic.split('/')
+      topic = _topic.split('/')
       // set event handler
+
+      switch (true) {
+        // new message topic
+        // {token}/c
+        case reNewMessage.test(_topic):
+          this.emitter.emit('new-comment', JSON.parse(message))
+        break
+
+        // notification / system event
+        // {token}/n
+        case reNotification.test(_topic):
+          handleDeletedEvents(topic, message, this.core)
+        break
+
+        // typing
+        // r/{roomId}/{topicId}/{userId}/t
+        // r/{roomId}/{topicId}/+/t
+        case reTyping.test(_topic): {
+          const match = _topic.match(reTyping)
+          const username = match[2]
+          const roomId = match[1]
+          this.emitter.emit('typing', {
+            message,
+            username,
+            roomId
+          })
+          if (this.core.selected != null
+              && roomId === this.core.selected.id
+              && message === '1'
+          ) {
+            const actor = this.core.selected.participants.find(it => it.email === username)
+            const displayName = actor != null ? actor.username : null
+            if (displayName != null) {
+              this.core.isTypingStatus = `${displayName} is typing ...`
+            }
+          } else {
+            this.core.isTypingStatus = null
+          }
+        }
+        break
+
+        // delivery receipt
+        // r/{roomId}/{topicId}/{userId}/d
+        // r/{roomId}/{topicId}/+/d
+        case reDelivery.test(_topic):
+        break
+
+        // read receipt
+        // r/{roomId}/{topicId}/{userId}/r
+        // r/{roomId}/{topicId}/+/r
+        case reRead.test(_topic):
+        break
+
+        // user online status / precense
+        // u/{userId}/s
+        case reOnlineStatus.test(_topic):
+          this.emitter.emit('presence', message)
+        break
+
+        // channel new comment
+        // {appId}/{roomId}/c
+        case reChannelMessage.test(_topic):
+          this.emitter.emit('new-comment')
+        break
+      }
+
       if (topic.length === 2) {
         // it's a comment message -> {token}/c
         if (topic[1] === 'c') {
-          self.context.events.emit('newmessages', [JSON.parse(message)])
+          self.core.events.emit('newmessages', [JSON.parse(message)])
         } else if (topic[1] === 'n') {
           // notifications event (delete room)
-          handleDeletedEvents(topic, message, self.context)
+          handleDeletedEvents(topic, message, self.core)
         }
       } else if (topic[0] === 'u' && topic[2] === 's') {
         // it's a user status message -> u/{user}/s (online / offline)
-        self.context.events.emit('presence', message)
+        self.core.events.emit('presence', message)
       } else if (topic[2] === 'c') {
         // this one is for channel subscribing
-        self.context.events.emit('newmessages', [JSON.parse(message)])
+        self.core.events.emit('newmessages', [JSON.parse(message)])
       } else if (topic[0] === 'r' && topic[4] === 't') {
-        if (!self.context.selected) return false
+        if (!self.core.selected) return false
         // it's a typing message
-        if (topic[3] !== self.context.user_id) {
-          self.context.events.emit('typing', {
+        if (topic[3] !== self.core.user_id) {
+          self.core.events.emit('typing', {
             message,
             username: topic[3],
             room_id: topic[1]
           })
-          // if (self.context.selected.id === topic[1]) self.context.isTypingStatus = `${topic[3]} is typing ...`;
-          if (message === '1' && topic[1] === self.context.selected.id) {
+          // if (self.core.selected.id === topic[1]) self.core.isTypingStatus = `${topic[3]} is typing ...`;
+          if (message === '1' && topic[1] === self.core.selected.id) {
             // ambil dulu usernya
-            const participantIndex = self.context.selected.participants.findIndex(p => p.email === topic[3])
+            const participantIndex = self.core.selected.participants.findIndex(p => p.email === topic[3])
             if (participantIndex < 0) return
-            const username = self.context.selected.participants[participantIndex].username
-            self.context.isTypingStatus = `${username} is typing ...`
+            const username = self.core.selected.participants[participantIndex].username
+            self.core.isTypingStatus = `${username} is typing ...`
           } else {
-            self.context.isTypingStatus = null
+            self.core.isTypingStatus = null
           }
         }
       } else if (topic[0] === 'r' && topic[4] === 'r') {
-        if (!self.context.selected) {
+        if (!self.core.selected) {
           const messageData = message.split(':')
-          return self.context.events.emit('comment-read', {
+          return self.core.events.emit('comment-read', {
             comment_id: messageData[0],
             comment_unique_id: messageData[1],
             room_id: topic[1],
@@ -68,7 +142,7 @@ export default class MqttAdapter {
         }
         // it's a read event
         // find the comment that need to be altered
-        const commentToFind = self.context.selected.comments.find(selectedComment => {
+        const commentToFind = self.core.selected.comments.find(selectedComment => {
           return (
             message.split(':')[1]
               ? selectedComment.unique_id === message.split(':')[1]
@@ -76,29 +150,29 @@ export default class MqttAdapter {
           )
         })
         if (commentToFind && commentToFind.status !== 'read' &&
-          self.context.user_id === commentToFind.username_real &&
-          topic[3] !== self.context.user_id) {
+          self.core.user_id === commentToFind.username_real &&
+          topic[3] !== self.core.user_id) {
           // if(topic[3] === commentToFind.username_real) return false;
           const options = {
-            participants: self.context.selected.participants,
+            participants: self.core.selected.participants,
             actor: topic[3],
             comment_id: message.split(':')[0]
           }
-          self.context.selected.comments.forEach(comment => {
+          self.core.selected.comments.forEach(comment => {
             if (comment.id <= commentToFind.id) {
               comment.markAsRead(options)
             }
           })
-          if (!commentToFind.room_id) commentToFind.room_id = self.context.selected.id
-          self.context.events.emit('comment-read', {
+          if (!commentToFind.room_id) commentToFind.room_id = self.core.selected.id
+          self.core.events.emit('comment-read', {
             comment: commentToFind,
             actor: topic[3]
           })
         }
       } else if (topic[0] === 'r' && topic[4] === 'd') {
-        if (!self.context.selected) {
+        if (!self.core.selected) {
           const messageData = message.split(':')
-          return self.context.events.emit('comment-delivered', {
+          return self.core.events.emit('comment-delivered', {
             comment_id: messageData[0],
             comment_unique_id: messageData[1],
             room_id: topic[1],
@@ -108,7 +182,7 @@ export default class MqttAdapter {
         // it's a delivered event
         // find the comment that need to be altered
         let commentToFind = null
-        let commentRoom = self.context.selected
+        let commentRoom = self.core.selected
         const messageData = message.split(':')
         for (let j = 0; j < commentRoom.comments.length; j++) {
           let commentData = commentRoom.comments[j]
@@ -128,7 +202,7 @@ export default class MqttAdapter {
             if (comment.status !== 'read' && comment.id <= commentToFind.id) comment.markAsDelivered(options)
           })
           if (!commentToFind.room_id) commentToFind.room_id = commentRoom.id
-          self.context.events.emit('comment-delivered', {
+          self.core.events.emit('comment-delivered', {
             actor: topic[3],
             comment: commentToFind
           })
@@ -167,8 +241,8 @@ export default class MqttAdapter {
   }
   unsubscribeTyping () {
     // this.unsubscribe(`r/+/+/+/t`);
-    if (!this.context.selected) return false
-    const roomId = this.context.selected.id
+    if (!this.core.selected) return false
+    const roomId = this.core.selected.id
     this.unsubscribe(`r/${roomId}/${roomId}/+/t`)
     // titip sekalian untuk read dan delivered
     this.unsubscribe(`r/${roomId}/${roomId}/+/d`)
@@ -178,11 +252,11 @@ export default class MqttAdapter {
     this.mqtt.publish(topic, payload.toString(), options)
   }
   subscribeUserChannel (channel) {
-    this.subscribe(`${this.context.userData.token}/c`)
-    this.subscribe(`${this.context.userData.token}/n`)
+    this.subscribe(`${this.core.userData.token}/c`)
+    this.subscribe(`${this.core.userData.token}/n`)
   }
   publishPresence (userId) {
-    this.context.logging('emitting presence status for user', userId)
+    this.core.logging('emitting presence status for user', userId)
     this.publish(`u/${userId}/s`, 1, { retain: true })
   }
   subscribeRoomPresence (userId) {
@@ -198,7 +272,7 @@ export default class MqttAdapter {
     //   })
   }
   publishTyping (status) {
-    this.publish(`r/${this.context.selected.id}/${this.context.selected.id}/${this.context.user_id}/t`, status)
+    this.publish(`r/${this.core.selected.id}/${this.core.selected.id}/${this.core.user_id}/t`, status)
   }
 }
 

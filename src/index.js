@@ -548,13 +548,11 @@ class QiscusSDK {
       // before we unsubscribe, we need to get the userId first
       // and only unsubscribe if the previous room is having a type of 'single'
       if (this.selected.room_type === 'single') {
-        const unsubscribedUserId = this.selected.participants.filter(
-          p => p.email !== this.user_id
-        )
+        const unsubscribedUserId = this.selected.participants
+          .filter(p => p.email !== this.user_id)
         if (unsubscribedUserId.length > 0) {
-          this.realtimeAdapter.unsubscribeRoomPresence(
-            unsubscribedUserId[0].email
-          )
+          this.realtimeAdapter
+            .unsubscribeRoomPresence(unsubscribedUserId[0].email)
         }
       }
     }
@@ -572,7 +570,7 @@ class QiscusSDK {
         console.log('Trying Initial Subscribe')
       }
 
-      if (this.realtimeAdapter !== null) {
+      if (this.realtimeAdapter != null) {
         if (this.debugMode) {
           console.log(this.realtimeAdapter)
           console.log('MQTT Connected')
@@ -582,16 +580,14 @@ class QiscusSDK {
         // before we unsubscribe, we need to get the userId first
         // and only unsubscribe if the previous room is having a type of 'single'
         if (room.room_type === 'single' && targetUserId.length > 0) {
-          // this.realtimeAdapter.unsubscribeRoomPresence(targetUserId[0].email);
           this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email)
         }
         // we need to subscribe to new room typing event now
         if (!this.selected.isChannel) {
-          // this.realtimeAdapter.unsubscribeTyping();
           this.realtimeAdapter.subscribeTyping(room.id)
           this.events.emit('room-changed', this.selected)
         }
-        if (this.debugMode && this.realtimeAdapter === null) {
+        if (this.debugMode && this.realtimeAdapter == null) {
           console.log('Retry')
         }
       } else {
