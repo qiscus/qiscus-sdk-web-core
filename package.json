@@ -6,6 +6,7 @@
   "main": "dist/qiscus-sdk-core.min.js",
   "scripts": {
     "build": "webpack --env.production",
+    "build:dev": "webpack --env.development",
     "dev": "webpack --env.development --progress --colors --watch",
     "test": "mocha --require @babel/register --colors 'test/**/*test.js'",
     "test:watch": "npm run test -- -w",

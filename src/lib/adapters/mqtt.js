@@ -3,7 +3,7 @@ const mitt = require('mitt').default
 const MQTT = require('mqtt')
 
 class MqttAdapter {
-  constructor (url, callbacks, core) {
+  constructor (url, core) {
     const emitter = mitt()
     const mqtt = MQTT.connect(url, {
       will: {
@@ -239,7 +239,8 @@ class MqttAdapter {
       const options = {
         participants: room.participants,
         actor: userId,
-        comment_id: commentId
+        comment_id: Number(commentId),
+        activeActorId: this.core.user_id
       }
       room.comments.forEach((it) => {
         if (it.id <= comment.id) {
@@ -248,6 +249,8 @@ class MqttAdapter {
       })
 
       if (comment.room_id == null) comment.room_id = room.id
+      // Only emit if comment are read
+      if (!comment.isRead) return
       this.emit('comment-read', {
         comment,
         userId
