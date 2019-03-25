@@ -12,14 +12,13 @@ class MqttAdapter {
         retain: true
       }
     })
-    // Define a read-only property so user cannot accedentially
-    // overwrite it value
+    // Define a read-only property so user cannot accidentially
+    // overwrite it's value
     Object.defineProperties(this, {
       core: { value: core },
       emitter: { value: emitter },
       mqtt: { value: mqtt }
     })
-    window.mqtt = this
 
     const matcher = match({
       [when(this.reNewMessage)]: (topic) => this.newMessageHandler.bind(this, topic),
@@ -34,7 +33,8 @@ class MqttAdapter {
 
     this.mqtt.on('message', (t, m) => {
       const message = m.toString()
-      matcher(t)(message)
+      const func = matcher(t)
+      if (func != null) func(message)
     })
 
     this.mqtt.on('reconnect', () => {

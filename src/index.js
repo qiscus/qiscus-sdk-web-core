@@ -469,7 +469,7 @@ class QiscusSDK {
     this.selected = null
     this.isInit = false
     this.isLogin = false
-    this.userData = null
+    this.userData = {}
   }
 
   // Activate Sync Feature if `http` or `both` is chosen as sync value when init
@@ -511,8 +511,8 @@ class QiscusSDK {
       .syncEvent(idToBeSynced)
       .then(res => {
         if (!res) return false
-        const data = event.payload.data
         res.events.forEach(event => {
+          const data = event.payload.data
           if (data.hasOwnProperty('deleted_messages')) {
             data.deleted_messages.forEach((message) => {
               self.events.emit('commend-deleted', {
@@ -557,13 +557,13 @@ class QiscusSDK {
       }
     }
     if (room.participants == null) room.participants = []
-    const targetUserId = room.participants.filter(p => p.email !== this.user_id)
+    const targetUserId = room.participants.find(p => p.email !== this.user_id)
     this.chatmateStatus = null
     this.isTypingStatus = null
     this.selected = room
     // found a bug where there's a race condition, subscribing to mqtt
     // while mqtt is still connecting, so we'll have to do this hack
-    let initialSubscribe = window.setInterval(() => {
+    const initialSubscribe = window.setInterval(() => {
       // Clear Interval when realtimeAdapter has been Populated
 
       if (this.debugMode) {
@@ -579,11 +579,11 @@ class QiscusSDK {
 
         // before we unsubscribe, we need to get the userId first
         // and only unsubscribe if the previous room is having a type of 'single'
-        if (room.room_type === 'single' && targetUserId.length > 0) {
-          this.realtimeAdapter.subscribeRoomPresence(targetUserId[0].email)
+        if (room.room_type === 'single' && targetUserId != null) {
+          this.realtimeAdapter.subscribeRoomPresence(targetUserId.email)
         }
         // we need to subscribe to new room typing event now
-        if (!this.selected.isChannel) {
+        if (this.selected != null && !this.selected.isChannel) {
           this.realtimeAdapter.subscribeTyping(room.id)
           this.events.emit('room-changed', this.selected)
         }
@@ -907,24 +907,11 @@ class QiscusSDK {
           pendingComment.unix_timestamp = res.unix_timestamp
           self.sortComments()
 
-          const commentBeforeThis = self.selected.comments.find(
-            cmt => cmt.id === res.comment_before_id
-          )
-          if (!commentBeforeThis && res.room_id === self.selected.id) {
-            this.logging('comment before id not found! ', res.comment_before_id)
-
-            // need to fix, these method does not work
-            // self.synchronize(roomLastCommentId);
-            // self.synchronizeEvent(roomLastCommentId);
-
-            this.chatGroup(res.room_id)
-          }
-
-          return new Promise((resolve, reject) => resolve(res))
+          return Promise.resolve(res)
         },
         err => {
           pendingComment.markAsFailed()
-          return new Promise((resolve, reject) => reject(err))
+          return Promise.reject(err)
         }
       )
   }
@@ -1274,6 +1261,12 @@ class QiscusSDK {
   unsubscribeEvent (...args) {
     this.customEventAdapter.unsubscribeEvent(...args)
   }
+
+  get logger () {
+    if (this.debugMode) return console.log.bind(console, 'Qiscus ->')
+    return this.noop
+  }
+  noop () { }
 }
 
 class FileUploaded {
