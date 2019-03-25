@@ -1,11 +1,12 @@
 {
   "name": "qiscus-sdk-core",
-  "version": "2.8.6",
+  "version": "2.8.7",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
   "main": "dist/qiscus-sdk-core.min.js",
   "scripts": {
     "build": "webpack --env.production",
+    "build:dev": "webpack --env.development",
     "dev": "webpack --env.development --progress --colors --watch",
     "test": "mocha --require @babel/register --colors 'test/**/*test.js'",
     "test:watch": "npm run test -- -w",
@@ -39,6 +40,7 @@
   "dependencies": {
     "date-fns": "^1.28.5",
     "is_js": "^0.9.0",
+    "match-when": "^3.0.0",
     "mitt": "^1.1.3",
     "mqtt": "^2.18.1",
     "superagent": "^3.6.3"

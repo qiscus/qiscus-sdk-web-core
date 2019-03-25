@@ -89,20 +89,29 @@ class Comment {
       return
     }
 
-    const actorId = options['participants'].filter(
-      p => p.email === options['actor']
-    )
+    const participants = options.participants
+    const actorId = options.actor
+    const commentId = options.comment_id
+    const activeActorId = options.activeActorId
 
-    if (actorId[0]) {
-      actorId[0].last_comment_received_id = options['comment_id']
-      actorId[0].last_comment_received_id_str = options['comment_id'].toString()
+    const actor = participants.find(it => it.email === actorId)
+
+    if (actor) {
+      actor.last_comment_received_id = commentId
+      actor.last_comment_received_id_str = commentId
     }
 
-    const notYetDelivered = options['participants'].filter(
-      p => p.last_comment_received_id < this.id
-    )
+    // Get list of participants that has not receive the message
+    // excluding current active user
+    const unreceivedParticipants = participants
+      .map((it) => ({
+        commentId: it.last_comment_received_id,
+        userId: it.email
+      }))
+      .filter(it => it.userId !== activeActorId)
+      .filter(it => it.commentId < this.id)
 
-    if ((notYetDelivered.length === 1 && notYetDelivered[0].email === this.username_real) || notYetDelivered.length === 0) {
+    if (unreceivedParticipants.length === 0) {
       this.isSent = true
       this.isRead = false
       this.isDelivered = true
@@ -120,23 +129,29 @@ class Comment {
     }
 
     const participants = options.participants
-    const actor = options.actor
+    const actorId = options.actor
     const commentId = options.comment_id
 
-    const actorId = participants.find(p => p.email === actor)
+    const actor = participants.find(p => p.email === actorId)
     if (actorId != null) {
-      actorId.last_comment_read_id = commentId
-      actorId.last_comment_read_id_str = commentId.toString()
-      actorId.last_comment_received_id = commentId
-      actorId.last_comment_received_id_str = commentId.toString()
+      actor.last_comment_read_id = commentId
+      actor.last_comment_read_id_str = commentId.toString()
+      actor.last_comment_received_id = commentId
+      actor.last_comment_received_id_str = commentId.toString()
     }
 
-    const unreadComments = participants.filter(p => p.last_comment_read_id < this.id).map(p => p.email)
-    // const isSelfComment = unreadComments.includes(this.username_real);
-    // console.log(unreadComments, participants.map(p => p.email));
+    // Get list of participants that has not read the message
+    // excluding current active user
+    const unreadParticipants = participants
+      .map(it => ({
+        commentId: it.last_comment_read_id,
+        userId: it.email
+      }))
+      .filter(it => it.userId !== options.activeActorId)
+      .filter(it => it.commentId < this.id)
 
-    if (unreadComments.length < 2) {
-      if (unreadComments[0] === actor) return false
+    // If all participants already read the message, mark message as read
+    if (unreadParticipants.length === 0) {
       this.isPending = false
       this.isSent = true
       this.isDelivered = true
