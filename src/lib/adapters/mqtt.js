@@ -1,4 +1,4 @@
-const { match, when } = require('match-when')
+const { match, when } = require('../match')
 const mitt = require('mitt').default
 const MQTT = require('mqtt')
 
