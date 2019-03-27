@@ -127,8 +127,9 @@ class MqttAdapter {
   noop () {}
 
   newMessageHandler (topic, message) {
+    message = JSON.parse(message)
     this.logger('on:new-message', message)
-    this.emit('new-message', JSON.parse(message))
+    this.emit('new-message', message)
   }
 
   notificationHandler (topic, message) {
