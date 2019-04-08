@@ -1,4 +1,4 @@
-const { match, when } = require('match-when')
+const { match, when } = require('../match')
 const mitt = require('mitt').default
 const MQTT = require('mqtt')
 
@@ -127,8 +127,9 @@ class MqttAdapter {
   noop () {}
 
   newMessageHandler (topic, message) {
+    message = JSON.parse(message)
     this.logger('on:new-message', message)
-    this.emit('new-message', JSON.parse(message))
+    this.emit('new-message', message)
   }
 
   notificationHandler (topic, message) {
