@@ -1,11 +1,11 @@
-const { match, when } = require('../match')
-const mitt = require('mitt').default
-const MQTT = require('mqtt')
+import { match, when } from '../match'
+import mitt from 'mitt'
+import connect from 'mqtt/lib/connect'
 
-class MqttAdapter {
+export default class MqttAdapter {
   constructor (url, core) {
     const emitter = mitt()
-    const mqtt = MQTT.connect(url, {
+    const mqtt = connect(url, {
       will: {
         topic: `u/${core.userData.email}/s`,
         payload: 0,
@@ -308,5 +308,3 @@ class MqttAdapter {
   }
   // #endregion
 }
-
-module.exports = MqttAdapter
