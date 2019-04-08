@@ -22,7 +22,7 @@ function MissingCatchAllPattern() {
 
 MissingCatchAllPattern.prototype = Object.create(Error.prototype);
 
-function match(...args){
+export function match(...args){
   const obj = args[args.length-1];
 
   // pre-compute matchers
@@ -56,7 +56,7 @@ function match(...args){
 }
 
 
-function when(props){
+export function when(props){
   if(props === undefined){
     return _catchAllSymbol;
   }
@@ -174,9 +174,4 @@ when.unserialize = function(serializedKey, value){
     result: value,
     position: position
   };
-};
-
-module.exports = {
-  match,
-  when
 };

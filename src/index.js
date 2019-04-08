@@ -103,7 +103,7 @@ class QiscusSDK {
     this.setEventListeners()
 
     // mini garbage collector
-    // window.setInterval(this.clearRoomsCache.bind(this), 90000);
+    // setInterval(this.clearRoomsCache.bind(this), 90000);
   }
 
   readComment (roomId, commentId) {
@@ -242,10 +242,7 @@ class QiscusSDK {
       self.realtimeAdapter.mqtt.on('connect', () => {
         this.onReconnectMqtt()
       })
-      window.setInterval(
-        () => this.realtimeAdapter.publishPresence(this.user_id),
-        3500
-      )
+      setInterval(() => this.realtimeAdapter.publishPresence(this.user_id), 3500)
 
       if (self.sync === 'http' || self.sync === 'both') self.activateSync()
       if (self.options.loginSuccessCallback) { self.options.loginSuccessCallback(response) }
@@ -477,15 +474,15 @@ class QiscusSDK {
     const self = this
     if (self.isSynced) return false
     self.isSynced = true
-    self.httpsync = window.setInterval(() => self.synchronize(), 3500)
-    self.eventsync = window.setInterval(() => self.synchronizeEvent(), 3500)
+    self.httpsync = setInterval(() => self.synchronize(), 3500)
+    self.eventsync = setInterval(() => self.synchronizeEvent(), 3500)
   }
 
   disableSync () {
     const self = this
     self.isSynced = false
-    window.clearInterval(self.httpsync)
-    window.clearInterval(self.eventsync)
+    clearInterval(self.httpsync)
+    clearInterval(self.eventsync)
   }
 
   /**
@@ -563,7 +560,7 @@ class QiscusSDK {
     this.selected = room
     // found a bug where there's a race condition, subscribing to mqtt
     // while mqtt is still connecting, so we'll have to do this hack
-    const initialSubscribe = window.setInterval(() => {
+    const initialSubscribe = setInterval(() => {
       // Clear Interval when realtimeAdapter has been Populated
 
       if (this.debugMode) {
