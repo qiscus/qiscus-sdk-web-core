@@ -930,6 +930,18 @@ class QiscusSDK {
       })
   }
 
+  getRoomParticipants (roomUniqueId, offset = 0) {
+    return this.HTTPAdapter.get_request('api/v2/sdk/room_participants')
+      .query({
+        token: this.userData.token,
+        room_unique_id: roomId,
+        offset
+      })
+      .then((resp) => {
+        return Promise.resolve(resp.body.results)
+      })
+  }
+
   resendComment (comment) {
     var self = this
     var room = self.selected
