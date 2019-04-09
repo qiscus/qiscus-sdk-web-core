@@ -5,6 +5,10 @@
   "license": "MIT",
   "main": "lib/index.js",
   "browser": "dist/qiscus-sdk-core.min.js",
+  "files": [
+    "lib",
+    "dist"
+  ],
   "scripts": {
     "build": "npm-run-all --parallel build:node build:web",
     "build:dev": "npm-run-all --parallel build:node build:web:dev",
