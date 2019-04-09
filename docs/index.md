@@ -707,17 +707,32 @@ Where:
 
 ### Get Participant List In Chat Room
 
-You can get participant list in Chat Room, you can get from `QiscusChatRoom`  object directly.
-
-This example code you can retrieve from object `QiscusChatRoom`:
+You can get participants in Chat Room by calling this method `getRoomParticipants`.
 
 ```
-qiscusChatRoom.participants
+qiscus.getRoomParticpants(roomUniqueId: String, offset: Number)
+    .then(function (response) {
+        // On success
+    })
+    .catch(function (error) {
+        // On failure
+    })
 ```
+
+Where:
+* `roomUniqueId`: are Room uniqueId, you can get this value in Room object
+  with property of `unique_id`
+* `offset`: How many data to skip when getting room participants, this parameter
+  usefull for doing pagination. By default it will be 0, and will return 100
+  participant for each call.
+
 
 ### Add Participant In Chat Room
 
-You can add more than a participant in Chat Room by calling this method `addParticipantsToGroup` you can pass multiple `userId` . Once a participant success join the Chat Room, they get new Chat Room in their Chat Room list.
+You can add more than a participant in Chat Room by calling this method
+`addParticipantsToGroup` you can pass multiple `userId`.
+Once a participant success join the Chat Room, they get new Chat Room
+in their Chat Room list.
 
 ```
 qiscus.addParticipantsToGroup(roomId, userIds)
@@ -869,7 +884,17 @@ Where:
 You can send a raw file by passing `file` Qiscus Chat SDK, it will automatically post a message of your file.
 
 ```
-qiscus.uploadFile(roomId, file)
+qiscus.upload(file: File, function (error: Error, url: String, progress: ProgressEvent) {
+    if (error) {
+        // Do something when error happend
+    }
+    if (url) {
+        // Do something when upload are completed
+    }
+    if (progress) {
+        // Do something when file are still uploading
+    }
+})
 ```
 
 ### Delete Message
