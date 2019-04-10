@@ -671,17 +671,18 @@ class QiscusSDK {
    * @return {Room} Room data
    */
   getRoomById (id) {
+    if (!this.isInit) return
+
     const self = this
     self.isLoading = true
     self.isTypingStatus = ''
-    return self.roomAdapter.getRoomById(id).then(
-      response => {
+    return self.roomAdapter.getRoomById(id)
+      .then((response) => {
         // make sure the room hasn't been pushed yet
-        let room
         let roomData = response.results.room
         roomData.name = roomData.room_name
         roomData.comments = response.results.comments.reverse()
-        room = new Room(roomData)
+        let room = new Room(roomData)
 
         self.last_received_comment_id =
           self.last_received_comment_id < room.last_comment_id
@@ -692,6 +693,9 @@ class QiscusSDK {
         // id of last comment on this room
         const lastComment = room.comments[room.comments.length - 1]
         if (lastComment) self.readComment(room.id, lastComment.id)
+        if (room.isChannel) {
+          this.realtimeAdapter.subscribeChannel(this.AppId, room.unique_id)
+        }
         return Promise.resolve(room)
       },
       error => {
