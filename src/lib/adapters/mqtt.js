@@ -31,6 +31,7 @@ export default class MqttAdapter {
       [when()]: (topic) => this.logger('topic not handled', topic)
     })
 
+    // #region mqtt event
     this.mqtt.on('message', (t, m) => {
       const message = m.toString()
       const func = matcher(t)
@@ -57,6 +58,7 @@ export default class MqttAdapter {
 
       core.activateSync()
     })
+    // #endregion
 
     // TODO: Update core to use latest emitter
     // #region backward-compatible
