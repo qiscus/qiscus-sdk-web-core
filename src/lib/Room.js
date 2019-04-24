@@ -69,6 +69,8 @@ export class Room {
    * @memberof Room
    */
   receiveComment (comment) {
+    // Ignore if not from the same room
+    if (comment.room_id !== this.id) return
     // let's check first whether this room already has this specific comment
     const commentToFind = this.comments.find(cmt => cmt.unique_id === comment.unique_id)
     if (commentToFind) {
