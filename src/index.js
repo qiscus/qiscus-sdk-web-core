@@ -467,6 +467,7 @@ class QiscusSDK {
     this.isInit = false
     this.isLogin = false
     this.userData = {}
+    this.realtimeAdapter.disconnect()
   }
 
   // Activate Sync Feature if `http` or `both` is chosen as sync value when init
@@ -532,9 +533,7 @@ class QiscusSDK {
   }
 
   disconnect () {
-    this.isInit = false
-    this.userData = {}
-    this.selected = null
+    this.logout()
   }
 
   setActiveRoom (room) {
@@ -702,7 +701,7 @@ class QiscusSDK {
         console.error('Error getting room by id', error)
         return Promise.reject(error)
       }
-    )
+      )
   }
 
   /**
