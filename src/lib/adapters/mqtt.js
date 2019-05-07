@@ -116,6 +116,11 @@ export default class MqttAdapter {
     return console.log.bind(console, 'MQTT ->')
   }
 
+  disconnect () {
+    Object.keys(this.mqtt._resubscribeTopics)
+      .forEach((topic) => this.unsubscribe(topic))
+  }
+
   // #region regexp
   get reNewMessage () { return /^([\w]+)\/c/i }
   get reNotification () { return /^([\w]+)\/n/i }
@@ -126,7 +131,7 @@ export default class MqttAdapter {
   get reChannelMessage () { return /^([\S]+)\/([\S]+)\/c/i }
   // #endregion
 
-  noop () {}
+  noop () { }
 
   newMessageHandler (topic, message) {
     message = JSON.parse(message)
