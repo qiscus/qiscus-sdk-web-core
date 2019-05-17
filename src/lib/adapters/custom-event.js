@@ -1,8 +1,8 @@
 import is from 'is_js'
-import { EventEmitter } from 'events'
+import mitt from 'mitt'
 
 export default function CustomEventAdapter (mqttAdapter, userId) {
-  const events = new EventEmitter()
+  const events = mitt()
   const subscribedTopics = {}
 
   const reTopic = /^r\/[\w]+\/[\w]+\/e$/i
