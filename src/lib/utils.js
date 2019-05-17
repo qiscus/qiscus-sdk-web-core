@@ -1,6 +1,7 @@
 export function searchAndReplace (str, find, replace) {
   return str.split(find).join(replace)
 }
+
 export function escapeHTML (text) {
   let comment
   comment = searchAndReplace(text, '<', '&lt;')
@@ -65,7 +66,7 @@ export class GroupChatBuilder {
     const emails = this.emails
     const options = this.options
     return this.roomAdapter
-      .createRoom(name, emails, {}, options)
+      .createRoom(name, emails, { avatarURL: options.avatarURL }, options)
   }
 }
 
