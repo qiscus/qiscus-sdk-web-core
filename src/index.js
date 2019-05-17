@@ -1,5 +1,6 @@
 import request from 'superagent'
 import mitt from 'mitt'
+import is from 'is_js'
 import format from 'date-fns/format'
 import distanceInWordsToNow from 'date-fns/distance_in_words_to_now'
 import Comment from './lib/Comment'
@@ -93,11 +94,17 @@ class QiscusSDK {
     if (config.sync) this.sync = config.sync
     if (config.mode) this.mode = config.mode
     if (config.googleMapKey) this.googleMapKey = config.googleMapKey
-    if (config.allowedFileTypes) { this.allowedFileTypes = config.allowedFileTypes }
+    if (config.allowedFileTypes) {
+      this.allowedFileTypes = config.allowedFileTypes
+    }
     // Let's initialize the app based on options
-    if (config.options) { this.options = Object.assign({}, this.options, config.options) }
+    if (config.options) {
+      this.options = Object.assign({}, this.options, config.options)
+    }
     if (config.customTemplate) this.customTemplate = config.customTemplate
-    if (config.templateFunction) { this.templateFunction = config.templateFunction }
+    if (config.templateFunction) {
+      this.templateFunction = config.templateFunction
+    }
 
     // set Event Listeners
     this.setEventListeners()
@@ -107,25 +114,16 @@ class QiscusSDK {
   }
 
   readComment (roomId, commentId) {
-    const self = this
-    const isSelected = self.selected || self.selected.id !== roomId
-    const isChannel = self.selected.isChannel
+    const isSelected = (this.selected && this.selected.id === roomId) || false
+    const isChannel = (this.selected && this.selected.isChannel) || false
     if (!isSelected || isChannel) return false
-    self.userAdapter.updateCommentStatus(roomId, commentId, null)
-      .then(res => {
-        // ambil semua yang belum di read selain komen ini, kemudian mark as read
-        // self.sortComments()
-      })
+    this.userAdapter.updateCommentStatus(roomId, commentId, null)
   }
 
   receiveComment (roomId, commentId) {
-    const self = this
-    const isChannel = (self.selected) ? self.selected.isChannel : false
+    const isChannel = this.selected ? this.selected.isChannel : false
     if (isChannel) return false
-    self.userAdapter.updateCommentStatus(roomId, null, commentId)
-      .then(res => {
-        // self.sortComments()
-      })
+    this.userAdapter.updateCommentStatus(roomId, null, commentId)
   }
 
   setEventListeners () {
@@ -143,17 +141,23 @@ class QiscusSDK {
 
     self.events.on('room-changed', (room) => {
       this.logging('room changed', room)
-      if (self.options.roomChangedCallback) { self.options.roomChangedCallback(room) }
+      if (self.options.roomChangedCallback) {
+        self.options.roomChangedCallback(room)
+      }
     })
 
     self.events.on('file-uploaded', function (url) {
-      if (self.options.fileUploadedCallback) { self.options.fileUploadedCallback(url) }
+      if (self.options.fileUploadedCallback) {
+        self.options.fileUploadedCallback(url)
+      }
     })
 
     self.events.on('profile-updated', function (user) {
       self.username = user.name
       self.avatar_url = user.avatar_url
-      if (self.options.updateProfileCallback) { self.options.updateProfileCallback(user) }
+      if (self.options.updateProfileCallback) {
+        self.options.updateProfileCallback(user)
+      }
     })
 
     /**
@@ -239,13 +243,12 @@ class QiscusSDK {
       self.roomAdapter = new RoomAdapter(self.HTTPAdapter)
       self.realtimeAdapter = new MqttAdapter(mqttURL, self)
       self.realtimeAdapter.subscribeUserChannel()
-      self.realtimeAdapter.mqtt.on('connect', () => {
-        this.onReconnectMqtt()
-      })
       setInterval(() => this.realtimeAdapter.publishPresence(this.user_id), 3500)
 
       if (self.sync === 'http' || self.sync === 'both') self.activateSync()
-      if (self.options.loginSuccessCallback) { self.options.loginSuccessCallback(response) }
+      if (self.options.loginSuccessCallback) {
+        self.options.loginSuccessCallback(response)
+      }
 
       self.customEventAdapter = CustomEventAdapter(self.realtimeAdapter, self.user_id)
     })
@@ -254,7 +257,9 @@ class QiscusSDK {
      * Called when there's something wrong when connecting to qiscus SDK
      */
     self.events.on('login-error', function (error) {
-      if (self.options.loginErrorCallback) { self.options.loginErrorCallback(error) }
+      if (self.options.loginErrorCallback) {
+        self.options.loginErrorCallback(error)
+      }
     })
 
     self.events.on('room-cleared', function (room) {
@@ -294,7 +299,9 @@ class QiscusSDK {
           }
         })
       }
-      if (self.options.commentDeletedCallback) { self.options.commentDeletedCallback(data) }
+      if (self.options.commentDeletedCallback) {
+        self.options.commentDeletedCallback(data)
+      }
     })
 
     /**
@@ -303,7 +310,9 @@ class QiscusSDK {
     self.events.on('comment-delivered', function (response) {
       self.logging('comment-delivered', response)
       if (!response) return false
-      if (self.options.commentDeliveredCallback) { return self.options.commentDeliveredCallback(response) }
+      if (self.options.commentDeliveredCallback) {
+        return self.options.commentDeliveredCallback(response)
+      }
       // find comment with the id or unique id listed from response
       // const commentToFind = self.selected.comments.find(comment =>
       //   comment.id === response.id || comment.uniqueId === response.uniqueId);
@@ -314,7 +323,9 @@ class QiscusSDK {
      */
     self.events.on('chat-room-created', function (response) {
       self.isLoading = false
-      if (self.options.chatRoomCreatedCallback) { self.options.chatRoomCreatedCallback(response) }
+      if (self.options.chatRoomCreatedCallback) {
+        self.options.chatRoomCreatedCallback(response)
+      }
     })
 
     /**
@@ -322,14 +333,18 @@ class QiscusSDK {
      */
     self.events.on('group-room-created', function (response) {
       self.isLoading = false
-      if (self.options.groupRoomCreatedCallback) { self.options.groupRoomCreatedCallback(response) }
+      if (self.options.groupRoomCreatedCallback) {
+        self.options.groupRoomCreatedCallback(response)
+      }
     })
 
     /**
      * Called when user clicked on Chat SDK Header
      */
     self.events.on('header-clicked', function (response) {
-      if (self.options.headerClickedCallback) { self.options.headerClickedCallback(response) }
+      if (self.options.headerClickedCallback) {
+        self.options.headerClickedCallback(response)
+      }
     })
 
     /**
@@ -337,7 +352,9 @@ class QiscusSDK {
      */
     self.events.on('comment-read', function (response) {
       self.logging('comment-read', response)
-      if (self.options.commentReadCallback) { self.options.commentReadCallback(response) }
+      if (self.options.commentReadCallback) {
+        self.options.commentReadCallback(response)
+      }
     })
 
     /**
@@ -351,7 +368,7 @@ class QiscusSDK {
           payload[0] === 1
             ? 'Online'
             : `Last seen ${distanceInWordsToNow(
-              Number(payload[1].substring(0, 13))
+            Number(payload[1].substring(0, 13))
             )}`
       }
       if (self.options.presenceCallback) self.options.presenceCallback(data)
@@ -365,26 +382,26 @@ class QiscusSDK {
      * Called when user clicked on Message Info
      */
     self.events.on('message-info', function (response) {
-      if (self.options.messageInfoCallback) { self.options.messageInfoCallback(response) }
+      if (self.options.messageInfoCallback) {
+        self.options.messageInfoCallback(response)
+      }
     })
 
     /**
      * Called when new particant was added into a group
      */
     self.events.on('participants-added', (response) => {
-      const self = this
-      if (!response) return
-      const participants = self.selected.participants.concat(response)
-      self.selected.participants = participants
+      if (response == null || this.selected == null) return
+      this.selected.participants.push(...response)
     })
 
     /**
      * Called when particant was removed from a group
      */
     self.events.on('participants-removed', (response) => {
-      if (!response) return
-      const participants = this.selected
-        .participants.filter(participant => response.indexOf(participant.email) <= -1)
+      if (response == null || this.selected == null) return
+      const participants = this.selected.participants
+        .filter(participant => response.indexOf(participant.email) <= -1)
       this.selected.participants = participants
     })
 
@@ -392,14 +409,18 @@ class QiscusSDK {
      * Called when user was added to blocked list
      */
     self.events.on('block-user', function (response) {
-      if (self.options.blockUserCallback) { self.options.blockUserCallback(response) }
+      if (self.options.blockUserCallback) {
+        self.options.blockUserCallback(response)
+      }
     })
 
     /**
      * Called when user was removed from blocked list
      */
     self.events.on('unblock-user', function (response) {
-      if (self.options.unblockUserCallback) { self.options.unblockUserCallback(response) }
+      if (self.options.unblockUserCallback) {
+        self.options.unblockUserCallback(response)
+      }
     })
   }
 
@@ -410,13 +431,16 @@ class QiscusSDK {
   }
 
   _callNewMessagesCallback (comments) {
-    if (this.options.newMessagesCallback) { this.options.newMessagesCallback(comments) }
+    if (this.options.newMessagesCallback) {
+      this.options.newMessagesCallback(comments)
+    }
     // let's sort the comments
   }
 
   updateLastReceivedComment (id) {
     if (this.last_received_comment_id < id) this.last_received_comment_id = id
   }
+
   /**
    * Setting Up User Credentials for next API Request
    * @param {string} userId - client userId (will be used for login or register)
@@ -677,30 +701,30 @@ class QiscusSDK {
     self.isTypingStatus = ''
     return self.roomAdapter.getRoomById(id)
       .then((response) => {
-        // make sure the room hasn't been pushed yet
-        let roomData = response.results.room
-        roomData.name = roomData.room_name
-        roomData.comments = response.results.comments.reverse()
-        let room = new Room(roomData)
+          // make sure the room hasn't been pushed yet
+          let roomData = response.results.room
+          roomData.name = roomData.room_name
+          roomData.comments = response.results.comments.reverse()
+          let room = new Room(roomData)
 
-        self.last_received_comment_id =
-          self.last_received_comment_id < room.last_comment_id
-            ? room.last_comment_id
-            : self.last_received_comment_id
-        self.setActiveRoom(room)
-        self.isLoading = false
-        // id of last comment on this room
-        const lastComment = room.comments[room.comments.length - 1]
-        if (lastComment) self.readComment(room.id, lastComment.id)
-        if (room.isChannel) {
-          this.realtimeAdapter.subscribeChannel(this.AppId, room.unique_id)
+          self.last_received_comment_id =
+            self.last_received_comment_id < room.last_comment_id
+              ? room.last_comment_id
+              : self.last_received_comment_id
+          self.setActiveRoom(room)
+          self.isLoading = false
+          // id of last comment on this room
+          const lastComment = room.comments[room.comments.length - 1]
+          if (lastComment) self.readComment(room.id, lastComment.id)
+          if (room.isChannel) {
+            this.realtimeAdapter.subscribeChannel(this.AppId, room.unique_id)
+          }
+          return Promise.resolve(room)
+        },
+        error => {
+          console.error('Error getting room by id', error)
+          return Promise.reject(error)
         }
-        return Promise.resolve(room)
-      },
-      error => {
-        console.error('Error getting room by id', error)
-        return Promise.reject(error)
-      }
       )
   }
 
@@ -760,21 +784,18 @@ class QiscusSDK {
   }
 
   loadComments (roomId, options = {}) {
-    const self = this
-    return self.userAdapter.loadComments(roomId, options).then(
-      response => {
-        self.selected.receiveComments(response.reverse())
-        self.sortComments()
-        return Promise.resolve(response)
-      },
-      error => {
-        console.error('Error loading comments', error)
-        return Promise.reject(error)
-      }
-    )
+    return this.userAdapter.loadComments(roomId, options)
+      .then((comments) => {
+        if (this.selected != null) {
+          this.selected.receiveComments(comments.reverse())
+          this.sortComments()
+        }
+        return Promise.resolve(comments)
+      })
   }
 
   loadMore (lastCommentId, options = {}) {
+    if (this.selected == null) return
     options.last_comment_id = lastCommentId
     options.after = false
     return this.loadComments(this.selected.id, options)
@@ -849,14 +870,18 @@ class QiscusSDK {
   ) {
     var self = this
     // set extra data, etc
-    if (self.options.prePostCommentCallback) { self.options.prePostCommentCallback(commentMessage) }
+    if (self.options.prePostCommentCallback) {
+      self.options.prePostCommentCallback(commentMessage)
+    }
     /**
      * example:
      * commentFormaterCallback(msg) {
      *  return filterBadWords(msg) // define your own filter function and return its' value
      * }
      */
-    if (self.options.commentFormaterCallback) { commentMessage = self.options.commentFormaterCallback(commentMessage) }
+    if (self.options.commentFormaterCallback) {
+      commentMessage = self.options.commentFormaterCallback(commentMessage)
+    }
     self.pendingCommentId--
     var commentData = {
       message: commentMessage,
@@ -915,6 +940,7 @@ class QiscusSDK {
         }
       )
   }
+
   // #endregion
 
   getUsers (query = '', page = 1, limit = 20) {
@@ -943,6 +969,7 @@ class QiscusSDK {
   }
 
   resendComment (comment) {
+    if (this.selected == null) return
     var self = this
     var room = self.selected
     var pendingComment = room.comments.find(
@@ -1001,18 +1028,23 @@ class QiscusSDK {
   }
 
   removeSelectedRoomParticipants (values = [], payload = 'id') {
-    if (!values) {
-      return Promise.reject(new Error('Please gives an array values.'))
-    }
+    if (is.not.array(values)) return Promise.reject(new Error('`values` must have type of array'))
+
     const participants = this.selected.participants
     if (!participants) {
       return Promise.reject(new Error('Nothing selected room chat.'))
     }
     // start to changes selected participants with newest values
     let participantsExclude = participants
-    if (payload === 'id') { participantsExclude = participants.filter(participant => values.indexOf(participant.id) <= -1) }
-    if (payload === 'email') { participantsExclude = participants.filter(participant => values.indexOf(participant.email) <= -1) }
-    if (payload === 'username') { participantsExclude = participants.filter(participant => values.indexOf(participant.username) <= -1) }
+    if (payload === 'id') {
+      participantsExclude = participants.filter(participant => values.indexOf(participant.id) <= -1)
+    }
+    if (payload === 'email') {
+      participantsExclude = participants.filter(participant => values.indexOf(participant.email) <= -1)
+    }
+    if (payload === 'username') {
+      participantsExclude = participants.filter(participant => values.indexOf(participant.username) <= -1)
+    }
     this.selected.participants = participantsExclude
     return Promise.resolve(participants)
   }
@@ -1047,7 +1079,9 @@ class QiscusSDK {
    */
   addParticipantsToGroup (roomId, emails) {
     const self = this
-    if (!Array.isArray(emails)) { throw new Error(`emails' must be type of Array`) }
+    if (!Array.isArray(emails)) {
+      throw new Error(`emails' must be type of Array`)
+    }
     return self.roomAdapter.addParticipantsToGroup(roomId, emails)
       .then((res) => {
         self.events.emit('participants-added', res)
@@ -1064,13 +1098,12 @@ class QiscusSDK {
    * @memberof QiscusSDK
    */
   removeParticipantsFromGroup (roomId, emails) {
-    const self = this
-    if (!Array.isArray(emails)) { throw new Error(`emails' must be type of Array`) }
-    return self.roomAdapter.removeParticipantsFromGroup(roomId, emails)
+    if (is.not.array(emails)) return Promise.reject(new Error('`emails` must have type of array'))
+    return this.roomAdapter.removeParticipantsFromGroup(roomId, emails)
       .then((res) => {
-        self.events.emit('participants-removed', emails)
+        this.events.emit('participants-removed', emails)
         return Promise.resolve(res)
-      }, err => Promise.reject(err))
+      })
   }
 
   /**
@@ -1203,7 +1236,9 @@ class QiscusSDK {
   }
 
   deleteComment (roomId, commentUniqueIds, isForEveryone, isHard) {
-    if (!Array.isArray(commentUniqueIds)) { throw new Error(`unique ids' must be type of Array`) }
+    if (!Array.isArray(commentUniqueIds)) {
+      throw new Error(`unique ids' must be type of Array`)
+    }
     return this.userAdapter
       .deleteComment(roomId, commentUniqueIds, isForEveryone, isHard)
       .then(
@@ -1230,10 +1265,14 @@ class QiscusSDK {
       // get current index and array length
       const roomLength = this.rooms.length
       let curIndex = this.rooms.findIndex(room => room.id === this.selected.id)
-      if (!(curIndex + 1 === roomLength)) { this.rooms.splice(curIndex + 1, roomLength - (curIndex + 1)) }
+      if (!(curIndex + 1 === roomLength)) {
+        this.rooms.splice(curIndex + 1, roomLength - (curIndex + 1))
+      }
       // ambil ulang cur index nya, klo udah di awal ga perlu lagi kode dibawah ini
       curIndex = this.rooms.findIndex(room => room.id === this.selected.id)
-      if (curIndex > 0 && this.rooms.length > 1) { this.rooms.splice(1, this.rooms.length - 1) }
+      if (curIndex > 0 && this.rooms.length > 1) {
+        this.rooms.splice(1, this.rooms.length - 1)
+      }
     }
   }
 
@@ -1245,7 +1284,9 @@ class QiscusSDK {
   }
 
   clearRoomMessages (roomIds) {
-    if (!Array.isArray(roomIds)) { throw new Error('room_ids must be type of array') }
+    if (!Array.isArray(roomIds)) {
+      throw new Error('room_ids must be type of array')
+    }
     return this.userAdapter.clearRoomMessages(roomIds)
   }
 
@@ -1267,9 +1308,11 @@ class QiscusSDK {
   publishEvent (...args) {
     this.customEventAdapter.publishEvent(...args)
   }
+
   subscribeEvent (...args) {
     this.customEventAdapter.subscribeEvent(...args)
   }
+
   unsubscribeEvent (...args) {
     this.customEventAdapter.unsubscribeEvent(...args)
   }
@@ -1278,7 +1321,9 @@ class QiscusSDK {
     if (this.debugMode) return console.log.bind(console, 'Qiscus ->')
     return this.noop
   }
-  noop () { }
+
+  noop () {
+  }
 }
 
 class FileUploaded {
