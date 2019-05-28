@@ -1,5 +1,4 @@
 // Taken from https://github.com/FGRibreau/match-when/blob/master/match.js
-'use strict'
 
 const _catchAllSymbol = String('match.pattern.catchAll')
 const _patternOR = String('match.pattern.OR')

@@ -4,7 +4,7 @@
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
   "main": "lib/index.js",
-  "browser": "dist/qiscus-sdk-core.min.js",
+  "browser": "dist/qiscus-sdk-core.js",
   "files": [
     "lib",
     "dist"
@@ -14,7 +14,7 @@
     "build:dev": "npm-run-all --parallel build:node build:web:dev",
     "build:node": "babel -d lib src",
     "build:web": "webpack --env.production --env.target=web",
-    "build:web:dev": "webpack --env.production --env.target=web",
+    "build:web:dev": "webpack --env.development --env.target=web",
     "dev": "webpack --env.development --progress --colors --watch",
     "test": "mocha --require @babel/register --colors 'test/**/*test.js'",
     "test:watch": "npm run test -- -w",

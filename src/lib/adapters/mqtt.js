@@ -194,7 +194,7 @@ export default class MqttAdapter {
     // r/{roomId}/{roomId}/{userId}/d
     const topic = t.match(this.reDelivery)
     const data = message.split(':')
-    const commentId = data[0]
+    const commentId = Number(data[0])
     const commentUniqueId = data[1]
     const userId = topic[3]
     if (this.core.selected == null) return
@@ -202,9 +202,11 @@ export default class MqttAdapter {
     const room = this.core.selected
     const comment = room.comments
       .find(it => it.id === commentId || it.unique_id === commentUniqueId)
+
     if (comment == null) return
     if (comment.status === 'read') return
     if (comment.username_real === userId) return
+
 
     const options = {
       participants: room.participants,
@@ -229,7 +231,7 @@ export default class MqttAdapter {
     // r/{roomId}/{roomId}/{userId}/r
     const topic = t.match(this.reRead)
     const data = message.split(':')
-    const commentId = data[0]
+    const commentId = Number(data[0])
     const commentUniqueId = data[1]
     const userId = topic[3]
     if (this.core.selected == null) return

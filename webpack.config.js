@@ -2,6 +2,9 @@ const path = require('path')
 const webpack = require('webpack')
 
 module.exports = (env) => {
+  const filename = env.production
+    ? 'qiscus-sdk-core.min.js'
+    : 'qiscus-sdk-core.js'
   const config = {
     // entry: ['@babel/polyfill', path.join(__dirname, 'src', 'index.js')],
     entry: [path.join(__dirname, 'src', 'index.js')],
@@ -9,28 +12,14 @@ module.exports = (env) => {
     devtool: env.production ? 'source-map' : false,
     mode: env.production ? 'production' : 'development',
     target: env.target || 'web',
-    output: ((target) => {
-      if (target === 'web') {
-        return {
-          path: path.join(__dirname, 'dist'),
-          filename: 'qiscus-sdk-core.min.js',
-          library: 'QiscusSDKCore',
-          libraryTarget: 'umd',
-          libraryExport: 'default',
-          umdNamedDefine: true
-        }
-      }
-      if (target === 'node') {
-        return {
-          path: path.join(__dirname, 'dist'),
-          filename: 'qiscus-sdk-core.node.js',
-          library: 'QiscusSDKCore',
-          libraryTarget: 'umd',
-          libraryExport: 'default',
-          umdNamedDefine: true
-        }
-      }
-    })(env.target),
+    output: {
+      path: path.join(__dirname, 'dist'),
+      filename: filename,
+      library: 'QiscusSDKCore',
+      libraryTarget: 'umd',
+      libraryExport: 'default',
+      umdNamedDefine: true
+    },
     module: {
       rules: [{
         test: /\.js$/,
