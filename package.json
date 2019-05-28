@@ -4,7 +4,7 @@
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
   "main": "lib/index.js",
-  "browser": "dist/qiscus-sdk-core.js",
+  "browser": "dist/qiscus-sdk-core.min.js",
   "files": [
     "lib",
     "dist"
