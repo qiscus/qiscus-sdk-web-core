@@ -178,6 +178,7 @@ export default class MqttAdapter {
 
     // TODO: Don't allow side-effect
     // it should be handled in the UI not core
+    if (this.core.selected == null) return
     if (message === '1' && roomId === this.core.selected.id) {
       const actor = this.core.selected.participants
         .find(it => it.email === userId)
@@ -206,7 +207,6 @@ export default class MqttAdapter {
     if (comment == null) return
     if (comment.status === 'read') return
     if (comment.username_real === userId) return
-
 
     const options = {
       participants: room.participants,
