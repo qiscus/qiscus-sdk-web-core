@@ -18,7 +18,8 @@
     "dev": "webpack --env.development --progress --colors --watch",
     "test": "mocha --require @babel/register --colors 'test/**/*test.js'",
     "test:watch": "npm run test -- -w",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "preversion": "npm run build"
   },
   "devDependencies": {
     "@babel/cli": "^7.4.3",
