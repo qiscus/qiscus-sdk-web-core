@@ -1,10 +1,10 @@
 {
   "name": "qiscus-sdk-core",
-  "version": "2.8.16",
+  "version": "2.8.17",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
+  "browser": "dist/qiscus-sdk-core.js",
   "main": "lib/index.js",
-  "browser": "dist/qiscus-sdk-core.min.js",
   "files": [
     "lib",
     "dist"
@@ -13,9 +13,12 @@
     "build": "npm-run-all --parallel build:node build:web",
     "build:dev": "npm-run-all --parallel build:node build:web:dev",
     "build:node": "babel -d lib src",
+    "build:node:watch": "babel -w -d lib src",
     "build:web": "webpack --env.production --env.target=web",
     "build:web:dev": "webpack --env.development --env.target=web",
+    "build:web:watch": "webpack --env.development --env.target=web --watch",
     "dev": "webpack --env.development --progress --colors --watch",
+    "watch": "npm-run-all --parallel build:node:watch build:web:watch",
     "test": "mocha --require @babel/register --colors 'test/**/*test.js'",
     "test:watch": "npm run test -- -w",
     "clean": "rimraf dist",
@@ -61,7 +64,8 @@
       [
         "@babel/preset-env",
         {
-          "modules": "auto"
+          "targets": "> 0.25%, not dead",
+          "modules": "commonjs"
         }
       ]
     ],
