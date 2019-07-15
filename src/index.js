@@ -113,19 +113,39 @@ class QiscusSDK {
     })
     const log = (...args) => console.log('sync ->', ...args)
     this.syncAdapter.events.on('message.new', (message) => {
-      log('@message.new', message)
+      if (this.selected != null) {
+        const index = this.selected.comments
+          .findIndex(it => it.id === message.id || it.unique_id === message.unique_temp_id)
+        if (index === -1) {
+          const _message = new Comment(message)
+          this.selected.comments.push(_message)
+          this.sortComments()
+          this.events.emit('newmessages', [message])
+        }
+      } else {
+        this.events.emit('newmessages', [message])
+      }
     })
     this.syncAdapter.events.on('message.delivered', (message) => {
-      log('@message.delivered', message)
+      this._setDelivered(message.comment_id, message.comment_unique_id, message.email)
     })
     this.syncAdapter.events.on('message.read', (message) => {
-      log('@message.read', message)
+      this._setRead(message.comment_id, message.comment_unique_id, message.email)
     })
     this.syncAdapter.events.on('message.deleted', (data) => {
-      log('@message.deleted', data)
+      data.deleted_messages.forEach((it) => {
+        this.events.emit('comment-deleted', {
+          roomId: it.room_id,
+          commentUniqueIds: it.message_unique_ids,
+          isForEveryone: true,
+          isHard: true
+        })
+      })
     })
     this.syncAdapter.events.on('room.deleted', (data) => {
-      log('@room.cleared')
+      data.deleted_rooms.forEach((room) => {
+        this.events.emit('room-cleared', room)
+      })
     })
   }
 
