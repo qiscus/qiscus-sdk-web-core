@@ -32,7 +32,11 @@ module.exports = (env) => {
     },
     plugins: [
       new webpack.DefinePlugin({ 'global.GENTLY': false })
-    ]
+    ],
+    performance: {
+      maxEntrypointSize: 512000,
+      maxAssetSize: 512000
+    }
   }
   return config
 }

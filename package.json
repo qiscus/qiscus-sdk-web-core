@@ -13,6 +13,7 @@
     "build": "npm-run-all --parallel build:node build:web",
     "build:dev": "npm-run-all --parallel build:node build:web:dev",
     "build:node": "babel -d lib src",
+    "build:node:watch": "babel -w -d lib src",
     "build:web": "webpack --env.production --env.target=web",
     "build:web:dev": "webpack --env.development --env.target=web",
     "dev": "webpack --env.development --progress --colors --watch",
