@@ -34,8 +34,8 @@ export default class MqttAdapter {
     // #region mqtt event
     this.mqtt.on('message', (t, m) => {
       const message = m.toString()
-      const func = matcher(t)
-      if (func != null) func(message)
+      // const func = matcher(t)
+      // if (func != null) func(message)
     })
 
     this.mqtt.on('reconnect', () => {

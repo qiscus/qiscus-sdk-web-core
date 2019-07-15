@@ -11,9 +11,8 @@ import UserAdapter from './lib/adapters/user'
 import RoomAdapter from './lib/adapters/room'
 import MqttAdapter from './lib/adapters/mqtt'
 import CustomEventAdapter from './lib/adapters/custom-event'
-import {
-  GroupChatBuilder
-} from './lib/utils'
+import SyncAdapter from './lib/adapters/sync'
+import { GroupChatBuilder } from './lib/utils'
 import Package from '../package.json'
 
 /**
@@ -109,8 +108,71 @@ class QiscusSDK {
     // set Event Listeners
     this.setEventListeners()
 
-    // mini garbage collector
-    // setInterval(this.clearRoomsCache.bind(this), 90000);
+    this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
+      getToken: () => this.userData.token
+    })
+    const log = (...args) => console.log('sync ->', ...args)
+    this.syncAdapter.events.on('message.new', (message) => {
+      log('@message.new', message)
+    })
+    this.syncAdapter.events.on('message.delivered', (message) => {
+      log('@message.delivered', message)
+    })
+    this.syncAdapter.events.on('message.read', (message) => {
+      log('@message.read', message)
+    })
+    this.syncAdapter.events.on('message.deleted', (data) => {
+      log('@message.deleted', data)
+    })
+    this.syncAdapter.events.on('room.deleted', (data) => {
+      log('@room.cleared')
+    })
+  }
+
+  _setRead (messageId, messageUniqueId, userId) {
+    if (this.selected == null) return
+    const room = this.selected
+    const message = room.comments.find(it => it.id === messageId || it.unique_id === messageUniqueId)
+    if (message == null) return
+    if (message.status === 'read') return
+
+    const options = {
+      participants: room.participants,
+      actor: userId,
+      comment_id: messageId,
+      activateActorId: this.user_id
+    }
+    room.comments.forEach((it) => {
+      if (it.id <= message.id) {
+        it.markAsRead(options)
+      }
+    })
+    if (!message.isRead) return
+    this.events.emit('comment-read', { comment: message, userId })
+  }
+  _setDelivered(messageId, messageUniqueId, userId) {
+    if (this.selected == null) return
+    const room = this.selected
+    const message = room.comments.find(it => it.id === messageId ||it.unique_id === messageUniqueId)
+    if (message == null) return
+    if (message.status === 'read') return
+
+    const options = {
+      participants: room.participants,
+      actor: userId,
+      comment_id: messageId,
+      activateActorId: this.user_id
+    }
+    room.comments.forEach((it) => {
+      if (it.id <= message.id) {
+        it.markAsDelivered(options)
+      }
+    })
+    if (!message.isDelivered) return
+    this.events.emit('comment-delivered', {
+      comment: message,
+      userId
+    })
   }
 
   readComment (roomId, commentId) {
@@ -128,7 +190,7 @@ class QiscusSDK {
 
   setEventListeners () {
     const self = this
-    self.events.on('start-init', function (response) {
+    self.events.on('start-init', () => {
       self.HTTPAdapter = new HttpAdapter({
         baseURL: self.baseURL,
         AppId: self.AppId,
@@ -146,13 +208,13 @@ class QiscusSDK {
       }
     })
 
-    self.events.on('file-uploaded', function (url) {
+    self.events.on('file-uploaded', url => {
       if (self.options.fileUploadedCallback) {
         self.options.fileUploadedCallback(url)
       }
     })
 
-    self.events.on('profile-updated', function (user) {
+    self.events.on('profile-updated', user => {
       self.username = user.name
       self.avatar_url = user.avatar_url
       if (self.options.updateProfileCallback) {
@@ -760,11 +822,6 @@ class QiscusSDK {
     return this.getOrCreateRoomByUniqueId(channel, name, avatarURL)
   }
 
-  /**
-   * TODO: This operation is heavy, let's find another way
-   *
-   * @memberof QiscusSDK
-   */
   sortComments () {
     this.selected && this.selected.comments.sort(function (leftSideComment, rightSideComment) {
       return leftSideComment.unix_timestamp - rightSideComment.unix_timestamp
