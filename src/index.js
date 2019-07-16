@@ -83,6 +83,7 @@ class QiscusSDK {
    * @return {void}
    */
   init (config) {
+    console.log('qiscus.init')
     // set AppID
     if (!config.AppId) throw new Error('Please provide valid AppId')
     this.AppId = config.AppId
@@ -111,21 +112,40 @@ class QiscusSDK {
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
       getToken: () => this.userData.token
     })
-    const log = (...args) => console.log('sync ->', ...args)
     this.syncAdapter.events.on('message.new', (message) => {
-      log('@message.new', message)
+      if (this.selected != null) {
+        const index = this.selected.comments
+          .findIndex(it => it.id === message.id || it.unique_id === message.unique_temp_id)
+        if (index === -1) {
+          const _message = new Comment(message)
+          this.selected.comments.push(_message)
+          this.sortComments()
+          this.events.emit('newmessages', [message])
+        }
+      } else {
+        this.events.emit('newmessages', [message])
+      }
     })
     this.syncAdapter.events.on('message.delivered', (message) => {
-      log('@message.delivered', message)
+      this._setDelivered(message.comment_id, message.comment_unique_id, message.email)
     })
     this.syncAdapter.events.on('message.read', (message) => {
-      log('@message.read', message)
+      this._setRead(message.comment_id, message.comment_unique_id, message.email)
     })
     this.syncAdapter.events.on('message.deleted', (data) => {
-      log('@message.deleted', data)
+      data.deleted_messages.forEach((it) => {
+        this.events.emit('comment-deleted', {
+          roomId: it.room_id,
+          commentUniqueIds: it.message_unique_ids,
+          isForEveryone: true,
+          isHard: true
+        })
+      })
     })
     this.syncAdapter.events.on('room.deleted', (data) => {
-      log('@room.cleared')
+      data.deleted_rooms.forEach((room) => {
+        this.events.emit('room-cleared', room)
+      })
     })
   }
 
@@ -169,10 +189,7 @@ class QiscusSDK {
       }
     })
     if (!message.isDelivered) return
-    this.events.emit('comment-delivered', {
-      comment: message,
-      userId
-    })
+    this.events.emit('comment-delivered', { comment: message, userId })
   }
 
   readComment (roomId, commentId) {
@@ -572,51 +589,8 @@ class QiscusSDK {
     clearInterval(self.eventsync)
   }
 
-  /**
-   * This method let us get new comments from server
-   * If comment count > 0 then we have new message
-   */
-  synchronize (lastId) {
-    const idToBeSynced = lastId || this.last_received_comment_id
-    this.userAdapter.sync(idToBeSynced)
-      .then(comments => {
-        if (!comments) return false
-        if (comments.length > 0) this.events.emit('newmessages', comments)
-      })
-      .catch((error) => {
-        console.error('Error when syncing', error)
-      })
-  }
-
-  synchronizeEvent (lastId) {
-    const self = this
-    const idToBeSynced = lastId || this.last_received_comment_id
-    this.userAdapter
-      .syncEvent(idToBeSynced)
-      .then(res => {
-        if (!res) return false
-        res.events.forEach(event => {
-          const data = event.payload.data
-          if (data.hasOwnProperty('deleted_messages')) {
-            data.deleted_messages.forEach((message) => {
-              self.events.emit('commend-deleted', {
-                roomId: message.room_id,
-                commentUniqueIds: message.message_unique_ids,
-                isForEveryone: true,
-                isHard: data.is_hard_delete
-              })
-            })
-          } else if (data.hasOwnProperty('deleted_rooms')) {
-            data.deleted_rooms.forEach((room) => {
-              self.events.emit('room-cleared', room)
-            })
-          }
-        })
-      })
-      .catch((error) => {
-        console.error('Error when synchronizing event', error)
-      })
-  }
+  get synchronize() { return this.syncAdapter.synchronize }
+  get synchronizeEvent() { return this.syncAdapter.synchronizeEvent }
 
   disconnect () {
     this.logout()
@@ -983,6 +957,11 @@ class QiscusSDK {
           // When the posting succeeded, we mark the Comment as sent,
           // so all the interested party can be notified.
           pendingComment.markAsSent()
+          pendingComment.markAsRead({
+            participants: this.selected.participants,
+            actor: this.user_id,
+            comment_id: res.id
+          })
           pendingComment.id = res.id
           pendingComment.before_id = res.comment_before_id
           // update the timestamp also then re-sort the comment list

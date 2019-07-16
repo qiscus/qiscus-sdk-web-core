@@ -5,11 +5,10 @@ module.exports = (env) => {
   const filename = env.production
     ? 'qiscus-sdk-core.min.js'
     : 'qiscus-sdk-core.js'
-  const config = {
+  return {
     // entry: ['@babel/polyfill', path.join(__dirname, 'src', 'index.js')],
     entry: [path.join(__dirname, 'src', 'index.js')],
-    // devtool: env.production ? 'source-map' : 'cheap-eval-source-map',
-    devtool: env.production ? 'source-map' : false,
+    devtool: env.production ? 'source-map' : 'cheap-module-eval-source-map',
     mode: env.production ? 'production' : 'development',
     target: env.target || 'web',
     output: {
@@ -38,5 +37,4 @@ module.exports = (env) => {
       maxAssetSize: 512000
     }
   }
-  return config
 }
