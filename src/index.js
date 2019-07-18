@@ -22,7 +22,7 @@ import Package from '../package.json'
  * @class QiscusSDK
  * @extends {EventEmitter}
  */
-class QiscusSDK {
+export default class QiscusSDK {
   /**
    * Creates an instance of QiscusSDK.
    * @memberof QiscusSDK
@@ -1362,12 +1362,41 @@ class QiscusSDK {
   }
 }
 
-class FileUploaded {
-  constructor (name, roomId) {
-    this.name = name
-    this.roomId = roomId
-    this.progress = 0
-  }
-}
-
-export default QiscusSDK
+/*
+.- constructor
+.- init
+.- setUser
+.- logout -> clearUser
+.- chatTarget -> chatUser
+.- chatGroup -> getRoom
+.- getRoomById -> getRoom
+.- getOrCreateRoomByUniqueId -> getChannel
+.- getOrCreateRoomByChannel -> getChannel
+.- loadRoomList -> getRoomList
+.- loadComments -> getMessageList
+.- updateProfile -> updateUser
+.- getNonce()
+.- verifyIdentityToken()
+.- sendComment() -> sendMessage
+.- getUsers() -> getUserList
+.- getRoomParticipants() -> getParticipantList
+.- resendComment() -> resendMessage
+.- updateRoom()
+.- createGroupRoom() -> createGroup
+.- removeSelectedRoomParticipants() -> removeParticipants
+.- addParticipantsToGroup() -> addParticipants
+.- removeParticipantsFromGroup() -> removeParticipants
+.- getBlockedUser()
+.- blockUser()
+.- unblockUser()
+.- upload()
+.- publishTyping() -> setTyping
+.- getRoomsInfo() -> getRoomInfo
+.- deleteComment() -> deleteMessage
+x- exitChatRoom()
+.- clearRoomMessages() -> clearRoom
+.- getTotalUnreadCount() -> getUnreadCount
+.- publishEvent()
+.- subscribeEvent()
+.- unsubscribeEvent()
+ */

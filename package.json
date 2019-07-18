@@ -36,6 +36,7 @@
     "babel-minify-webpack-plugin": "^0.2.0",
     "babel-plugin-add-module-exports": "^1.0.0",
     "babel-plugin-date-fns": "^0.1.0",
+    "callbag-take-while": "^2.0.0",
     "chai": "^4.1.2",
     "chai-spies": "^1.0.0",
     "eslint": "^4.19.1",
@@ -53,8 +54,12 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.4.3",
+    "callbag-basics": "^3.0.1",
+    "callbag-subject": "^1.0.2",
     "date-fns": "^1.28.5",
     "is_js": "^0.9.0",
+    "ky": "^0.11.1",
+    "ky-universal": "^0.2.2",
     "mitt": "^1.1.3",
     "mqtt": "^2.18.1",
     "superagent": "^3.6.3"
