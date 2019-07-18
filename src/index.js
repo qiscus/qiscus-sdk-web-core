@@ -93,6 +93,7 @@ class QiscusSDK {
     if (config.uploadURL) this.uploadURL = config.uploadURL
     if (config.sync) this.sync = config.sync
     if (config.mode) this.mode = config.mode
+    if (config.syncInterval) this.syncInterval = config.syncInterval || 5000
     if (config.googleMapKey) this.googleMapKey = config.googleMapKey
     if (config.allowedFileTypes) {
       this.allowedFileTypes = config.allowedFileTypes
@@ -577,8 +578,8 @@ class QiscusSDK {
   activateSync() {
     if (this.isSynced) return false
     this.isSynced = true
-    this.httpsync = setInterval(() => self.synchronize(), 5000)
-    this.eventsync = setInterval(() => self.synchronizeEvent(), 5000)
+    this.httpsync = setInterval(() => self.synchronize(), this.syncInterval)
+    this.eventsync = setInterval(() => self.synchronizeEvent(), this.syncInterval)
   }
 
   disableSync() {
