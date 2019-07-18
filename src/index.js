@@ -20,7 +20,6 @@ import Package from '../package.json'
  *
  * @export
  * @class QiscusSDK
- * @extends {EventEmitter}
  */
 class QiscusSDK {
   /**
@@ -111,7 +110,8 @@ class QiscusSDK {
     this.setEventListeners()
 
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
-      getToken: () => this.userData.token
+      getToken: () => this.userData.token,
+      interval: this.syncInterval
     })
     this.syncAdapter.events.on('message.new', (message) => {
       if (this.selected != null) {
@@ -576,7 +576,7 @@ class QiscusSDK {
 
   // Activate Sync Feature if `http` or `both` is chosen as sync value when init
   activateSync() {
-    if (this.isSynced) return false
+    if (this.isSynced) return
     this.isSynced = true
     this.httpsync = setInterval(() => this.synchronize(), this.syncInterval)
     this.eventsync = setInterval(() => this.synchronizeEvent(), this.syncInterval)

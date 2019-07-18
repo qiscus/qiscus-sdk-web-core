@@ -1,4 +1,5 @@
 import mitt from 'mitt'
+import throttle from 'lodash.throttle'
 
 class UrlBuilder {
   constructor (baseUrl) {
@@ -23,6 +24,7 @@ class UrlBuilder {
 export default function SyncAdapter (getHttpAdapter, {
   getToken,
   isDebug = false,
+  interval = 5000,
 }) {
   const emitter = mitt()
   let lastMessageId = 0
@@ -31,7 +33,7 @@ export default function SyncAdapter (getHttpAdapter, {
   const logger = (...args) => isDebug ? console.log('QSync:', ...args) : {}
   return {
     events: emitter,
-    synchronize(messageId) {
+    synchronize: throttle((messageId) => {
       messageId = messageId || lastMessageId
       const url = new UrlBuilder('api/v2/sdk/sync')
         .param('token', getToken())
@@ -47,8 +49,8 @@ export default function SyncAdapter (getHttpAdapter, {
           emitter.emit('last-message-id', lastMessageId)
           messages.forEach(message => emitter.emit('message.new', message))
         }, (error) => logger('Error when synchonize', error))
-    },
-    synchronizeEvent(eventId) {
+    }, interval),
+    synchronizeEvent: throttle((eventId) => {
       eventId = eventId || lastEventId
       const url = new UrlBuilder('api/v2/sdk/sync_event')
         .param('token', getToken())
@@ -76,6 +78,6 @@ export default function SyncAdapter (getHttpAdapter, {
           events.filter(it => it.action_topic === 'clear_room')
             .forEach((event) => emitter.emit('room.deleted', event.payload.data))
         })
-    },
+    }, interval),
   }
 }
