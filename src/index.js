@@ -578,8 +578,8 @@ class QiscusSDK {
   activateSync() {
     if (this.isSynced) return false
     this.isSynced = true
-    this.httpsync = setInterval(() => self.synchronize(), this.syncInterval)
-    this.eventsync = setInterval(() => self.synchronizeEvent(), this.syncInterval)
+    this.httpsync = setInterval(() => this.synchronize(), this.syncInterval)
+    this.eventsync = setInterval(() => this.synchronizeEvent(), this.syncInterval)
   }
 
   disableSync() {
