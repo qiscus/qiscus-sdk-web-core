@@ -21,7 +21,7 @@
     "watch": "npm-run-all build:web:watch build:node:watch",
     "test": "mocha --require @babel/register --colors 'test/**/*test.js'",
     "test:watch": "npm run test -- -w",
-    "clean": "rimraf dist",
+    "clean": "rimraf dist lib",
     "preversion": "npm run build"
   },
   "devDependencies": {

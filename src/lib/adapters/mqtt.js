@@ -38,21 +38,23 @@ export default class MqttAdapter {
       if (func != null) func(message)
     })
 
-    this.mqtt.on('connected', () => {
-      if (core.sync !== 'both' || core.sync !== 'http') core.disableSync()
+    this.mqtt.on('connect', () => {
+      this.emit('connected')
+      this.logger('connect', this.mqtt.connected)
+      if (core.sync === 'socket') core.disableSync()
     })
 
     this.mqtt.on('reconnect', () => {
-      this.logger('reconnect')
+      this.logger('reconnect', this.mqtt.connected)
       this.emit('reconnect')
 
-      if (this.mqtt.connected) core.disableSync()
+      if (this.mqtt.connected) { core.disableSync() }
       core.synchronize()
       core.synchronizeEvent()
     })
     this.mqtt.on('close', () => {
       this.logger('close')
-      this.emit('close')
+      this.emit('close', this.mqtt)
 
       core.activateSync()
     })
