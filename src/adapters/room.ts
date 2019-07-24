@@ -42,10 +42,11 @@ export interface IQRoomAdapter {
   getParticipantList (roomId: number, page?: number, limit?: number): Promise<IQParticipant[]>
   createGroup (name: string, initialParticipantIds: string[]): Promise<IQRoom>
   removeParticipants (roomId: string, participantIds: string[]): Promise<string[]>
-  addParticipants (roomId: string, participantIds: string[]): Promise<IQUser[]>
+  addParticipants (roomId: number, participantIds: string[]): Promise<IQUser[]>
   getRoomInfo (roomIds: number[]): Promise<IQRoom[]>
   clearRoom (roomUniqueIds: number[]): Promise<IQRoom[]>
-  getUnreadCount (): Promise<any>
+  getUnreadCount (): Promise<number>
+  readonly rooms: Map<number, IQRoom>
 }
 
 export class QParticipant implements IQParticipant {
@@ -109,8 +110,10 @@ export default function getRoomAdapter (
   http: () => IQHttpAdapter,
   user: () => IQUserAdapter
 ): IQRoomAdapter {
+  const roomStorage = new Map<number, IQRoom>()
   return {
-    addParticipants (roomId: string, participantIds: string[]): Promise<IQUser[]> {
+    get rooms() { return roomStorage },
+    addParticipants (roomId: number, participantIds: string[]): Promise<IQUser[]> {
       return http().post<AddParticipantsResponse.RootObject>('/add_room_participants', {
         token: user().token,
         room_id: roomId,
@@ -268,7 +271,7 @@ export default function getRoomAdapter (
         return QRoom.fromJson(resp.results.room)
       })
     }
-  }
+  } as IQRoomAdapter
 }
 
 declare module AddParticipantsResponse {

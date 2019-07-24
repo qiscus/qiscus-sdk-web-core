@@ -4,6 +4,7 @@ import QUrlBuilder from '../utils/url-builder'
 export interface IQUserExtraProps {
   avatarUrl?: string
   name?: string
+  extras?: string
 }
 
 export interface IQUserAdapter {
@@ -11,7 +12,7 @@ export interface IQUserAdapter {
   clear (): void
   updateUser (name: string, extra: IQUserExtraProps): Promise<IQUser>
   getNonce (): Promise<QNonce>
-  verifyIdentityToken (token: string): Promise<IQUser>
+  setUserFromIdentityToken (token: string): Promise<IQUser>
   getUserList (query: string, page?: number, limit?: number): Promise<IQUser[]>
   getBlockedUser (page?: number, limit?: number): Promise<IQUser[]>
   blockUser (userId: string): Promise<IQUser>
@@ -22,18 +23,21 @@ export interface IQUserAdapter {
 }
 
 export interface IQUser {
+  id: number
   userId: string
   displayName: string
   avatarUrl?: string
 }
 
 export class QUser implements IQUser {
+  id: number
   userId: string
   displayName: string
   avatarUrl?: string
 
-  static fromJson (json: { email: string, username: string, avatar_url: string }): IQUser {
+  static fromJson (json: { id: number, email: string, username: string, avatar_url: string }): IQUser {
     const user = new QUser()
+    user.id = json.id
     user.userId = json.email
     user.displayName = json.username
     user.avatarUrl = json.avatar_url
@@ -117,7 +121,7 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
         return QUser.fromJson(resp.results.user)
       })
     },
-    verifyIdentityToken (identityToken: string): Promise<IQUser> {
+    setUserFromIdentityToken (identityToken: string): Promise<IQUser> {
       return http().post<UserResponse.RootObject>('/auth/verify_identity_token', {
         identity_token: identityToken
       }).then<IQUser>((resp) => {

@@ -1376,7 +1376,7 @@ export default class QiscusSDK {
 .- loadComments -> getMessageList
 .- updateProfile -> updateUser
 .- getNonce()
-.- verifyIdentityToken()
+.- setUserFromIdentityToken()
 .- sendComment() -> sendMessage
 .- getUsers() -> getUserList
 .- getRoomParticipants() -> getParticipantList
