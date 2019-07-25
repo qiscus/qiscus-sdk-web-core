@@ -273,7 +273,9 @@ class QiscusSDK {
           const selected = self.selected
           const lastComment = self.selected.comments[self.selected.comments.length - 1]
           // kirim event read kalau ini bukan komen kita sendiri
-          if (!isAlreadyRead && self.user_id !== comment.email) self.readComment(comment.room_id, comment.id)
+          if (!lastComment.isPending && !isAlreadyRead && self.user_id !== comment.email) {
+            self.readComment(comment.room_id, comment.id)
+          }
           // pastiin sync
           const roomLastCommentId = lastComment.id
           const commentBeforeThis = self.selected.comments.find(c => c.id === lastComment.comment_before_id)
