@@ -1,6 +1,6 @@
 node_modules/
-.vscode/
-.idea/
+/.vscode/
+/.idea/
+/dist/
+/lib/
 yarn-error.log
-dist/
-lib/
