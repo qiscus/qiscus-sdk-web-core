@@ -7,7 +7,7 @@ module.exports = (env) => {
     : 'qiscus-sdk-core.js'
   return {
     // entry: ['@babel/polyfill', path.join(__dirname, 'src', 'index.js')],
-    entry: [path.join(__dirname, 'src', 'index.js')],
+    entry: [path.join(__dirname, 'src', 'main.ts')],
     devtool: env.production ? 'source-map' : 'cheap-module-eval-source-map',
     mode: env.production ? 'production' : 'development',
     target: env.target || 'web',
@@ -24,10 +24,14 @@ module.exports = (env) => {
         test: /\.js$/,
         use: 'babel-loader',
         exclude: /(node_modules|bower_components)/
+      }, {
+        test: /\.tsx?$/,
+        use: 'ts-loader',
+        exclude: /(node_modules|bower_components)/
       }]
     },
     resolve: {
-      extensions: ['.js']
+      extensions: [ '.tsx', '.ts', '.js' ]
     },
     plugins: [
       new webpack.DefinePlugin({ 'global.GENTLY': false })

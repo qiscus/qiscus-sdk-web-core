@@ -1,5 +1,5 @@
 import { IQHttpAdapter } from 'adapters/http'
-import QUrlBuilder from '../utils/url-builder'
+import QUrlBuilder from 'utils/url-builder'
 
 export interface IQUserExtraProps {
   avatarUrl?: string

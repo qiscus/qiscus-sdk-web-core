@@ -1,7 +1,6 @@
 import { IQUser, IQUserAdapter } from 'adapters/user'
 import { IQHttpAdapter } from './http'
 import QUrlBuilder from '../utils/url-builder'
-import { IQMessage, IQMessageStatus, IQMessageType, QMessage } from './message'
 
 export enum IQRoomType {
   Group = 'group',
@@ -13,8 +12,8 @@ export interface IQRoom {
   name: string
   avatarUrl: string;
   isChannel: boolean;
-  lastMessageId: number;
-  lastMessageContent: string;
+  lastMessageId?: number;
+  lastMessageContent?: string;
   uniqueId: string;
   unreadCount: number;
   type: IQRoomType;
@@ -50,28 +49,33 @@ export interface IQRoomAdapter {
 }
 
 export class QParticipant implements IQParticipant {
+  id: number
   avatarUrl: string
   displayName: string
   lastReadMessageId: number
   lastReceivedMessageId: number
   userId: string
 
+  updateFromJson(json: GetParticipantResponse.Participant): IQParticipant {
+    this.id = json.id
+    this.avatarUrl = json.avatar_url
+    this.displayName = json.username
+    this.lastReadMessageId = json.last_comment_read_id
+    this.lastReceivedMessageId = json.last_comment_received_id
+    this.userId = json.email
+    return this
+  }
+
   static fromJson (json: GetParticipantResponse.Participant): IQParticipant {
-    const participant = new QParticipant()
-    participant.avatarUrl = json.avatar_url
-    participant.displayName = json.username
-    participant.lastReadMessageId = json.last_comment_read_id
-    participant.lastReceivedMessageId = json.last_comment_received_id
-    participant.userId = json.email
-    return participant
+    return new QParticipant().updateFromJson(json)
   }
 }
 
 export class QRoom implements IQRoom {
   avatarUrl: string
   isChannel: boolean
-  lastMessageContent: string
-  lastMessageId: number
+  lastMessageContent?: string
+  lastMessageId?: number
   type: IQRoomType
   uniqueId: string
   unreadCount: number
@@ -81,28 +85,29 @@ export class QRoom implements IQRoom {
   participants?: IQParticipant[]
   options?: string
 
-  static fromJson (json: ChatUserResponse.Room): IQRoom {
-    const room = new QRoom()
-
-    room.avatarUrl = json.avatar_url
-    room.isChannel = json.is_public_channel
-    room.id = json.id
-    room.lastMessageContent = json.last_comment_message
-    room.lastMessageId = json.last_comment_id
-    room.name = json.room_name
-    room.uniqueId = json.unique_id
-    room.unreadCount = json.unread_count
+  updateFromJson(json: ChatUserResponse.Room): IQRoom {
+    this.avatarUrl = json.avatar_url
+    this.isChannel = json.is_public_channel
+    this.id = json.id
+    this.lastMessageContent = json.last_comment_message
+    this.lastMessageId = json.last_comment_id
+    this.name = json.room_name
+    this.uniqueId = json.unique_id
+    this.unreadCount = json.unread_count
     if (json.participants != null) {
-      room.participants = json.participants.map((it: any) => QParticipant.fromJson(it))
+      this.participants = json.participants.map((it: any) => QParticipant.fromJson(it))
     }
     if (json.room_total_participants != null) {
-      room.totalParticipants = json.room_total_participants
+      this.totalParticipants = json.room_total_participants
     }
-    if (json.options != null) room.options = json.options
-    if (json.chat_type === 'single') room.type = IQRoomType.Single
-    if (json.chat_type === 'group') room.type = IQRoomType.Group
+    if (json.options != null) this.options = json.options
+    if (json.chat_type === 'single') this.type = IQRoomType.Single
+    if (json.chat_type === 'group') this.type = IQRoomType.Group
 
-    return room
+    return this
+  }
+  static fromJson (json: ChatUserResponse.Room): IQRoom {
+    return new QRoom().updateFromJson(json)
   }
 }
 
@@ -119,13 +124,7 @@ export default function getRoomAdapter (
         room_id: roomId,
         emails: participantIds
       }).then<IQParticipant[]>((resp) => {
-        return resp.results.participants_added.map((it) => ({
-          lastReadMessageId: it.last_comment_read_id,
-          lastReceivedMessageId: it.last_comment_received_id,
-          userId: it.email,
-          avatarUrl: it.avatar_url,
-          displayName: it.username
-        } as IQParticipant))
+        return resp.results.participants_added.map((it) => QParticipant.fromJson(it))
       })
     },
     chatUser (userId: string): Promise<IQRoom> {
@@ -191,23 +190,8 @@ export default function getRoomAdapter (
         room_id: roomIds,
         show_participants: withParticipant
       }).then<IQRoom[]>((resp) => {
-        return resp.results.rooms_info.map((it) => {
-          const room = new QRoom()
-          room.id = it.id
-          room.uniqueId = it.unique_id
-          room.totalParticipants = it.room_total_participants
-          room.unreadCount = it.unread_count
-          room.name = it.room_name
-          room.lastMessageId = it.last_comment.id
-          room.lastMessageContent = it.last_comment.message
-          room.avatarUrl = it.avatar_url
-          room.isChannel = it.is_public_channel
-
-          if (it.participants != null) room.participants = it.participants.map(it => QParticipant.fromJson(it))
-          if (it.chat_type === 'single') room.type = IQRoomType.Single
-          if (it.chat_type === 'group') room.type = IQRoomType.Group
-
-          return room
+        return resp.results.rooms_info.map((it: any) => {
+          return QRoom.fromJson(it)
         })
       })
     },
@@ -219,26 +203,8 @@ export default function getRoomAdapter (
         .build()
       return http().get<GetRoomListResponse.RootObject>(url)
         .then<IQRoom[]>((resp) => {
-          return resp.results.rooms_info.map((it) => {
-            const room = new QRoom()
-            room.unreadCount = it.unread_count
-            room.uniqueId = it.unique_id
-            room.id = it.id
-            room.name = it.room_name
-            room.isChannel = it.is_public_channel
-            room.avatarUrl = it.avatar_url
-            room.lastMessageContent = it.last_comment.message
-            room.lastMessageId = it.last_comment.id
-
-            if (it.chat_type === 'single') room.type = IQRoomType.Single
-            if (it.chat_type === 'group') room.type = IQRoomType.Group
-            if (it.participants != null) {
-              room.participants = it.participants.map(it => QParticipant.fromJson(it))
-            }
-            if (it.room_total_participants != null) {
-              room.totalParticipants = it.room_total_participants
-            }
-            return room
+          return resp.results.rooms_info.map((it: any) => {
+            return QRoom.fromJson(it)
           })
         })
     },
@@ -274,6 +240,7 @@ export default function getRoomAdapter (
   } as IQRoomAdapter
 }
 
+//region Response Type
 declare module AddParticipantsResponse {
 
   export interface Extras {
@@ -844,3 +811,4 @@ declare module UpdateRoomResponse {
   }
 
 }
+//endregion

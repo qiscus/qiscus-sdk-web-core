@@ -114,13 +114,13 @@ export default class Qiscus implements IQiscus {
     })
     this.userAdapter = getUserAdapter(() => this.httpAdapter)
     this.roomAdapter = getRoomAdapter(() => this.httpAdapter, () => this.userAdapter)
-    this.messageAdapter = getMessageAdapter(() => this.httpAdapter, () => this.userAdapter)
+    this.messageAdapter = getMessageAdapter(() => this.httpAdapter, () => this.userAdapter, () => this.roomAdapter)
     this.realtimeAdapter = getRealtimeAdapter(this.syncInterval, {
       brokerUrl: () => this.brokerUrl,
       http: () => this.httpAdapter,
       user: () => this.userAdapter,
       // TODO: Replace me when mqtt adapter are ready
-      shouldSync: () => false
+      shouldSync: () => true
     })
   }
 
