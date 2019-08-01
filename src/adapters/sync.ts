@@ -1,9 +1,9 @@
-import { IQMessage } from 'adapters/message'
-import { IQRoom } from 'adapters/room'
+import { IQMessage } from './message'
+import { IQRoom } from './room'
 import { IQHttpAdapter } from './http'
 import { IQUserAdapter } from './user'
 import QUrlBuilder from '../utils/url-builder'
-import * as mitt from "mitt"
+import mitt from 'mitt'
 
 export interface IQSyncAdapter {
   synchronize (lastMessageId?: number): void
@@ -19,14 +19,15 @@ export default function getSyncAdapter ({ http, user }: {
   http: () => IQHttpAdapter,
   user: () => IQUserAdapter
 }): IQSyncAdapter {
-  const emitter = new mitt()
+  // @ts-ignore
+  const emitter: mitt.Emitter = mitt()
   let lastMessageId = 0
   let lastEventId = 0
 
   return {
     synchronize (messageId: number): void {
       messageId = messageId || lastMessageId
-      const url = QUrlBuilder('/sync')
+      const url = QUrlBuilder('sync')
         .param('token', user().token)
         .param('last_received_comment_id', messageId)
         .build()
@@ -46,7 +47,7 @@ export default function getSyncAdapter ({ http, user }: {
     },
     synchronizeEvent (eventId: number): void {
       eventId = eventId || lastEventId
-      const url = QUrlBuilder('/sync_event')
+      const url = QUrlBuilder('sync_event')
         .param('token', user().token)
         .param('start_event_id', eventId)
         .build()
@@ -101,7 +102,6 @@ export default function getSyncAdapter ({ http, user }: {
     }
   }
 }
-
 
 // Response type
 declare module SyncResponse {

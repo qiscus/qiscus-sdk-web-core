@@ -14,11 +14,16 @@ export default function getHttpAdapter ({ baseUrl, getAppId, getUserId, getToken
     hooks: {
       beforeRequest: [
         (options) => {
-          options.headers['qiscus-sdk-app-id'] = getAppId()
-          options.headers['qiscus-sdk-user-id'] = getUserId()
-          options.headers['qiscus-sdk-token'] = getToken()
-          options.headers['qiscus-sdk-version'] = getSdkVersion()
-          options.headers['qiscus-sdk-platform'] = 'JavaScript'
+          // @ts-ignore
+          options.headers.set('qiscus-sdk-app-id',  getAppId())
+          // @ts-ignore
+          options.headers.set('qiscus-sdk-user-id', getUserId())
+          // @ts-ignore
+          options.headers.set('qiscus-sdk-token', getToken())
+          // @ts-ignore
+          options.headers.set('qiscus-sdk-version', getSdkVersion())
+          // @ts-ignore
+          options.headers.set('qiscus-sdk-platform', 'JavaScript')
         }
       ]
     }

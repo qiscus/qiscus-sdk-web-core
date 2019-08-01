@@ -133,7 +133,7 @@ class Comment {
     const commentId = options.comment_id
 
     const actor = participants.find(p => p.email === actorId)
-    if (actorId != null) {
+    if (actor != null) {
       actor.last_comment_read_id = commentId
       actor.last_comment_read_id_str = commentId.toString()
       actor.last_comment_received_id = commentId

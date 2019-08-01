@@ -1,18 +1,18 @@
 import is from 'is_js'
-import getUserAdapter, { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from 'adapters/user'
+import getUserAdapter, { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from './adapters/user'
 import getMessageAdapter, { IQMessage, IQMessageAdapter } from './adapters/message'
 import getRoomAdapter, { IQParticipant, IQRoom, IQRoomAdapter } from './adapters/room'
 import getRealtimeAdapter, { IQRealtimeAdapter } from './adapters/realtime'
 import getHttpAdapter, { IQHttpAdapter } from './adapters/http'
-import message from './adapters/message'
 
 export type IQCallback<T> = (error: Error, response?: T) => void
-export type IQOptionalCallback<RealType, CallbackResponseType> = RealType | IQCallback<CallbackResponseType>
+export type IQOptionalCallback<T, CallbackResponseType> = T | IQCallback<CallbackResponseType>
 
 export interface IQInitOptions {
   baseUrl: string
   brokerUrl: string
-  syncMode: string
+  syncMode: 'socket' | 'http' | 'both'
+  syncInterval: number
 }
 export interface IQUploadProgress {
   progress?: number
@@ -102,15 +102,19 @@ export default class Qiscus implements IQiscus {
   private syncMode: string = 'socket'
   private baseUrl: string = null
   private brokerUrl: string = null
-  private syncInterval: number = 5000
+  private readonly syncInterval: number = null
 
-  constructor(private appId: string) {
+  constructor(private appId: string, opts?: IQInitOptions) {
+    this.baseUrl = opts.baseUrl || 'https://api.qiscus.com/api/v2/sdk/'
+    this.brokerUrl = opts.brokerUrl || 'wss://mqtt.qiscus.com:1886/mqtt'
+    this.syncInterval = opts.syncInterval || 5000
+    this.syncMode = opts.syncMode || 'socket'
     this.httpAdapter = getHttpAdapter({
       baseUrl: this.baseUrl,
       getAppId: () => appId,
       getToken: () => this.token,
-      getUserId: () => this.currentUser.userId,
-      getSdkVersion: () => ''
+      getUserId: () => this.userAdapter.currentUserId,
+      getSdkVersion: () => '3-beta'
     })
     this.userAdapter = getUserAdapter(() => this.httpAdapter)
     this.roomAdapter = getRoomAdapter(() => this.httpAdapter, () => this.userAdapter)
@@ -124,18 +128,19 @@ export default class Qiscus implements IQiscus {
     })
   }
 
-  // User Adapter
   init(opts: IQInitOptions): void {
     this.baseUrl = opts.baseUrl
     this.brokerUrl = opts.brokerUrl
     this.syncMode = opts.syncMode
   }
+
+  // User Adapter
   setUser(userId: string, userKey: string, extra?: IQUserExtraProps | IQCallback<IQUser>, callback?: IQCallback<IQUser>) {
     if (is.null(userId)) return callback(new Error('`userId` required'))
     if (is.not.string(userId)) return callback(new TypeError('`userId` must have type of string'))
     if (is.null(userKey)) return callback(new Error('`userKey` required'))
     if (is.not.string(userKey)) return callback(new TypeError('`userKey` must have type of string'))
-    if (is.not.null(extra) && (is.not.object(extra) || is.not.function(extra))) {
+    if (is.not.null(extra) && (is.not.json(extra) || is.not.function(extra))) {
       return callback(new TypeError('`extra` must have type of object'))
     }
 

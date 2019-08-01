@@ -1,6 +1,9 @@
-import * as mitt from 'mitt'
-import { interval, observe, pipe } from 'callbag-basics'
-import takeWhile from 'callbag-take-while'
+import mitt from 'mitt'
+import pipe from 'callbag-pipe'
+import interval from 'callbag-interval'
+import observe from 'callbag-observe'
+import tap from 'callbag-tap'
+import filter from 'callbag-filter'
 import { IQHttpAdapter } from './http'
 import { IQUserAdapter } from './user'
 import { IQMessage } from './message'
@@ -54,13 +57,16 @@ export default function getRealtimeAdapter (
   syncInterval: number = 5000,
   { http, user, shouldSync, brokerUrl }: RealtimeAdapterExtraParams
 ): IQRealtimeAdapter {
-  const emitter = new mitt()
+  // @ts-ignore
+  const emitter: mitt.Emitter = mitt()
   let isMqttConnected = false
   const sync = getSyncAdapter({ http, user })
 
   pipe(
+    // @ts-ignore
     interval(syncInterval),
-    takeWhile(() => !isMqttConnected || shouldSync()),
+    filter(() => user().currentUser != null),
+    filter(() => !isMqttConnected || shouldSync()),
     observe(() => {
       sync.synchronize()
       sync.synchronizeEvent()

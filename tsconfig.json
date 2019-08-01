@@ -1,11 +1,9 @@
 {
   "compilerOptions": {
-    "allowJs": true,
-    "baseUrl": "./src",
     "checkJs": false,
-    "module": "es2015",
+    "module": "commonjs",
     "target": "es5",
-    "outDir": "lib-ts",
+    "outDir": "lib",
     "lib": [
       "dom",
       "es2015",
@@ -13,7 +11,10 @@
       "es2017"
     ],
     "moduleResolution": "node",
-    "declaration": true
+    "declaration": true,
+    "allowSyntheticDefaultImports": true,
+    "downlevelIteration": true,
+    "esModuleInterop": true
   },
   "include": [
     "./src"

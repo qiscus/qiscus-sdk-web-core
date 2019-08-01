@@ -1,4 +1,4 @@
-import { IQUser, IQUserAdapter } from 'adapters/user'
+import { IQUser, IQUserAdapter } from './user'
 import { IQHttpAdapter } from './http'
 import QUrlBuilder from '../utils/url-builder'
 
@@ -119,7 +119,7 @@ export default function getRoomAdapter (
   return {
     get rooms() { return roomStorage },
     addParticipants (roomId: number, participantIds: string[]): Promise<IQUser[]> {
-      return http().post<AddParticipantsResponse.RootObject>('/add_room_participants', {
+      return http().post<AddParticipantsResponse.RootObject>('add_room_participants', {
         token: user().token,
         room_id: roomId,
         emails: participantIds
@@ -128,7 +128,7 @@ export default function getRoomAdapter (
       })
     },
     chatUser (userId: string): Promise<IQRoom> {
-      return http().post<ChatUserResponse.RootObject>('/get_or_create_room_with_target', {
+      return http().post<ChatUserResponse.RootObject>('get_or_create_room_with_target', {
         token: user().token,
         emails: [userId]
       }).then<IQRoom>((resp) => {
@@ -136,7 +136,7 @@ export default function getRoomAdapter (
       })
     },
     clearRoom (roomUniqueIds: number[]): Promise<IQRoom[]> {
-      const url = QUrlBuilder('/clear_room_messages')
+      const url = QUrlBuilder('clear_room_messages')
         .param('token', user().token)
         .param('room_channel_ids', roomUniqueIds)
         .build()
@@ -146,7 +146,7 @@ export default function getRoomAdapter (
         })
     },
     createGroup (name: string, initialParticipantIds: string[]): Promise<IQRoom> {
-      return http().post<CreateRoomResponse.RootObject>('/create_room', {
+      return http().post<CreateRoomResponse.RootObject>('create_room', {
         token: user().token,
         participants: initialParticipantIds
       }).then<IQRoom>((resp) => {
@@ -154,7 +154,7 @@ export default function getRoomAdapter (
       })
     },
     getChannel (uniqueId: string, extra: GetChannelExtraProps): Promise<IQRoom> {
-      return http().post<GetChannelResponse.RootObject>('/get_or_create_room_with_unique_id', {
+      return http().post<GetChannelResponse.RootObject>('get_or_create_room_with_unique_id', {
         token: user().token,
         unique_id: uniqueId,
         name: extra.name,
@@ -165,7 +165,7 @@ export default function getRoomAdapter (
       })
     },
     getParticipantList (roomId: number, page?: number, limit?: number): Promise<IQParticipant[]> {
-      const url = QUrlBuilder('/room_participants')
+      const url = QUrlBuilder('room_participants')
         .param('token', user().token)
         .param('room_unique_id', roomId)
         .build()
@@ -175,7 +175,7 @@ export default function getRoomAdapter (
         })
     },
     getRoom (roomId: number): Promise<IQRoom> {
-      const url = QUrlBuilder('/get_room_by_id')
+      const url = QUrlBuilder('get_room_by_id')
         .param('token', user().token)
         .param('id', roomId)
         .build()
@@ -185,7 +185,7 @@ export default function getRoomAdapter (
         })
     },
     getRoomInfo (roomIds: number[], withParticipant: boolean = false): Promise<IQRoom[]> {
-      return http().post<GetRoomInfoResponse.RootObject>('/rooms_info', {
+      return http().post<GetRoomInfoResponse.RootObject>('rooms_info', {
         token: user().token,
         room_id: roomIds,
         show_participants: withParticipant
@@ -196,7 +196,7 @@ export default function getRoomAdapter (
       })
     },
     getRoomList (withParticipant: boolean = false, page: number = 1, limit: number = 20): Promise<IQRoom[]> {
-      const url = QUrlBuilder('/user_rooms')
+      const url = QUrlBuilder('user_rooms')
         .param('token', user().token)
         .param('page', page)
         .param('limit', limit)
@@ -209,7 +209,7 @@ export default function getRoomAdapter (
         })
     },
     getUnreadCount (): Promise<number> {
-      const url = QUrlBuilder('/total_unread_count')
+      const url = QUrlBuilder('total_unread_count')
         .param('token', user().token)
         .build()
       return http().get<GetUnreadResponse.RootObject>(url)
@@ -218,7 +218,7 @@ export default function getRoomAdapter (
         })
     },
     removeParticipants (roomId: string, participantIds: string[]): Promise<string[]> {
-      return http().post<RemoveParticipantResponse.RootObject>('/remove_room_participants', {
+      return http().post<RemoveParticipantResponse.RootObject>('remove_room_participants', {
         token: user().token,
         room_id: roomId,
         emails: participantIds
@@ -227,7 +227,7 @@ export default function getRoomAdapter (
       })
     },
     updateRoom (roomId: number, room: IQRoom): Promise<IQRoom> {
-      return http().post<UpdateRoomResponse.RootObject>('/update_room', {
+      return http().post<UpdateRoomResponse.RootObject>('update_room', {
         token: user().token,
         id: roomId,
         room_name: room.name,

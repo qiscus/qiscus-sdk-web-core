@@ -1,6 +1,6 @@
-import { IQHttpAdapter } from 'adapters/http'
-import { IQUserAdapter } from 'adapters/user'
-import QUrlBuilder from 'utils/url-builder'
+import { IQHttpAdapter } from './http'
+import { IQUserAdapter } from './user'
+import QUrlBuilder from '../utils/url-builder'
 import { IQRoomAdapter } from './room'
 
 export enum IQMessageStatus {
@@ -93,7 +93,7 @@ export default function getMessageAdapter (
     sendMessage (roomId: number, content: string): Promise<IQMessage> {
       const message = QMessage.prepareNew(user().currentUser.userId, roomId, content)
       messageStore.set(message.uniqueId, message)
-      const url = QUrlBuilder('/post_comment')
+      const url = QUrlBuilder('post_comment')
         .param('token', user().token)
         .param('topic_id', message.roomId)
         .param('message', message.content)
@@ -107,7 +107,7 @@ export default function getMessageAdapter (
         })
     },
     getMessages (roomId: number, lastMessageId: number = 0, limit: number = 20): Promise<IQMessage[]> {
-      const url = QUrlBuilder('/load_comments')
+      const url = QUrlBuilder('load_comments')
         .param('token', user().token)
         .param('topic_id', roomId)
         .param('last_comment_id', lastMessageId)
@@ -127,7 +127,7 @@ export default function getMessageAdapter (
       return this.sendMessage(message.roomId, message.content)
     },
     deleteMessage (messageIds: number[]): Promise<IQMessage[]> {
-      const url = QUrlBuilder('/delete_messages')
+      const url = QUrlBuilder('delete_messages')
         .param('token', user().token)
         .param('unique_ids[]', messageIds)
         .build()
@@ -146,7 +146,7 @@ export default function getMessageAdapter (
         })
     },
     markAsRead (roomId: number, messageId: number): Promise<IQMessage> {
-      const url = QUrlBuilder('/update_comment_status')
+      const url = QUrlBuilder('update_comment_status')
         .param('token', user().token)
         .param('last_comment_read_id', messageId)
         .param('room_id', roomId)
@@ -182,7 +182,7 @@ export default function getMessageAdapter (
         })
     },
     markAsDelivered (roomId: number, messageId: number): Promise<IQMessage> {
-      const url = QUrlBuilder('/update_comment_status')
+      const url = QUrlBuilder('update_comment_status')
         .param('token', user().token)
         .param('last_comment_received_id', messageId)
         .param('room_id', roomId)

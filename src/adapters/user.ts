@@ -1,5 +1,5 @@
-import { IQHttpAdapter } from 'adapters/http'
-import QUrlBuilder from 'utils/url-builder'
+import { IQHttpAdapter } from './http'
+import QUrlBuilder from '../utils/url-builder'
 
 export interface IQUserExtraProps {
   avatarUrl?: string
@@ -18,8 +18,9 @@ export interface IQUserAdapter {
   blockUser (userId: string): Promise<IQUser>
   unblockUser (userId: string): Promise<IQUser>
 
-  readonly token: string
-  readonly currentUser: IQUser
+  readonly token: string | null
+  readonly currentUser: IQUser | null
+  readonly currentUserId: string | null
 }
 
 export interface IQUser {
@@ -60,13 +61,13 @@ type NonceResponse = {
  *
  */
 export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapter {
-  let currentUser = null
-  let token = null
+  let currentUser: IQUser | null = null
+  let token: string | null = null
 
   return {
     login (userId: string, userKey: string, { avatarUrl }: IQUserExtraProps): Promise<IQUser> {
       const data = { email: userId, password: userKey, avatar_url: avatarUrl }
-      return http().post<UserResponse.RootObject>('/login_or_register', data)
+      return http().post<UserResponse.RootObject>('login_or_register', data)
         .then<IQUser>((resp) => {
           const user = QUser.fromJson(resp.results.user)
 
@@ -81,7 +82,7 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
       token = null
     },
     blockUser (userId: string): Promise<IQUser> {
-      return http().post<BlockUserResponse.RootObject>('/block_user', {
+      return http().post<BlockUserResponse.RootObject>('block_user', {
         token: this.token,
         user_email: userId
       }).then((resp) => {
@@ -89,7 +90,7 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
       })
     },
     getBlockedUser (page: number = 1, limit: number = 20): Promise<IQUser[]> {
-      const url = QUrlBuilder('/get_user_list')
+      const url = QUrlBuilder('get_user_list')
         .param('token', this.token)
         .param('page', page)
         .param('limit', limit)
@@ -101,7 +102,7 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
         })
     },
     getUserList (query: string = '', page: number = 1, limit: number = 20): Promise<IQUser[]> {
-      const url = QUrlBuilder('/get_user_list')
+      const url = QUrlBuilder('get_user_list')
         .param('token', token)
         .param('query', query)
         .param('page', page)
@@ -114,7 +115,7 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
         })
     },
     unblockUser (userId: string): Promise<IQUser> {
-      return http().post<BlockUserResponse.RootObject>('/unblock_user', {
+      return http().post<BlockUserResponse.RootObject>('unblock_user', {
         token: this.token,
         user_email: userId
       }).then<IQUser>((resp) => {
@@ -122,7 +123,7 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
       })
     },
     setUserFromIdentityToken (identityToken: string): Promise<IQUser> {
-      return http().post<UserResponse.RootObject>('/auth/verify_identity_token', {
+      return http().post<UserResponse.RootObject>('auth/verify_identity_token', {
         identity_token: identityToken
       }).then<IQUser>((resp) => {
         return QUser.fromJson(resp.results.user)
@@ -134,19 +135,20 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
         name,
         avatar_url: avatarUrl
       }
-      return http().patch<UserResponse.RootObject>('/my_profile', data)
+      return http().patch<UserResponse.RootObject>('my_profile', data)
         .then<IQUser>((resp) => {
           return QUser.fromJson(resp.results.user)
         })
     },
     getNonce (): Promise<QNonce> {
-      return http().get<NonceResponse>('/auth/nonce')
+      return http().get<NonceResponse>('auth/nonce')
         .then<QNonce>((resp) => {
           return { expired: resp.results.expired_at, nonce: resp.results.nonce }
         })
     },
     get token () { return token },
-    get currentUser () { return currentUser }
+    get currentUser () { return currentUser },
+    get currentUserId () { return currentUser ? currentUser.userId : null }
   }
 }
 
