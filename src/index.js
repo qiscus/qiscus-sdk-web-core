@@ -116,7 +116,6 @@ class QiscusSDK {
       if (this.selected != null) {
         const index = this.selected.comments
           .findIndex(it => it.id === message.id || it.unique_id === message.unique_temp_id)
-        console.log('message', message)
         if (index === -1) {
           const _message = new Comment(message)
           if (_message.room_id === this.selected.id) {
