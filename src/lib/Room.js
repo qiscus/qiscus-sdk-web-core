@@ -1,20 +1,5 @@
 import Comment from './Comment'
 
-const comments = {}
-const getProxy = (roomId) => {
-  if (comments[roomId] != null) return comments[roomId]
-  comments[roomId] = new Proxy([], {
-    get(target, property) {
-      return target[property]
-    },
-    set(target, property, comment) {
-      if (comment instanceof Comment && comment.room_id != null && comment.room_id !== roomId) console.trace('adding data', roomId, comment)
-      target[property] = comment
-      return true
-    }
-  })
-}
-
 /**
  * Holds chat rooms for qiscus chat sdk
  *
@@ -45,7 +30,7 @@ export class Room {
     this.participants = roomData.participants
     this.options = roomData.options
     this.topics = []
-    this.comments = getProxy(roomData.id)
+    this.comments = []
     this.count_notif = roomData.unread_count
     this.isLoaded = false
     this.unread_comments = []
