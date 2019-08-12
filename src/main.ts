@@ -1,11 +1,16 @@
 import is from 'is_js'
+import pipe from 'callbag-pipe'
+import fromPromise from 'callbag-from-promise'
+import flatten from 'callbag-flatten'
 import getUserAdapter, { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from './adapters/user'
 import getMessageAdapter, { IQMessage, IQMessageAdapter } from './adapters/message'
 import getRoomAdapter, { IQParticipant, IQRoom, IQRoomAdapter } from './adapters/room'
 import getRealtimeAdapter, { IQRealtimeAdapter } from './adapters/realtime'
 import getHttpAdapter, { IQHttpAdapter } from './adapters/http'
+import combine from './utils/callbag-combine'
+import { process, isReqString, isOptString, isOptJson, toCallbackOrPromise, isOptCallback } from './utils/callbag';
 
-export type IQCallback<T> = (error: Error, response?: T) => void
+export type IQCallback<T> = (response: T, error?: Error) => void
 export type IQOptionalCallback<T, CallbackResponseType> = T | IQCallback<CallbackResponseType>
 
 export interface IQInitOptions {
@@ -23,7 +28,7 @@ export interface IQiscus {
   init(opts: IQInitOptions): void
 
   // from UserAdapter
-  setUser(userId: string, userKey: string, extra?: IQOptionalCallback<IQUserExtraProps, IQUser>, callback?: IQCallback<IQUser>): void
+  setUser(userId: string, userKey: string, avatarUrl: string, extras: object, callback: IQCallback<IQUser>): void
   clearUser(callback?: IQCallback<void>): void
   updateUser(userId: string, extra?: IQOptionalCallback<IQUserExtraProps, IQUser>, callback?: IQCallback<IQUser>): void
   getNonce(callback?: IQCallback<QNonce>): void
@@ -92,7 +97,7 @@ function getCallback<T>(...args: any | T) {
   }, noop) as T
 }
 
-export default class Qiscus implements IQiscus {
+export default class Qiscus {
   private readonly realtimeAdapter: IQRealtimeAdapter
   private readonly httpAdapter: IQHttpAdapter
   private readonly userAdapter: IQUserAdapter
@@ -104,7 +109,7 @@ export default class Qiscus implements IQiscus {
   private brokerUrl: string = null
   private readonly syncInterval: number = null
 
-  constructor(private appId: string, opts?: IQInitOptions) {
+  constructor(public readonly appId: string, opts?: IQInitOptions) {
     this.baseUrl = opts.baseUrl || 'https://api.qiscus.com/api/v2/sdk/'
     this.brokerUrl = opts.brokerUrl || 'wss://mqtt.qiscus.com:1886/mqtt'
     this.syncInterval = opts.syncInterval || 5000
@@ -123,7 +128,7 @@ export default class Qiscus implements IQiscus {
       brokerUrl: () => this.brokerUrl,
       http: () => this.httpAdapter,
       user: () => this.userAdapter,
-      // TODO: Replace me when mqtt adapter are ready
+      // TODO: Only sync when user are logged in
       shouldSync: () => true
     })
   }
@@ -135,68 +140,82 @@ export default class Qiscus implements IQiscus {
   }
 
   // User Adapter
-  setUser(userId: string, userKey: string, extra?: IQUserExtraProps | IQCallback<IQUser>, callback?: IQCallback<IQUser>) {
-    if (is.null(userId)) return callback(new Error('`userId` required'))
-    if (is.not.string(userId)) return callback(new TypeError('`userId` must have type of string'))
-    if (is.null(userKey)) return callback(new Error('`userKey` required'))
-    if (is.not.string(userKey)) return callback(new TypeError('`userKey` must have type of string'))
-    if (is.not.null(extra) && (is.not.json(extra) || is.not.function(extra))) {
-      return callback(new TypeError('`extra` must have type of object'))
-    }
-
-    callback = getCallback<IQCallback<IQUser>>(extra, callback)
-    this.userAdapter.login(userId, userKey, extra as IQUserExtraProps)
-      .then((user) => callback(null, user))
-      .catch((error) => callback(error))
+  setUser(userId: string, userKey: string, username: string, avatarUrl: string, extras: object | null, callback: null | IQCallback<IQUser>): void | Promise<IQUser> {
+    return pipe(
+      combine(
+        process(userId, isReqString('`userId` are required and need to be string')),
+        process(userKey, isReqString('`userKey` are required and need to be string')),
+        process(username, isOptString('`username` need to be string or null')),
+        process(avatarUrl, isOptString('`avatarUrl` need to be string or null')),
+        process(extras, isOptJson('`extras` need to be object or null'))
+      ),
+      map(([userId, userKey, username, avatarUrl, extras]) =>
+        fromPromise(this.userAdapter.login(userId, userKey, { name: username, avatarUrl, extras }))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  blockUser(userId: string, callback?: IQCallback<IQUser>): void {
-    if (is.null(userId)) return callback(new Error('`userId` required'))
-    if (is.not.string(userId)) return callback(new TypeError('`userId` must have type of string'))
-
-    callback = getCallback<IQCallback<IQUser>>(callback)
-    this.userAdapter.blockUser(userId)
-      .then(user => callback(null, user))
-      .catch(error => callback(error))
+  blockUser(userId: string, callback: IQCallback<IQUser>): void | Promise<IQUser> {
+    return pipe(
+      combine(
+        process(userId, isReqString('`userId` required and need to be string')),
+        process(callback, isOptCallback('`callback` need to be a function or null'))
+      ),
+      map(([userId]) =>
+        fromPromise(this.userAdapter.blockUser(userId))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  clearUser(callback?: IQCallback<void>): void {
-    callback = getCallback<IQCallback<void>>(callback)
-    Promise.resolve(this.userAdapter.clear())
-      .then(() => callback(null))
-      .catch(error => callback(error))
+  clearUser(callback: IQCallback<void>): void | Promise<void> {
+    return pipe(
+      combine(process(callback, isOptCallback('`callback` need to be function or null'))),
+      map((_) => fromPromise(Promise.resolve(this.userAdapter.clear()))),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  getNonce(callback?: IQCallback<QNonce>): void {
-    callback = getCallback<IQCallback<QNonce>>(callback)
-    this.userAdapter.getNonce()
-      .then((nonce) => callback(null, nonce))
-      .catch((error) => callback(error))
+  getNonce(callback: IQCallback<QNonce>): void | Promise<QNonce> {
+    return pipe(
+      process(callback, isOptCallback('`callback` need to be function or null')),
+      map(() => fromPromise(this.userAdapter.getNonce())),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  unblockUser(userId: string, callback?: IQCallback<IQUser>): void {
-    if (is.null(userId)) return callback(new Error('`userId` required'))
-    if (is.not.string(userId)) return callback(new TypeError('`userId` must have type of string'))
-    this.userAdapter.unblockUser(userId)
-      .then(user => callback(null, user))
-      .catch(error => callback(error))
+  unblockUser(userId: string, callback?: IQCallback<IQUser>): void | Promise<IQUser> {
+    return pipe(
+      combine(
+        process(userId, isReqString('`userId` required and need to be string')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([userId]) => fromPromise(this.userAdapter.unblockUser(userId))),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
   updateUser(name: string, extra?: IQUserExtraProps, callback?: IQCallback<any>): void {
     callback = getCallback(extra, callback)
     if (is.null(name)) return callback(new Error('`name` required'))
     if (is.not.function(extra) && is.not.object(extra)) return callback(new Error('`extra` must have type of object'))
     this.userAdapter.updateUser(name, extra)
-      .then(user => callback(null, user))
-      .catch(error => callback(error))
+      .then(user => callback(user))
+      .catch(error => callback(null, error))
   }
   setUserFromIdentityToken (token: string, callback?: IQCallback<IQUser>): void {
     this.userAdapter.setUserFromIdentityToken(token)
-      .then(resp => callback(null, resp))
-      .catch(error => callback(error))
+      .then(resp => callback(resp))
+      .catch(error => callback(null, error))
   }
   getBlockedUserList(page?: number, limit?: number, callback?: IQCallback<IQUser[]>): void {
-    if (is.not.function(page) && is.not.number(page)) return callback(new Error('`page` must have type of number'))
-    if (is.not.function(limit) && is.not.number(limit)) return callback(new Error('`limit` must have type of number'))
+    if (is.not.function(page) && is.not.number(page)) return callback(null, new Error('`page` must have type of number'))
+    if (is.not.function(limit) && is.not.number(limit)) return callback(null, new Error('`limit` must have type of number'))
     callback = getCallback<IQCallback<IQUser[]>>(page, limit, callback)
     this.userAdapter.getBlockedUser(page, limit)
-      .then(users => callback(null, users))
-      .catch(error => callback(error))
+      .then(users => callback(users))
+      .catch(error => callback(null, error))
   }
   getUserList(query?: string, page?: number, limit?: number, callback?: IQCallback<IQUser[]>): void {
     callback = getCallback(query, page, limit, callback)
@@ -209,13 +228,19 @@ export default class Qiscus implements IQiscus {
   }
 
   // Room Adapter
-  chatUser(userId: string, callback?: IQCallback<IQRoom>): void {
-    callback = getCallback(callback)
-    if (is.null(userId)) return callback(new Error('`userId` required'))
-    if (is.not.string(userId)) return callback(new Error('`userId` must have type of string'))
-    this.roomAdapter.chatUser(userId)
-      .then(room => callback(null, room))
-      .catch(error => callback(error))
+  chatUser(userId: string, avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void {
+    return pipe(
+      combine(
+        process(userId, isReqString('`userId` need to be string')),
+        process(avatarUrl, isOptString('`avatarUrl` need to be string or null')),
+        process(extras, isOptJson('`extras` need to be object or null')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([userId, avatarUrl, extras]) => ([ userId, avatarUrl, JSON.stringify(extras) ])),
+      map(([userId, avatarUrl, extras]) => fromPromise(this.roomAdapter.chatUser(userId, avatarUrl, extras))),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
   addParticipants(roomId: number, participantIds: string[], callback?: IQCallback<any>): void {
     callback = getCallback(callback)

@@ -33,7 +33,7 @@ type GetChannelExtraProps = {
   options: object
 }
 export interface IQRoomAdapter {
-  chatUser (userId: string): Promise<IQRoom>
+  chatUser (userId: string, avatarUrl: any, extras: any): Promise<IQRoom>
   getRoomList (withParticipant?: boolean, page?: number, limit?: number): Promise<IQRoom[]>
   getRoom (roomId: number): Promise<IQRoom>
   getChannel (uniqueId: string, extra: GetChannelExtraProps): Promise<IQRoom>
@@ -114,7 +114,7 @@ export class QRoom implements IQRoom {
 export default function getRoomAdapter (
   http: () => IQHttpAdapter,
   user: () => IQUserAdapter
-): IQRoomAdapter {
+) {
   const roomStorage = new Map<number, IQRoom>()
   return {
     get rooms() { return roomStorage },
@@ -127,10 +127,11 @@ export default function getRoomAdapter (
         return resp.results.participants_added.map((it) => QParticipant.fromJson(it))
       })
     },
-    chatUser (userId: string): Promise<IQRoom> {
+    chatUser (userId: string, avatarUrl?: string, extras?: string): Promise<IQRoom> {
       return http().post<ChatUserResponse.RootObject>('get_or_create_room_with_target', {
         token: user().token,
-        emails: [userId]
+        emails: [userId],
+        options: extras
       }).then<IQRoom>((resp) => {
         return QRoom.fromJson(resp.results.room)
       })
@@ -237,7 +238,7 @@ export default function getRoomAdapter (
         return QRoom.fromJson(resp.results.room)
       })
     }
-  } as IQRoomAdapter
+  }
 }
 
 //region Response Type
