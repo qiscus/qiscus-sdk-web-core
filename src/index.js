@@ -82,7 +82,6 @@ class QiscusSDK {
    * @return {void}
    */
   init(config) {
-    console.log('qiscus.init')
     // set AppID
     if (!config.AppId) throw new Error('Please provide valid AppId')
     this.AppId = config.AppId
@@ -119,8 +118,10 @@ class QiscusSDK {
           .findIndex(it => it.id === message.id || it.unique_id === message.unique_temp_id)
         if (index === -1) {
           const _message = new Comment(message)
-          this.selected.comments.push(_message)
-          this.sortComments()
+          if (_message.room_id === this.selected.id) {
+            this.selected.comments.push(_message)
+            this.sortComments()
+          }
           this.events.emit('newmessages', [message])
         }
       } else {
