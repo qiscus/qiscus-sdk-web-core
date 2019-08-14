@@ -59,7 +59,7 @@ export default class User {
       .catch((error) => console.log(error))
   }
 
-  updateCommentStatus (roomId, lastReadCommentId, lastReceivedCommentId) {
+  updateCommentStatus = throttle((roomId, lastReadCommentId, lastReceivedCommentId) => {
     const body = {
       token: this.token,
       room_id: roomId
@@ -71,7 +71,7 @@ export default class User {
       .post('api/v2/mobile/update_comment_status', body)
       .then((res) => Promise.resolve(res))
       .catch((error) => console.log(error))
-  }
+  }, 300)
 
   loadRoomList (params = {}) {
     let body = `?token=${this.token}`
