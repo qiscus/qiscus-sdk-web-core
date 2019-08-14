@@ -2,7 +2,14 @@ import { IQHttpAdapter } from './http'
 import { IQUserAdapter } from './user'
 import QUrlBuilder from '../utils/url-builder'
 import { IQRoomAdapter } from './room'
+import cuid = require('cuid')
 
+export type IQMessageT = {
+  payload: object,
+  extras: object,
+  type: string,
+  message: string
+}
 export enum IQMessageStatus {
   Sending,
   Sent,
@@ -23,6 +30,7 @@ export interface IQMessage {
   userId: string
   content: string
   previousMessageId: number
+  extras: object
   timestamp: Date
   type: IQMessageType
   status: IQMessageStatus
@@ -40,6 +48,7 @@ export class QMessage implements IQMessage {
   type: IQMessageType
   userId: string
   uniqueId: string
+  extras: object
 
   updateFromJson(json: PostCommentResponse.Comment): IQMessage {
     this.id = json.id
@@ -49,6 +58,7 @@ export class QMessage implements IQMessage {
     this.timestamp = new Date(json.timestamp)
     this.userId = json.username
     this.uniqueId = json.unique_temp_id
+    this.extras = json.extras
     if (json.type === 'text') this.type = IQMessageType.Text
     if (json.type === 'custom') this.type = IQMessageType.Custom
     if (json.status === 'delivered') this.status = IQMessageStatus.Delivered
@@ -58,7 +68,7 @@ export class QMessage implements IQMessage {
   static fromJson(json: PostCommentResponse.Comment): IQMessage {
     return new QMessage().updateFromJson(json)
   }
-  static prepareNew(userId: string, roomId: number, content: string, type = IQMessageType.Text): IQMessage {
+  static prepareNew(userId: string, roomId: number, content: string, type = IQMessageType.Text, extras: object = {}): IQMessage {
     const timestamp = new Date()
     const message = new QMessage()
     message.content = content
@@ -67,16 +77,16 @@ export class QMessage implements IQMessage {
     message.roomId = roomId
     message.timestamp = timestamp
     message.userId = userId
-    message.uniqueId = `js-${timestamp.getTime()}`
+    message.uniqueId = `js-${cuid()}`
+    message.extras = extras
     return message
   }
 }
 
 export interface IQMessageAdapter {
   readonly messages: Map<string, IQMessage>
-  sendMessage (roomId: number, content: string): Promise<IQMessage>
-  getMessages (roomId: number, lastMessageId?: number, page?: number, limit?: number): Promise<IQMessage[]>
-  resendMessage (message: IQMessage): Promise<IQMessage>
+  sendMessage (roomId: number, message: IQMessageT): Promise<IQMessage>
+  getMessages (roomId: number, lastMessageId?: number, limit?: number, after?: boolean): Promise<IQMessage[]>
   deleteMessage (messageIds: number[]): Promise<IQMessage[]>
   markAsRead (roomId: number, messageId: number): Promise<IQMessage>
   markAsDelivered (roomId: number, messageId: number): Promise<IQMessage>
@@ -90,13 +100,14 @@ export default function getMessageAdapter (
   let messageStore: Map<string, IQMessage> = new Map()
   return {
     get messages() { return messageStore },
-    sendMessage (roomId: number, content: string): Promise<IQMessage> {
-      const message = QMessage.prepareNew(user().currentUser.userId, roomId, content)
+    sendMessage (roomId: number, messageT: IQMessageT): Promise<IQMessage> {
+      const message = QMessage.prepareNew(user().currentUser.userId, roomId, messageT.message)
       messageStore.set(message.uniqueId, message)
       const url = QUrlBuilder('post_comment')
         .param('token', user().token)
         .param('topic_id', message.roomId)
         .param('message', message.content)
+        .param('extras', message.extras)
         .build()
       return http().get<PostCommentResponse.RootObject>(url)
         .then(resp => resp.results.comment)
@@ -106,12 +117,13 @@ export default function getMessageAdapter (
           return message
         })
     },
-    getMessages (roomId: number, lastMessageId: number = 0, limit: number = 20): Promise<IQMessage[]> {
+    getMessages (roomId: number, lastMessageId: number = 0, limit: number = 20, after: boolean = false): Promise<IQMessage[]> {
       const url = QUrlBuilder('load_comments')
         .param('token', user().token)
         .param('topic_id', roomId)
         .param('last_comment_id', lastMessageId)
         .param('limit', limit)
+        .param('after', after)
         .build()
       return http().get<GetCommentsResponse.RootObject>(url)
         .then(res => res.results.comments)
@@ -122,9 +134,6 @@ export default function getMessageAdapter (
           }
           return _messages
         })
-    },
-    resendMessage (message: IQMessage): Promise<IQMessage> {
-      return this.sendMessage(message.roomId, message.content)
     },
     deleteMessage (messageIds: number[]): Promise<IQMessage[]> {
       const url = QUrlBuilder('delete_messages')

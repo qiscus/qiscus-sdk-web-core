@@ -43,6 +43,20 @@ export const toCallbackOrPromise = <A>(cb?: Callback<A>) => (source: Source<A>) 
 export const tryCatch = <T>(fn: () => T, onError: (error: Error) => void): void => {
   try { fn() } catch (error) { onError(error) }
 }
+export const safeMap = <A>(fn: Function) => (source: Source<A>) => (start: Type, d) => {
+  if (start !== 0) return
+  const sink: Source<A> = d
+  source(0, (t, d) => {
+    if (t === 1) {
+      tryCatch(
+        () => sink(1, fn(d)),
+        error => sink(2, error)
+      )
+    } else {
+      sink(t, d)
+    }
+  })
+}
 
 export const process = <T>(item: T, ...checkers: Function[]): Source<T> => (start: Type, d) => {
   if (start !== 0) return
@@ -58,7 +72,10 @@ export const process = <T>(item: T, ...checkers: Function[]): Source<T> => (star
 export const isReqString = (msg: string) => compose(msg, every(is.not.null, is.not.undefined, is.string))
 export const isReqNumber = (msg: string) => compose(msg, every(is.not.null, is.not.undefined, is.number))
 export const isReqJson = (msg: string) => compose(msg, every(is.not.null, is.not.undefined, is.json))
+export const isReqArrayNumber = (msg: string) => compose(msg, every(is.not.null, is.not.undefined, is.array, is.all.number))
+export const isReqArrayString = (msg: string) => compose(msg, every(is.not.null, is.not.undefined, is.array, is.all.string))
 export const isOptString = (msg: string) => compose(msg, some(is.null, is.undefined, is.string))
 export const isOptNumber = (msg: string) => compose(msg, some(is.null, is.undefined, is.number))
 export const isOptJson = (msg: string) => compose(msg, some(is.null, is.undefined, is.json))
 export const isOptCallback = (msg: string) => compose(msg, some(is.null, is.undefined, is.function))
+export const isOptBoolean = (msg: string) => compose(msg, some(is.null, is.undefined, is.boolean))

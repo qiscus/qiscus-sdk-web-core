@@ -1,79 +1,86 @@
-import is from 'is_js'
 import pipe from 'callbag-pipe'
 import fromPromise from 'callbag-from-promise'
 import flatten from 'callbag-flatten'
 import getUserAdapter, { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from './adapters/user'
-import getMessageAdapter, { IQMessage, IQMessageAdapter } from './adapters/message'
+import getMessageAdapter, { IQMessage, IQMessageAdapter, IQMessageT } from './adapters/message'
 import getRoomAdapter, { IQParticipant, IQRoom, IQRoomAdapter } from './adapters/room'
 import getRealtimeAdapter, { IQRealtimeAdapter } from './adapters/realtime'
 import getHttpAdapter, { IQHttpAdapter } from './adapters/http'
 import combine from './utils/callbag-combine'
-import { process, isReqString, isOptString, isOptJson, toCallbackOrPromise, isOptCallback } from './utils/callbag';
+import {
+  process,
+  isReqString,
+  isOptString,
+  isOptJson,
+  toCallbackOrPromise,
+  isOptCallback,
+  safeMap, isOptNumber, isReqNumber, isReqArrayNumber, isReqArrayString, isOptBoolean, isReqJson
+} from './utils/callbag'
 
 export type IQCallback<T> = (response: T, error?: Error) => void
-export type IQOptionalCallback<T, CallbackResponseType> = T | IQCallback<CallbackResponseType>
 
-export interface IQInitOptions {
+export type IQInitOptions = {
+  appId: string
   baseUrl: string
   brokerUrl: string
   syncMode: 'socket' | 'http' | 'both'
   syncInterval: number
 }
-export interface IQUploadProgress {
-  progress?: number
-  fileUrl?: string
-}
+
+export type IQProgressListener = (error: Error, progress: ProgressEvent, url: string) => void
 
 export interface IQiscus {
-  init(opts: IQInitOptions): void
+  init(appId: string, syncInterval: number): void
+  initWithCustomServer(appId: string, baseUrl: string, brokerUrl: string, brokerLbUrl: string, syncInterval: number): void
 
-  // from UserAdapter
-  setUser(userId: string, userKey: string, avatarUrl: string, extras: object, callback: IQCallback<IQUser>): void
+  // from UserAdapter -------------------------------
+  setUser(userId: string, userKey: string, username: string, avatarUrl: string, extras: object, callback: IQCallback<IQUser>): void | Promise<IQUser>
+  setUserWithIdentityToken(token: string, callback?: IQCallback<IQUser>): void | Promise<IQUser>
+  blockUser(userId: string, callback?: IQCallback<IQUser>): void | Promise<IQUser>
+  unblockUser(userId: string, callback?: IQCallback<IQUser>): void | Promise<IQUser>
+  getBlockedUserList(page?: number, limit?: number, callback?: IQCallback<IQUser[]>): void | Promise<IQUser[]>
+  getUserData(callback?: IQCallback<IQUser>): void | Promise<IQUser>
+  updateUser(username?: string, avatarUrl?: string, extras?: object, callback?: IQCallback<IQUser>): void | Promise<IQUser>
+  getUserList(searchUsername?: string, page?: number, limit?: number, callback?: IQCallback<IQUser[]>): void | Promise<IQUser[]>
+
+  // ------------------------------------------------
+
+  // TODO: I'm not discussed yet
   clearUser(callback?: IQCallback<void>): void
-  updateUser(userId: string, extra?: IQOptionalCallback<IQUserExtraProps, IQUser>, callback?: IQCallback<IQUser>): void
-  getNonce(callback?: IQCallback<QNonce>): void
-  setUserFromIdentityToken(token: string, callback?: IQCallback<IQUser>): void
-  getUserList(
-    query?: IQOptionalCallback<string, IQUser[]>,
-    page?: IQOptionalCallback<number, IQUser[]>,
-    limit?: IQOptionalCallback<number, IQUser[]>,
-    callback?: IQCallback<IQUser[]>): void
-  getBlockedUserList(page?: IQOptionalCallback<number, IQUser[]>, limit?: IQOptionalCallback<number, IQUser[]>, callback?: IQCallback<IQUser[]>): void
-  blockUser(userId: string, callback?: IQCallback<IQUser>): void
-  unblockUser(userId: string, callback?: IQCallback<IQUser>): void
 
-  // from RoomAdapter
-  chatUser(userId: string, callback?: IQCallback<IQRoom>): void
-  getRoomList(page?: IQOptionalCallback<number, IQRoom[]>,
-              limit?: IQOptionalCallback<number, IQRoom[]>,
-              callback?: IQCallback<IQRoom[]>): void
-  getRoom(roomId: number, callback?: IQCallback<IQRoom>): void
-  getChannel(uniqueId: string, callback?: IQCallback<IQRoom>): void
-  updateRoom(roomId: number, room: IQRoom, callback?: IQCallback<IQRoom>): void
-  getParticipantList(roomId: number,
-                     page?: IQOptionalCallback<number, IQParticipant[]>,
-                     limit?: IQOptionalCallback<number, IQParticipant[]>,
-                     callback?: IQCallback<IQParticipant[]>): void
-  createGroup(name: string, initialParticipantIds: string[], callback?: IQCallback<IQRoom>): void
-  removeParticipants(roomId: number, participantIds: string[], callback?: IQCallback<IQParticipant[]>): void
-  addParticipants(roomId: number, participantIds: string[], callback?: IQCallback<IQParticipant[]>): void
-  getRoomInfo(roomIds: number[], callback?: IQCallback<IQRoom>): void
-  clearRoom(roomIds: number[], callback?: IQCallback<IQRoom[]>): void
-  getUnreadCount(callback?: IQCallback<number>): void
+  // from RoomAdapter ----------
+  chatUser(userId: string, avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
+  createGroupChat(name: string, userIds: string[], avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
+  createChannel(uniqueId: string, name: string, avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
+  updateChatRoom(roomId: number, name: string, avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
+  addParticipants(roomId: number, userIds: string[], callback?: IQCallback<IQParticipant[]>): void | Promise<IQParticipant[]>
+  removeParticipants(roomId: number, userIds: string[], callback?: IQCallback<IQParticipant[]>): void | Promise<IQParticipant[]>
+  getChatRoomWithMessages(roomId: number, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
+  getChatRoom(roomId: number, uniqueId: number, page?: number, showRemoved?: boolean, showParticipant?: boolean, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
+  getChatRooms(showParticipant?: boolean, showRemoved?: boolean, showEmpty?: boolean, page?: number, limit?: number, callback?: IQCallback<IQRoom[]>): void | Promise<IQRoom[]>
+  getParticipantList(roomId: number, offset?: number, sorting?: 'asc' | 'desc' | null, callback?: IQCallback<IQParticipant[]>): void
+  // ---------------------------
 
-  // from MessageAdapter
-  getMessageList(roomId: number,
-                 lastMessageId?: number,
-                 page?: IQOptionalCallback<number, IQMessage[]>,
-                 limit?: IQOptionalCallback<number, IQMessage[]>,
-                 callback?: IQCallback<IQMessage[]>): void
-  sendMessage(roomId: number, message: IQMessage, callback?: IQCallback<IQMessage>): void
-  resendMessage(roomId: number, message: IQMessage, callback?: IQCallback<IQMessage>): void
-  deleteMessage(messageIds: number[], callback?: IQCallback<IQMessage[]>): void
-  markAsRead(message: IQMessage, callback?: IQCallback<IQMessage>): void
-  markAsDelivered(message: IQMessage, callback?: IQCallback<IQMessage>): void
+  // from MessageAdapter -----------------------------------
+  sendMessage(roomId: number, message: IQMessageT, callback?: IQCallback<IQMessage>): void | Promise<IQMessage>
+  markAsRead(roomId: number, messageId: number, callback?: IQCallback<IQMessage>): void | Promise<IQMessage>
+  markAsDelivered(roomId: number, messageId: number, callback?: IQCallback<IQMessage>): void | Promise<IQMessage>
+  getPreviouseMessagesById(roomId: number, limit?: number, messageId?: number, callback?: IQCallback<IQMessage[]>): void | Promise<IQMessage[]>
+  getNextMessagesById(roomId: number, limit?: number, messageId?: number, callback?: IQCallback<IQMessage[]>): void | Promise<IQMessage[]>
+  deleteMessages(messageUniqueIds: string[], callback?: IQCallback<IQMessage[]>): void | Promise<IQMessage[]>
+  clearMessagesByChatRoomId(roomIds: number[], callback?: IQCallback<IQRoom[]>): void | Promise<IQRoom[]>
+  // -------------------------------------------------------
 
-  upload(file: File, callback?: IQCallback<IQUploadProgress>): void
+  // Misc -------------------------------------
+  upload(file: File, callback?: IQProgressListener): void
+  registerDeviceToken(token: string, callback?: IQCallback<boolean>): void | Promise<boolean>
+  removeDeviceToken(token: string, callback?: IQCallback<boolean>): void | Promise<boolean>
+  getJWTNonce(callback?: IQCallback<string>): void | Promise<string>
+  synchronize(lastMessageId: number): void
+  syncrhronizeEvent(lastEventId: number): void
+  getTotalUnreadCount(callback?: IQCallback<number>): void | Promise<number>
+
+  // ------------------------------------------
   setTyping(isTyping?: boolean): void
 
   // from CustomEventAdapter
@@ -82,41 +89,44 @@ export interface IQiscus {
   unsubscribeEvent(eventId): void
 }
 
-const noop = () => { }
-/**
- * A helper function to get callback from given arguments
- * Make sure, to place the real callback on the most right
- * if all given arguments are null, will return a noop function
- *
- * @param args
- */
-function getCallback<T>(...args: any | T) {
-  return args.reduceRight((result, item) => {
-    if (is.not.function(item)) return result
-    return item
-  }, noop) as T
-}
+export default class Qiscus implements IQiscus {
+  private realtimeAdapter: IQRealtimeAdapter
+  private httpAdapter: IQHttpAdapter
+  private userAdapter: IQUserAdapter
+  private roomAdapter: IQRoomAdapter
+  private messageAdapter: IQMessageAdapter
 
-export default class Qiscus {
-  private readonly realtimeAdapter: IQRealtimeAdapter
-  private readonly httpAdapter: IQHttpAdapter
-  private readonly userAdapter: IQUserAdapter
-  private readonly roomAdapter: IQRoomAdapter
-  private readonly messageAdapter: IQMessageAdapter
-
+  public appId: string = null
   private syncMode: string = 'socket'
   private baseUrl: string = null
   private brokerUrl: string = null
-  private readonly syncInterval: number = null
+  private syncInterval: number = null
+  private static _instance: Qiscus = null
 
-  constructor(public readonly appId: string, opts?: IQInitOptions) {
-    this.baseUrl = opts.baseUrl || 'https://api.qiscus.com/api/v2/sdk/'
-    this.brokerUrl = opts.brokerUrl || 'wss://mqtt.qiscus.com:1886/mqtt'
-    this.syncInterval = opts.syncInterval || 5000
-    this.syncMode = opts.syncMode || 'socket'
+  public static get instance(): Qiscus {
+    if (this._instance == null) this._instance = new this();
+    return this._instance;
+  }
+
+  init(appId: string, syncInterval: number = 5000): void {
+    this.initWithCustomServer(
+      appId,
+      'https://api.qiscus.com/api/v2/sdk/',
+      'wss://mqtt.qiscus.com:1886/mqtt',
+      null,
+      syncInterval
+    )
+  }
+  initWithCustomServer(appId: string, baseUrl: string, brokerUrl: string, brokerLBUrl: string, syncInterval: number = 5000): void {
+    this.appId = appId
+    this.baseUrl = baseUrl
+    this.brokerUrl = brokerUrl
+    this.syncMode = 'socket'
+    this.syncInterval = syncInterval || 5000
+    this.syncMode = 'socket'
     this.httpAdapter = getHttpAdapter({
       baseUrl: this.baseUrl,
-      getAppId: () => appId,
+      getAppId: () => this.appId,
       getToken: () => this.token,
       getUserId: () => this.userAdapter.currentUserId,
       getSdkVersion: () => '3-beta'
@@ -133,13 +143,7 @@ export default class Qiscus {
     })
   }
 
-  init(opts: IQInitOptions): void {
-    this.baseUrl = opts.baseUrl
-    this.brokerUrl = opts.brokerUrl
-    this.syncMode = opts.syncMode
-  }
-
-  // User Adapter
+  // User Adapter ------------------------------------------
   setUser(userId: string, userKey: string, username: string, avatarUrl: string, extras: object | null, callback: null | IQCallback<IQUser>): void | Promise<IQUser> {
     return pipe(
       combine(
@@ -149,6 +153,7 @@ export default class Qiscus {
         process(avatarUrl, isOptString('`avatarUrl` need to be string or null')),
         process(extras, isOptJson('`extras` need to be object or null'))
       ),
+      safeMap(([ userId, userKey, username, avatarUrl, extras ]) => [userId, userKey, username, avatarUrl, JSON.stringify(extras)]),
       map(([userId, userKey, username, avatarUrl, extras]) =>
         fromPromise(this.userAdapter.login(userId, userKey, { name: username, avatarUrl, extras }))
       ),
@@ -172,15 +177,7 @@ export default class Qiscus {
   clearUser(callback: IQCallback<void>): void | Promise<void> {
     return pipe(
       combine(process(callback, isOptCallback('`callback` need to be function or null'))),
-      map((_) => fromPromise(Promise.resolve(this.userAdapter.clear()))),
-      flatten,
-      toCallbackOrPromise(callback)
-    )
-  }
-  getNonce(callback: IQCallback<QNonce>): void | Promise<QNonce> {
-    return pipe(
-      process(callback, isOptCallback('`callback` need to be function or null')),
-      map(() => fromPromise(this.userAdapter.getNonce())),
+      map(() => fromPromise(Promise.resolve(this.userAdapter.clear()))),
       flatten,
       toCallbackOrPromise(callback)
     )
@@ -196,39 +193,125 @@ export default class Qiscus {
       toCallbackOrPromise(callback)
     )
   }
-  updateUser(name: string, extra?: IQUserExtraProps, callback?: IQCallback<any>): void {
-    callback = getCallback(extra, callback)
-    if (is.null(name)) return callback(new Error('`name` required'))
-    if (is.not.function(extra) && is.not.object(extra)) return callback(new Error('`extra` must have type of object'))
-    this.userAdapter.updateUser(name, extra)
-      .then(user => callback(user))
-      .catch(error => callback(null, error))
+  updateUser(username: string, avatarUrl: string,  extras?: object, callback?: IQCallback<IQUser>): void | Promise<IQUser> {
+    return pipe(
+      combine(
+        process(username, isOptString('`username` need to be string or null')),
+        process(avatarUrl, isOptString('`avatarUrl` need to be string or null')),
+        process(extras, isOptJson('`extras` need to be object or null')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      safeMap(([username, avatarUrl, extras]) => [username, avatarUrl, JSON.stringify(extras)]),
+      map(([username, avatarUrl, extras]) =>
+        fromPromise(this.userAdapter.updateUser(username, avatarUrl, extras ))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  setUserFromIdentityToken (token: string, callback?: IQCallback<IQUser>): void {
-    this.userAdapter.setUserFromIdentityToken(token)
-      .then(resp => callback(resp))
-      .catch(error => callback(null, error))
+  getBlockedUserList(page?: number, limit?: number, callback?: IQCallback<IQUser[]>): void | Promise<IQUser[]> {
+    return pipe(
+      combine(
+        process(page, isOptNumber('`page` need to be number or null')),
+        process(limit, isOptNumber('`limit` need to be number or null')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([page, limit]) => fromPromise(this.userAdapter.getBlockedUser(page, limit))),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  getBlockedUserList(page?: number, limit?: number, callback?: IQCallback<IQUser[]>): void {
-    if (is.not.function(page) && is.not.number(page)) return callback(null, new Error('`page` must have type of number'))
-    if (is.not.function(limit) && is.not.number(limit)) return callback(null, new Error('`limit` must have type of number'))
-    callback = getCallback<IQCallback<IQUser[]>>(page, limit, callback)
-    this.userAdapter.getBlockedUser(page, limit)
-      .then(users => callback(users))
-      .catch(error => callback(null, error))
+  getUserList(searchUsername?: string, page?: number, limit?: number, callback?: IQCallback<IQUser[]>): void | Promise<IQUser[]> {
+    return pipe(
+      combine(
+        process(searchUsername, isOptString('`searchUsername` need to be string or null')),
+        process(page, isOptString('`page` need to be number or null')),
+        process(limit, isOptString('`limit` need to be number or null')),
+        process(callback, isOptString('`callback` need to be function or null')),
+      ),
+      map(([search, page, limit]) =>
+        fromPromise(this.userAdapter.getUserList(search, page, limit))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  getUserList(query?: string, page?: number, limit?: number, callback?: IQCallback<IQUser[]>): void {
-    callback = getCallback(query, page, limit, callback)
-    if (is.not.function(query) && is.not.string(query)) return callback(new Error('`query` must have type of string'))
-    if (is.not.function(page) && is.not.number(page)) return callback(new Error('`page` must have type of number'))
-    if (is.not.function(limit) && is.not.number(limit)) return callback(new Error('`limit` must have type of number'))
-    this.userAdapter.getUserList(query, page, limit)
-      .then(users => callback(null, users))
-      .catch(error => callback(error))
+  getJWTNonce (callback?: IQCallback<string>): void | Promise<string> {
+    return pipe(
+      process(callback, isOptCallback('`callback` need to be function or null')),
+      map(() => fromPromise(this.userAdapter.getNonce())),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
+  getUserData (callback?: (response: IQUser, error?: Error) => void): void | Promise<IQUser> {
+    return pipe(
+      process(callback, isOptCallback('`callback` need to be function or null')),
+      map(() => fromPromise(this.userAdapter.getUserData())),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
+  }
+  registerDeviceToken (token: string, callback?: IQCallback<boolean>): void | Promise<boolean> {
+    return pipe(
+      combine(
+        process(token, isReqString('`token` need to be string')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([token]) =>
+        fromPromise(this.userAdapter.registerDeviceToken(token))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
+  }
+  removeDeviceToken (token: string, callback?: IQCallback<boolean>): void | Promise<boolean> {
+    return pipe(
+      combine(
+        process(token, isReqString('`token` need to be string')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([token]) =>
+        fromPromise(this.userAdapter.unregisterDeviceToken(token))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
+  }
+  updateChatRoom (roomId: number, name?: string | null, avatarUrl?: string | null, extras?: object | null, callback?: (response: IQRoom, error?: Error) => void): void | Promise<IQRoom> {
+    return pipe(
+      combine(
+        process(roomId, isReqNumber('`roomId` need to be number')),
+        process(name, isOptString('`name` need to be string or null')),
+        process(avatarUrl, isOptString('`avatarUrl` need to be string or null')),
+        process(extras, isOptJson('`extras` need to be object or null')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      safeMap(([roomId, name, avatarUrl, extras]) => [roomId, name, avatarUrl, JSON.stringify(extras)]),
+      map(([roomId, name, avatarUrl, extras]) =>
+        fromPromise(this.roomAdapter.updateRoom(roomId, name, avatarUrl, extras))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
+  }
+  setUserWithIdentityToken (token: string, callback?: (response: IQUser, error?: Error) => void): void | Promise<IQUser> {
+    return pipe(
+      combine(
+        process(token, isReqString('`token` need to be string')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([token]) =>
+        fromPromise(this.userAdapter.setUserFromIdentityToken(token))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
+  }
+  // -------------------------------------------------------
 
-  // Room Adapter
-  chatUser(userId: string, avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void {
+  // Room Adapter ------------------------------------------
+  chatUser(userId: string, avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void | Promise<IQRoom> {
     return pipe(
       combine(
         process(userId, isReqString('`userId` need to be string')),
@@ -242,96 +325,228 @@ export default class Qiscus {
       toCallbackOrPromise(callback)
     )
   }
-  addParticipants(roomId: number, participantIds: string[], callback?: IQCallback<any>): void {
-    callback = getCallback(callback)
-    this.roomAdapter.addParticipants(roomId, participantIds)
-      .then(room => callback(null, room))
-      .catch(error => callback(error))
+  addParticipants(roomId: number, userIds: string[], callback?: IQCallback<any>): void | Promise<IQParticipant[]> {
+    return pipe(
+      combine(
+        process(roomId, isReqNumber('`roomId` need to be number')),
+        process(userIds, isReqArrayString('`userIds` need to be array of string')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([roomId, userIds]) => fromPromise(this.roomAdapter.addParticipants(roomId, userIds))),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  clearRoom(roomIds: number[], callback?: IQCallback<IQRoom[]>): void {
-    callback = getCallback(callback)
-    this.roomAdapter.clearRoom(roomIds)
-      .then(rooms => callback(null, rooms))
-      .catch(error => callback(error))
+  clearMessagesByChatRoomId (roomIds: number[], callback?: IQCallback<IQRoom[]>): void | Promise<IQRoom[]> {
+    return pipe(
+      combine(process(roomIds, isReqArrayNumber('`roomIds` need to be array of number'))),
+      map(([roomIds]) => fromPromise(this.roomAdapter.clearRoom(roomIds))),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  createGroup(name: string, initialParticipantIds: string[], callback?: IQCallback<IQRoom>): void {
-    callback = getCallback(callback)
-    this.roomAdapter.createGroup(name, initialParticipantIds)
-      .then(rooms => callback(null, rooms))
-      .catch(error => callback(error))
+  createGroupChat (name: string, userIds: string[], avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void | Promise<IQRoom> {
+    return pipe(
+      combine(
+        process(name, isReqString('`name` need to be string')),
+        process(userIds, isReqArrayString('`userIds` need to be array of string')),
+        process(avatarUrl, isReqString('`avatarUrl` need to be string')),
+        process(extras, isReqString('`extras` need to be object')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      safeMap(([name, userIds, avatarUrl, extras]) => [name, userIds, avatarUrl, JSON.stringify(extras)]),
+      map(([name, userIds, avatarUrl, extras]) =>
+        fromPromise(this.roomAdapter.createGroup(name, userIds, avatarUrl, extras))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  deleteMessage(messageIds: number[], callback?: IQCallback<IQMessage[]>): void {
-    callback = getCallback(callback)
-    this.messageAdapter.deleteMessage(messageIds)
-      .then(message => callback(null, message))
-      .catch(error => callback(error))
+  createChannel (uniqueId: string, name: string, avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void | Promise<IQRoom> {
+    return pipe(
+      combine(
+        process(uniqueId, isReqString('`uniqueId` need to be string')),
+        process(name, isReqString('`name` need to be string')),
+        process(avatarUrl, isOptString('`avatarUrl` need to be string or null')),
+        process(extras, isOptJson('`extras` need to be object or null')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([uniqueId, name, avatarUrl, extras]) =>
+        fromPromise(this.roomAdapter.getChannel(uniqueId, name, avatarUrl, extras))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  getChannel(uniqueId: string, callback?: IQCallback<IQRoom>): void {
-    callback = getCallback(callback)
-    this.roomAdapter.getChannel(uniqueId, null)
-      .then(room => callback(null, room))
-      .catch(error => callback(error))
+  getParticipantList (roomId: number, offset?: number, sorting?: 'asc' | 'desc' | null, callback?: IQCallback<IQParticipant[]>): void | Promise<IQParticipant[]> {
+    return pipe(
+      combine(
+        process(roomId, isReqNumber('`roomId` need to be number')),
+        process(offset, isOptNumber('`offset` need to be number or null')),
+        process(sorting, isOptString('`sorting` need to be `asc`, `desc`, or null')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([roomId, offset, sorting]) =>
+        fromPromise(this.roomAdapter.getParticipantList(roomId, offset, sorting))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  getMessageList(roomId: number, lastMessageId?: number, page?: number, limit?: number, callback?: IQCallback<IQMessage[]>): void {
-    callback = getCallback(lastMessageId, page, limit, callback)
-    this.messageAdapter.getMessages(roomId, lastMessageId, page, limit)
-      .then(messages => callback(null, messages))
-      .catch(error => callback(error))
+  getChatRoom (roomId: number, uniqueId: number, page?: number, showRemoved?: boolean, showParticipant?: boolean, callback?: IQCallback<IQRoom>): void | Promise<IQRoom> {
+    return pipe(
+      combine(
+        process(roomId, isReqNumber('`roomId` need to be number')),
+        process(uniqueId, isReqString('`uniqueId` need to be string')),
+        process(page, isOptNumber('`page` need to be number or null')),
+        process(showRemoved, isOptBoolean('`showRemoved` need to be boolean or null')),
+        process(showParticipant, isOptBoolean('`showParticipant` need to be boolean or null')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([roomId, uniqueId, page, showRemoved, showParticipant]) =>
+        fromPromise(this.roomAdapter.getRoomInfo(roomId, uniqueId, page, showRemoved, showParticipant))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  getParticipantList(roomId: number, page?: number, limit?: number, callback?: IQCallback<IQParticipant[]>): void {
-    callback = getCallback(page, limit, callback)
-    this.roomAdapter.getParticipantList(roomId, page, limit)
-      .then(participants => callback(null, participants))
-      .catch(error => callback(error))
+  getChatRooms (showParticipant?: boolean, showRemoved?: boolean, showEmpty?: boolean, page?: number, limit?: number, callback?: IQCallback<IQRoom[]>): void | Promise<IQRoom[]> {
+    return pipe(
+      combine(
+        process(showParticipant, isOptBoolean('`showParticipant` need to be boolean or null')),
+        process(showRemoved, isOptBoolean('`showRemoved` need to be boolean or null')),
+        process(showEmpty, isOptBoolean('`showEmpty` need to be boolean or null')),
+        process(page, isOptNumber('`page` need to be number or null')),
+        process(limit, isOptNumber('`limit` need to be number or null')),
+        process(callback, isOptCallback('`callback` need to be function or  null'))
+      ),
+      map(([showParticipant, showRemoved, showEmpty, page, limit]) =>
+        fromPromise(this.roomAdapter.getRoomList(showParticipant, showRemoved, showEmpty, page, limit))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  getRoom(roomId: number, callback?: IQCallback<IQRoom>): void {
-    callback = getCallback(callback)
-    this.roomAdapter.getRoom(roomId)
-      .then(room => callback(null, room))
-      .catch(error => callback(error))
+  getChatRoomWithMessages (roomId: number, callback?: IQCallback<IQRoom>): void | Promise<IQRoom> {
+    return pipe(
+      combine(
+        process(roomId, isReqNumber('`roomId` need to be number')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([roomId]) => fromPromise(this.roomAdapter.getRoom(roomId))),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  getRoomInfo(roomIds: number[], callback?: IQCallback<any>): void {
-    callback = getCallback(callback)
-    this.roomAdapter.getRoomInfo(roomIds)
-      .then(rooms => callback(null, rooms))
-      .catch(error => callback(error))
+  getTotalUnreadCount (callback?: IQCallback<number>): void | Promise<number> {
+    return pipe(
+      process(callback, isOptCallback('`callback` need to be function or null')),
+      map(() => fromPromise(this.roomAdapter.getUnreadCount())),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  getRoomList(page?: IQOptionalCallback<number, IQRoom[]>, limit?: IQOptionalCallback<number, IQRoom[]>, callback?: IQCallback<IQRoom[]>): void {
-    callback = getCallback(page, limit, callback)
-    this.roomAdapter.getRoomList(false, page as number, limit as number)
-      .then(rooms => callback(null, rooms))
-      .catch(error => callback(error))
-  }
-  getUnreadCount(callback?: IQCallback<number>): void {
-    callback = getCallback(callback)
-    this.roomAdapter.getUnreadCount()
-      .then(count => callback(null, count))
-      .catch(error => callback(error))
-  }
+  // ------------------------------------------------------
 
-  // Message Adapter
-  markAsDelivered (message: IQMessage, callback?: IQCallback<IQMessage>): void {
+  // Message Adapter --------------------------------------
+  sendMessage (roomId: number, message: IQMessageT, callback?: IQCallback<IQMessage>): void | Promise<IQMessage> {
+    return pipe(
+      combine(
+        process(roomId, isReqNumber('`roomId` need to be number')),
+        process(message, isReqJson('`message` need to be object')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([roomId, message]) =>
+        fromPromise(this.messageAdapter.sendMessage(roomId, message))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
   }
-  markAsRead (message: IQMessage, callback?: IQCallback<IQMessage>): void {}
+  markAsDelivered (roomId: number, messageId: number, callback?: IQCallback<IQMessage>): void | Promise<IQMessage> {
+    return pipe(
+      combine(
+        process(roomId, isReqNumber('`roomId` need to be number')),
+        process(messageId, isReqNumber('`messageId` need to be number')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([roomId, messageId]) =>
+        fromPromise(this.messageAdapter.markAsRead(roomId, messageId))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
+  }
+  markAsRead (roomId: number, messageId: number, callback?: IQCallback<IQMessage>): void | Promise<IQMessage> {
+    return pipe(
+      combine(
+        process(roomId, isReqNumber('`roomId` need to be number')),
+        process(messageId, isReqNumber('`messageId` need to be number'))
+      ),
+      map(([roomId, messageId]) =>
+        fromPromise(this.messageAdapter.markAsRead(roomId, messageId))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
+  }
+  deleteMessages(messageUniqueIds: string[], callback?: IQCallback<IQMessage[]>): void | Promise<IQMessage[]> {
+    return pipe(
+      combine(
+        process(messageUniqueIds, isReqArrayString('`messageUniqueIds` need to be array of string')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([messageUniqueIds]) => fromPromise(this.messageAdapter.deleteMessage(messageUniqueIds))),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
+  }
+  getPreviouseMessagesById (roomId: number, limit?: number, messageId?: number, callback?: IQCallback<IQMessage[]>): void | Promise<IQMessage[]> {
+    return pipe(
+      combine(
+        process(roomId, isReqNumber('`roomId` need to be number')),
+        process(limit, isOptNumber('`limit` need to be number or null')),
+        process(messageId, isOptNumber('`messageId` need to be number or null')),
+        process(callback, isOptCallback('`callback` need to be function or null')),
+      ),
+      map(([roomId, limit, messageId]) =>
+        fromPromise(this.messageAdapter.getMessages(roomId, messageId, limit, false))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
+  }
+  getNextMessagesById (roomId: number, limit?: number, messageId?: number, callback?: IQCallback<IQMessage[]>): void | Promise<IQMessage[]> {
+    return pipe(
+      combine(
+        process(roomId, isReqNumber('`roomId` need to be number')),
+        process(limit, isOptNumber('`limit` need to be number or null')),
+        process(messageId, isOptNumber('`limit` need to be number or null')),
+        process(callback, isOptCallback('`callback` need to be function or null'))
+      ),
+      map(([roomId, limit, messageId]) =>
+        fromPromise(this.messageAdapter.getMessages(roomId, messageId, limit, true))
+      ),
+      flatten,
+      toCallbackOrPromise(callback)
+    )
+  }
+  // -------------------------------------------------------
 
-  publishEvent(eventId: string, data: any): void {
+  // Misc --------------------------------------------------
+  publishEvent(eventId: string, data: any): void {}
+  removeParticipants(roomId: number, participantIds: string[], callback?: IQCallback<any>): void {}
+  setTyping(isTyping?: boolean): void {}
+  subscribeEvent(eventId: string, callback: IQCallback<any>): void {}
+  unsubscribeEvent(eventId): void {}
+  upload(file: File, callback?: IQProgressListener): void {}
+  synchronize (lastMessageId: number): void {
+    this.realtimeAdapter.synchronize(lastMessageId)
   }
-  removeParticipants(roomId: number, participantIds: string[], callback?: IQCallback<any>): void {
+  syncrhronizeEvent (lastEventId: number): void {
+    this.realtimeAdapter.synchronizeEvent(lastEventId)
   }
-  resendMessage(roomId: number, message: IQMessage, callback?: IQCallback<any>): void {
-  }
-  sendMessage(roomId: number, message: IQMessage, callback?: IQCallback<any>): void {
-  }
-  setTyping(isTyping?: boolean): void {
-  }
-  subscribeEvent(eventId: string, callback: IQCallback<any>): void {
-  }
-  unsubscribeEvent(eventId): void {
-  }
-  updateRoom(roomId: number, room: IQRoom, callback?: IQCallback<any>): void {
-  }
-  upload(file: File, callback?: IQCallback<any>): void {
-  }
+  // ------------------------------------------------------
 
   private get token() {
     if (this.userAdapter == null) return null

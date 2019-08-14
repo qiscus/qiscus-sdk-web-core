@@ -10,13 +10,16 @@ export interface IQUserExtraProps {
 export interface IQUserAdapter {
   login (userId: string, userKey: string, extra: IQUserExtraProps): Promise<IQUser>
   clear (): void
-  updateUser (name: string, extra: IQUserExtraProps): Promise<IQUser>
+  updateUser (name: string, avatarUrl: string, extras: string): Promise<IQUser>
   getNonce (): Promise<QNonce>
   setUserFromIdentityToken (token: string): Promise<IQUser>
   getUserList (query: string, page?: number, limit?: number): Promise<IQUser[]>
   getBlockedUser (page?: number, limit?: number): Promise<IQUser[]>
   blockUser (userId: string): Promise<IQUser>
   unblockUser (userId: string): Promise<IQUser>
+  getUserData(): Promise<IQUser>
+  registerDeviceToken(token: string): Promise<boolean>
+  unregisterDeviceToken(token: string): Promise<boolean>
 
   readonly token: string | null
   readonly currentUser: IQUser | null
@@ -129,11 +132,12 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
         return QUser.fromJson(resp.results.user)
       })
     },
-    updateUser (name: string, { avatarUrl }: IQUserExtraProps): Promise<IQUser> {
+    updateUser (name?: string, avatarUrl?: string, extras?: string): Promise<IQUser> {
       const data = {
         token: this.token,
         name,
-        avatar_url: avatarUrl
+        avatar_url: avatarUrl,
+        extras: extras
       }
       return http().patch<UserResponse.RootObject>('my_profile', data)
         .then<IQUser>((resp) => {
@@ -145,6 +149,25 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
         .then<QNonce>((resp) => {
           return { expired: resp.results.expired_at, nonce: resp.results.nonce }
         })
+    },
+    getUserData (): Promise<IQUser> {
+      return http().get<UserResponse.RootObject>('my_profile')
+        .then<IQUser>(resp => QUser.fromJson(resp.results.user))
+    },
+    registerDeviceToken(deviceToken: string, platform: string = 'rn'): Promise<boolean> {
+      return http().post<DeviceTokenResponse.RootObject>('set_user_device_token', {
+        token: token,
+        device_platform: platform,
+        device_token: deviceToken
+      }).then(resp => resp.results.changed)
+    },
+    unregisterDeviceToken(deviceToken: string, platform: string = 'rn'): Promise<boolean> {
+      return http().post<DeviceTokenResponse.RootObject>('remove_user_device_token', {
+        token: token,
+        device_platform: platform,
+        device_token: deviceToken
+      })
+        .then(resp => resp.results.changed)
     },
     get token () { return token },
     get currentUser () { return currentUser },
@@ -301,3 +324,18 @@ declare module BlockedUserListResponse {
   }
 
 }
+declare module DeviceTokenResponse {
+
+  export interface Results {
+    changed: boolean;
+    pn_android_configured: boolean;
+    pn_ios_configured: boolean;
+  }
+
+  export interface RootObject {
+    results: Results;
+    status: number;
+  }
+
+}
+
