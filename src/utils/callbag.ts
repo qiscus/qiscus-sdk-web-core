@@ -58,6 +58,18 @@ export const safeMap = <A>(fn: Function) => (source: Source<A>) => (start: Type,
   })
 }
 
+export const tap = <T>(o: (data: T) => void, e?: (err: Error) => void, c?: () => void) => (source: Source<T>) => (start: Type, sink) => {
+  if (start !== 0) return;
+  source(0, (t, d) => {
+    if (t === 1 && d !== undefined && o) o(d);
+    else if (t === 2) {
+      if (d) e && e(d)
+      else c && c();
+    }
+    sink(t, d);
+  });
+};
+
 export const process = <T>(item: T, ...checkers: Function[]): Source<T> => (start: Type, d) => {
   if (start !== 0) return
   const sink: Source<T> = d

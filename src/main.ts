@@ -1,93 +1,44 @@
 import pipe from 'callbag-pipe'
+import Symbol from 'es6-symbol'
 import fromPromise from 'callbag-from-promise'
 import flatten from 'callbag-flatten'
-import getUserAdapter, { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from './adapters/user'
-import getMessageAdapter, { IQMessage, IQMessageAdapter, IQMessageT } from './adapters/message'
-import getRoomAdapter, { IQParticipant, IQRoom, IQRoomAdapter } from './adapters/room'
+import {atom} from 'derivable'
+import {map} from 'callbag-basics'
+import getUserAdapter from './adapters/user'
+import getMessageAdapter from './adapters/message'
+import getRoomAdapter from './adapters/room'
 import getRealtimeAdapter, { IQRealtimeAdapter } from './adapters/realtime'
 import getHttpAdapter, { IQHttpAdapter } from './adapters/http'
 import combine from './utils/callbag-combine'
 import {
-  process,
-  isReqString,
-  isOptString,
-  isOptJson,
-  toCallbackOrPromise,
+  isOptBoolean,
   isOptCallback,
-  safeMap, isOptNumber, isReqNumber, isReqArrayNumber, isReqArrayString, isOptBoolean, isReqJson
+  isOptJson,
+  isOptNumber,
+  isOptString,
+  isReqArrayNumber,
+  isReqArrayString,
+  isReqJson,
+  isReqNumber,
+  isReqString,
+  process,
+  safeMap,
+  tap,
+  toCallbackOrPromise
 } from './utils/callbag'
-
-export type IQCallback<T> = (response: T, error?: Error) => void
-
-export type IQInitOptions = {
-  appId: string
-  baseUrl: string
-  brokerUrl: string
-  syncMode: 'socket' | 'http' | 'both'
-  syncInterval: number
-}
-
-export type IQProgressListener = (error: Error, progress: ProgressEvent, url: string) => void
-
-export interface IQiscus {
-  init(appId: string, syncInterval: number): void
-  initWithCustomServer(appId: string, baseUrl: string, brokerUrl: string, brokerLbUrl: string, syncInterval: number): void
-
-  // from UserAdapter -------------------------------
-  setUser(userId: string, userKey: string, username: string, avatarUrl: string, extras: object, callback: IQCallback<IQUser>): void | Promise<IQUser>
-  setUserWithIdentityToken(token: string, callback?: IQCallback<IQUser>): void | Promise<IQUser>
-  blockUser(userId: string, callback?: IQCallback<IQUser>): void | Promise<IQUser>
-  unblockUser(userId: string, callback?: IQCallback<IQUser>): void | Promise<IQUser>
-  getBlockedUserList(page?: number, limit?: number, callback?: IQCallback<IQUser[]>): void | Promise<IQUser[]>
-  getUserData(callback?: IQCallback<IQUser>): void | Promise<IQUser>
-  updateUser(username?: string, avatarUrl?: string, extras?: object, callback?: IQCallback<IQUser>): void | Promise<IQUser>
-  getUserList(searchUsername?: string, page?: number, limit?: number, callback?: IQCallback<IQUser[]>): void | Promise<IQUser[]>
-
-  // ------------------------------------------------
-
-  // TODO: I'm not discussed yet
-  clearUser(callback?: IQCallback<void>): void
-
-  // from RoomAdapter ----------
-  chatUser(userId: string, avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
-  createGroupChat(name: string, userIds: string[], avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
-  createChannel(uniqueId: string, name: string, avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
-  updateChatRoom(roomId: number, name: string, avatarUrl: string, extras: object, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
-  addParticipants(roomId: number, userIds: string[], callback?: IQCallback<IQParticipant[]>): void | Promise<IQParticipant[]>
-  removeParticipants(roomId: number, userIds: string[], callback?: IQCallback<IQParticipant[]>): void | Promise<IQParticipant[]>
-  getChatRoomWithMessages(roomId: number, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
-  getChatRoom(roomId: number, uniqueId: number, page?: number, showRemoved?: boolean, showParticipant?: boolean, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
-  getChatRooms(showParticipant?: boolean, showRemoved?: boolean, showEmpty?: boolean, page?: number, limit?: number, callback?: IQCallback<IQRoom[]>): void | Promise<IQRoom[]>
-  getParticipantList(roomId: number, offset?: number, sorting?: 'asc' | 'desc' | null, callback?: IQCallback<IQParticipant[]>): void
-  // ---------------------------
-
-  // from MessageAdapter -----------------------------------
-  sendMessage(roomId: number, message: IQMessageT, callback?: IQCallback<IQMessage>): void | Promise<IQMessage>
-  markAsRead(roomId: number, messageId: number, callback?: IQCallback<IQMessage>): void | Promise<IQMessage>
-  markAsDelivered(roomId: number, messageId: number, callback?: IQCallback<IQMessage>): void | Promise<IQMessage>
-  getPreviouseMessagesById(roomId: number, limit?: number, messageId?: number, callback?: IQCallback<IQMessage[]>): void | Promise<IQMessage[]>
-  getNextMessagesById(roomId: number, limit?: number, messageId?: number, callback?: IQCallback<IQMessage[]>): void | Promise<IQMessage[]>
-  deleteMessages(messageUniqueIds: string[], callback?: IQCallback<IQMessage[]>): void | Promise<IQMessage[]>
-  clearMessagesByChatRoomId(roomIds: number[], callback?: IQCallback<IQRoom[]>): void | Promise<IQRoom[]>
-  // -------------------------------------------------------
-
-  // Misc -------------------------------------
-  upload(file: File, callback?: IQProgressListener): void
-  registerDeviceToken(token: string, callback?: IQCallback<boolean>): void | Promise<boolean>
-  removeDeviceToken(token: string, callback?: IQCallback<boolean>): void | Promise<boolean>
-  getJWTNonce(callback?: IQCallback<string>): void | Promise<string>
-  synchronize(lastMessageId: number): void
-  syncrhronizeEvent(lastEventId: number): void
-  getTotalUnreadCount(callback?: IQCallback<number>): void | Promise<number>
-
-  // ------------------------------------------
-  setTyping(isTyping?: boolean): void
-
-  // from CustomEventAdapter
-  publishEvent(eventId: string, data: any): void
-  subscribeEvent(eventId: string, callback: IQCallback<any>): void
-  unsubscribeEvent(eventId): void
-}
+import {
+  IQCallback,
+  IQiscus,
+  IQParticipant,
+  IQProgressListener,
+  IQRoom,
+  IQRoomAdapter,
+  IQUser,
+  IQUserAdapter,
+  IQMessageAdapter,
+  IQMessageT,
+  IQMessage
+} from './defs'
 
 export default class Qiscus implements IQiscus {
   private realtimeAdapter: IQRealtimeAdapter
@@ -102,6 +53,20 @@ export default class Qiscus implements IQiscus {
   private brokerUrl: string = null
   private syncInterval: number = null
   private static _instance: Qiscus = null
+  private storage = new Map<string, any>()
+  public __secret = Symbol('secret')
+
+  constructor() {
+    const self = this
+    this[this.__secret] = {
+      currentUser: atom({}),
+      get httpAdapter() { return self.httpAdapter },
+      get userAdapter() { return self.userAdapter },
+      get roomAdapter() { return self.roomAdapter },
+      get messageAdapter() { return self.messageAdapter },
+      get realtimeAdapter() { return self.realtimeAdapter }
+    }
+  }
 
   public static get instance(): Qiscus {
     if (this._instance == null) this._instance = new this();
@@ -141,10 +106,11 @@ export default class Qiscus implements IQiscus {
       // TODO: Only sync when user are logged in
       shouldSync: () => true
     })
+    this.storage.set('app::is-initiated', true)
   }
 
   // User Adapter ------------------------------------------
-  setUser(userId: string, userKey: string, username: string, avatarUrl: string, extras: object | null, callback: null | IQCallback<IQUser>): void | Promise<IQUser> {
+  setUser(userId: string, userKey: string, username?: string, avatarUrl?: string, extras?: object | null, callback?: null | IQCallback<IQUser>): void | Promise<IQUser> {
     return pipe(
       combine(
         process(userId, isReqString('`userId` are required and need to be string')),
@@ -153,11 +119,14 @@ export default class Qiscus implements IQiscus {
         process(avatarUrl, isOptString('`avatarUrl` need to be string or null')),
         process(extras, isOptJson('`extras` need to be object or null'))
       ),
-      safeMap(([ userId, userKey, username, avatarUrl, extras ]) => [userId, userKey, username, avatarUrl, JSON.stringify(extras)]),
+      // safeMap(([ userId, userKey, username, avatarUrl, extras ]) => [userId, userKey, username, avatarUrl, JSON.stringify(extras)]),
       map(([userId, userKey, username, avatarUrl, extras]) =>
         fromPromise(this.userAdapter.login(userId, userKey, { name: username, avatarUrl, extras }))
       ),
       flatten,
+      tap((user: IQUser) => {
+        this[this.__secret].user.set(user)
+      }),
       toCallbackOrPromise(callback)
     )
   }

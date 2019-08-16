@@ -5,10 +5,8 @@ import observe from 'callbag-observe'
 import tap from 'callbag-tap'
 import filter from 'callbag-filter'
 import { IQHttpAdapter } from './http'
-import { IQUserAdapter } from './user'
-import { IQMessage } from './message'
-import { IQRoom } from './room'
 import getSyncAdapter from './sync'
+import { IQMessage, IQRoom, IQUserAdapter } from '../defs';
 
 type Callback<T> = (data: T) => void
 type Subscription = () => void

@@ -1,9 +1,7 @@
-import { IQMessage } from './message'
-import { IQRoom } from './room'
-import { IQHttpAdapter } from './http'
-import { IQUserAdapter } from './user'
 import QUrlBuilder from '../utils/url-builder'
 import mitt from 'mitt'
+import { IQMessage, IQRoom, IQUserAdapter } from '../defs';
+import { IQHttpAdapter } from './http';
 
 export interface IQSyncAdapter {
   synchronize (lastMessageId?: number): void

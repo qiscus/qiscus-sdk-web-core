@@ -1,42 +1,15 @@
-import { IQHttpAdapter } from './http'
-import { IQUserAdapter } from './user'
+import cuid from 'cuid'
+import {
+  IQMessage,
+  IQMessageAdapter,
+  IQMessageStatus,
+  IQMessageT,
+  IQMessageType,
+  IQRoomAdapter,
+  IQUserAdapter
+} from '../defs'
 import QUrlBuilder from '../utils/url-builder'
-import { IQRoomAdapter } from './room'
-import cuid = require('cuid')
-
-export type IQMessageT = {
-  payload: object,
-  extras: object,
-  type: string,
-  message: string
-}
-export enum IQMessageStatus {
-  Sending,
-  Sent,
-  Delivered,
-  Read,
-  Failed
-}
-
-export enum IQMessageType {
-  Text = 'text',
-  Custom = 'custom'
-}
-
-export interface IQMessage {
-  id: number
-  uniqueId: string
-  roomId: number
-  userId: string
-  content: string
-  previousMessageId: number
-  extras: object
-  timestamp: Date
-  type: IQMessageType
-  status: IQMessageStatus
-
-  updateFromJson(json: PostCommentResponse.Comment): IQMessage
-}
+import { IQHttpAdapter } from './http'
 
 export class QMessage implements IQMessage {
   id: number
@@ -81,15 +54,6 @@ export class QMessage implements IQMessage {
     message.extras = extras
     return message
   }
-}
-
-export interface IQMessageAdapter {
-  readonly messages: Map<string, IQMessage>
-  sendMessage (roomId: number, message: IQMessageT): Promise<IQMessage>
-  getMessages (roomId: number, lastMessageId?: number, limit?: number, after?: boolean): Promise<IQMessage[]>
-  deleteMessage (messageIds: number[]): Promise<IQMessage[]>
-  markAsRead (roomId: number, messageId: number): Promise<IQMessage>
-  markAsDelivered (roomId: number, messageId: number): Promise<IQMessage>
 }
 
 export default function getMessageAdapter (
@@ -206,7 +170,7 @@ export default function getMessageAdapter (
 }
 
 // Response type
-declare module PostCommentResponse {
+export declare module PostCommentResponse {
   export interface Extras {
   }
 
@@ -262,7 +226,7 @@ declare module PostCommentResponse {
     status: number;
   }
 }
-declare module GetCommentsResponse {
+export declare module GetCommentsResponse {
 
   export interface Extras {
   }
@@ -320,7 +284,7 @@ declare module GetCommentsResponse {
   }
 
 }
-declare module DeleteCommentsResponse {
+export declare module DeleteCommentsResponse {
 
   export interface Extras {
   }
@@ -378,7 +342,7 @@ declare module DeleteCommentsResponse {
   }
 
 }
-declare module UpdateCommentStatusResponse {
+export declare module UpdateCommentStatusResponse {
 
   export interface Results {
     changed: boolean;
@@ -396,5 +360,3 @@ declare module UpdateCommentStatusResponse {
   }
 
 }
-
-

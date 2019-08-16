@@ -1,4 +1,6 @@
-const combine = (...sources) => (start, sink) => {
+import { Type } from "./callbag";
+
+const combine = (...sources: any) => (start: Type, sink: any) => {
   if (start !== 0) return;
   const n = sources.length;
   if (n === 0) {
@@ -7,18 +9,19 @@ const combine = (...sources) => (start, sink) => {
     sink(2);
     return;
   }
+  const EMPTY = {}
   let Ns = n; // start counter
   let Nd = n; // data counter
   let Ne = n; // end counter
   const vals = new Array(n);
   const sourceTalkbacks = new Array(n);
-  const talkback = (t, d) => {
+  const talkback = (t: any, d: any) => {
     if (t === 0) return;
     for (let i = 0; i < n; i++) sourceTalkbacks[i](t, d);
   };
-  sources.forEach((source, i) => {
+  sources.forEach((source: any, i: number) => {
     vals[i] = EMPTY;
-    source(0, (t, d) => {
+    source(0, (t: Type, d: any) => {
       if (t === 0) {
         sourceTalkbacks[i] = d;
         if (--Ns === 0) sink(0, talkback);
