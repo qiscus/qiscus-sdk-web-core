@@ -1,4 +1,5 @@
 // import store from 'store';
+import throttle from 'lodash.throttle'
 
 export default class User {
   /**
