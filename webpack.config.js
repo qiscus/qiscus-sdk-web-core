@@ -11,6 +11,7 @@ module.exports = (env) => {
     devtool: env.production ? 'source-map' : 'cheap-module-source-map',
     mode: env.production ? 'production' : 'development',
     target: env.target || 'web',
+    stats: 'minimal',
     output: {
       path: path.join(__dirname, 'dist'),
       filename: filename,

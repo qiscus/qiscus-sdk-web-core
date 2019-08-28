@@ -102,6 +102,8 @@ export default class MqttAdapter {
     })
     // #endregion
   }
+
+  get connected () { return this.mqtt.connected }
   get subscribe () {
     return this.mqtt.subscribe.bind(this.mqtt)
   }
@@ -123,8 +125,7 @@ export default class MqttAdapter {
   }
 
   disconnect () {
-    Object.keys(this.mqtt._resubscribeTopics)
-      .forEach((topic) => this.unsubscribe(topic))
+    this.unsubscribe(Object.keys(this.mqtt._resubscribeTopics))
   }
 
   // #region regexp

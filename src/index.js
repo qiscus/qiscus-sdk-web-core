@@ -47,6 +47,7 @@ class QiscusSDK {
     this.customEventAdapter = null
     this.isInit = false
     this.isSynced = false
+    this.syncInterval = 5000
     this.sync = 'socket' // possible values 'socket', 'http', 'both'
     this.httpsync = null
     this.eventsync = null
@@ -104,6 +105,8 @@ class QiscusSDK {
     if (config.templateFunction) {
       this.templateFunction = config.templateFunction
     }
+
+    if (config.syncInterval != null) this.syncInterval = config.syncInterval
 
     // set Event Listeners
     this.setEventListeners()
@@ -581,15 +584,19 @@ class QiscusSDK {
   activateSync () {
     if (this.isSynced) return
     this.isSynced = true
-    this.httpsync = setInterval(() => this.synchronize(), this.syncInterval)
-    this.eventsync = setInterval(() => this.synchronizeEvent(), this.syncInterval)
+
+    this.httpsync = setInterval(() => {
+      if (!this.realtimeAdapter.connected) this.synchronize()
+    }, this.syncInterval)
+    this.eventsync = setInterval(() => {
+      if (!this.realtimeAdapter.connected) this.synchronizeEvent()
+    }, this.syncInterval)
   }
 
   disableSync () {
-    const self = this
-    self.isSynced = false
-    clearInterval(self.httpsync)
-    clearInterval(self.eventsync)
+    this.isSynced = false
+    clearInterval(this.httpsync)
+    clearInterval(this.eventsync)
   }
 
   get synchronize () { return this.syncAdapter.synchronize }
@@ -890,6 +897,10 @@ class QiscusSDK {
    *   to target this particular comment when there's response from server (sent, delivered state)
    * @param {Int} topicId - the topic id of comment to be submitted
    * @param {String} commentMessage - comment to be submitted
+   * @param uniqueId {String}
+   * @param type     {String}
+   * @param payload  {Object}
+   * @param extras   {Object}
    * @return {Promise}
    */
   // #region sendComment
@@ -901,7 +912,7 @@ class QiscusSDK {
     payload,
     extras
   ) {
-    var self = this
+    const self = this
     // set extra data, etc
     if (self.options.prePostCommentCallback) {
       self.options.prePostCommentCallback(commentMessage)
@@ -916,18 +927,18 @@ class QiscusSDK {
       commentMessage = self.options.commentFormaterCallback(commentMessage)
     }
     self.pendingCommentId--
-    var commentData = {
+    const commentData = {
       message: commentMessage,
       username_as: this.username,
       username_real: this.user_id,
       user_avatar_url: this.userData.avatar_url,
-      id: parseInt(Math.random() * 100000000),
+      id: Math.random() * 100000000,
       type: type || 'text',
       timestamp: format(new Date()),
       unique_id: uniqueId
     }
     if (type !== 'text') commentData.payload = JSON.parse(payload)
-    var pendingComment = self.prepareCommentToBeSubmitted(commentData)
+    const pendingComment = self.prepareCommentToBeSubmitted(commentData)
 
     // push this comment unto active room
     if (type === 'reply') {
