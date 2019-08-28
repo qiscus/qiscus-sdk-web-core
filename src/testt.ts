@@ -1,5 +1,6 @@
 import pipe from 'callbag-pipe'
 import observe from 'callbag-observe'
+import Qiscus from './main'
 
 type Callbag<I, O> = {
   (start: 0, sink: Callbag<O, I>): void
@@ -23,7 +24,7 @@ const interval = (period: number): Producer<number> => (start, sink) => {
   })
 }
 
-const take = <A>(time: number): Operator<A, A> => (source: Producer<A>) => (start, sink) => {
+const take = <A> (time: number): Operator<A, A> => (source: Producer<A>) => (start, sink) => {
   if (start !== 0) return
   let count = 0
   let sourceTalkback
@@ -45,8 +46,14 @@ const take = <A>(time: number): Operator<A, A> => (source: Producer<A>) => (star
 
 }
 
-pipe(
-  interval(100),
-  take(3),
-  observe(data => console.log('data:', data))
-)
+// pipe(
+//   interval(100),
+//   take(3),
+//   observe(data => console.log('data:', data))
+// )
+
+Qiscus.instance.init('sdksample')
+Qiscus.instance.setUser('guest-101', 'passkey', null, null, null, (user, error) => {
+  if (error) console.log('error', error)
+  console.log('user', user)
+})

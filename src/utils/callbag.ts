@@ -2,6 +2,7 @@ import * as is from 'is_js'
 import {pipe} from 'callbag-basics'
 import catchError from 'callbag-catch-error'
 import observe from 'callbag-observe'
+import { compose, every, some } from './param-utils'
 
 export type Callbag<I, O> = {
   (t: 0, d: Callbag<O, I>): void
@@ -12,14 +13,6 @@ export type Source<T> = Callbag<void, T>
 export type Sink<T> = Callbag<T, void>
 export type Type = 0 | 1 | 2
 export type Payload = any
-
-export const every = <T>(...checkers: Array<Function>) => (item: T) => checkers.every(check => check(item))
-export const some = <T>(...checkers: Array<Function>) => (item: T) => checkers.some(check => check(item))
-export const compose = <T>(msg: string, checker: (it: T) => boolean) => (item: T) => {
-  const isFullfiled = checker(item)
-  if (isFullfiled) return item
-  throw new TypeError(msg)
-}
 
 export const toPromise = <A>() => (source: Source<A>) => new Promise<A>((resolve, reject) => {
   source(0, (t: Type, d: Payload) => {
@@ -80,14 +73,3 @@ export const process = <T>(item: T, ...checkers: Function[]): Source<T> => (star
     )
   })
 }
-
-export const isReqString = (msg: string) => compose(msg, every(is.not.null, is.not.undefined, is.string))
-export const isReqNumber = (msg: string) => compose(msg, every(is.not.null, is.not.undefined, is.number))
-export const isReqJson = (msg: string) => compose(msg, every(is.not.null, is.not.undefined, is.json))
-export const isReqArrayNumber = (msg: string) => compose(msg, every(is.not.null, is.not.undefined, is.array, is.all.number))
-export const isReqArrayString = (msg: string) => compose(msg, every(is.not.null, is.not.undefined, is.array, is.all.string))
-export const isOptString = (msg: string) => compose(msg, some(is.null, is.undefined, is.string))
-export const isOptNumber = (msg: string) => compose(msg, some(is.null, is.undefined, is.number))
-export const isOptJson = (msg: string) => compose(msg, some(is.null, is.undefined, is.json))
-export const isOptCallback = (msg: string) => compose(msg, some(is.null, is.undefined, is.function))
-export const isOptBoolean = (msg: string) => compose(msg, some(is.null, is.undefined, is.boolean))
