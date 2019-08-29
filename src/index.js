@@ -674,43 +674,41 @@ class QiscusSDK {
     // make sure data already loaded first (user already logged in)
     if (this.userData.length != null) return false
 
-    const self = this
     const initialMessage = options ? options.message : null
     const distinctId = options.distinctId
 
-    self.isLoading = true
-    self.isTypingStatus = ''
+    this.isLoading = true
+    this.isTypingStatus = ''
 
     // Create room
-    return this.roomAdapter.getOrCreateRoom(userId, options, distinctId).then(
-      response => {
-        let room = new Room(response)
-        self.last_received_comment_id =
-          self.last_received_comment_id < room.last_comment_id
-            ? room.last_comment_id
-            : self.last_received_comment_id
-        self.isLoading = false
-        self.setActiveRoom(room)
+    return this.roomAdapter.getOrCreateRoom(userId, options, distinctId)
+      .then((resp) => {
+        const room = new Room(resp)
+
+        if (this.last_received_comment_id < room.last_comment_id) {
+          this.last_received_comment_id = room.last_comment_id
+        }
+        this.isLoading = false
+        this.setActiveRoom(room)
         // id of last comment on this room
         const lastComment = room.comments[room.comments.length - 1]
-        if (lastComment) self.readComment(room.id, lastComment.id)
-        self.events.emit('chat-room-created', {
+        if (lastComment) this.readComment(room.id, lastComment.id)
+        this.events.emit('chat-room-created', {
           room: room
         })
 
         if (!initialMessage) return room
+
         const topicId = room.id
-        const message = initialMessage
-        self
-          .sendComment(topicId, message)
-          .then()
+        return this
+          .sendComment(topicId, initialMessage)
+          .then(() => Promise.resolve(room))
           .catch(err => {
             console.error('Error when submit comment', err)
           })
-        return Promise.resolve(room)
       }, (err) => {
         console.error('Error when creating room', err)
-        self.isLoading = false
+        this.isLoading = false
         return Promise.reject(err)
       })
   }

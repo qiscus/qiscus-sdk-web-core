@@ -52,14 +52,14 @@ export default class MqttAdapter {
       core.synchronize()
       core.synchronizeEvent()
     })
-    this.mqtt.on('close', () => {
-      this.logger('close')
+    this.mqtt.on('close', (...args) => {
+      this.logger('close', args)
       this.emit('close', this.mqtt)
 
       core.activateSync()
     })
-    this.mqtt.on('error', () => {
-      this.logger('error')
+    this.mqtt.on('error', (...args) => {
+      this.logger('error', args)
       this.emit('error')
 
       core.activateSync()
@@ -104,20 +104,25 @@ export default class MqttAdapter {
   }
 
   get connected () { return this.mqtt.connected }
-  get subscribe () {
-    return this.mqtt.subscribe.bind(this.mqtt)
+
+  subscribe (...args) {
+    this.mqtt.subscribe(...args)
   }
-  get unsubscribe () {
-    return this.mqtt.unsubscribe.bind(this.mqtt)
+
+  unsubscribe (...args) {
+    this.logger('unsubscribe from', args)
+    this.mqtt.unsubscribe(...args)
   }
   publish (topic, payload, options = {}) {
     return this.mqtt.publish(topic, payload.toString(), options)
   }
-  get emit () {
-    return this.emitter.emit.bind(this.emitter)
+
+  emit (...args) {
+    this.emitter.emit(...args)
   }
-  get on () {
-    return this.emitter.on.bind(this.emitter)
+
+  on (...args) {
+    this.emitter.on(...args)
   }
   get logger () {
     if (!this.core.debugMQTTMode) return this.noop
@@ -232,7 +237,6 @@ export default class MqttAdapter {
     })
   }
 
-  // Todo only emit if the comment are realy read
   readReceiptHandler (t, message) {
     this.logger('on:read', t, message)
     // r/{roomId}/{roomId}/{userId}/r
@@ -290,7 +294,8 @@ export default class MqttAdapter {
     this.subscribe(`${appId}/${uniqueId}/c`)
   }
   subscribeRoom (roomId) {
-    if (roomId == null) return
+    if (this.core.selected == null) return
+    roomId = roomId || this.core.selected.id
     this.subscribe(`r/${roomId}/${roomId}/+/t`)
     this.subscribe(`r/${roomId}/${roomId}/+/d`)
     this.subscribe(`r/${roomId}/${roomId}/+/r`)
@@ -298,9 +303,9 @@ export default class MqttAdapter {
   unsubscribeRoom (roomId) {
     if (this.core.selected == null) return
     roomId = roomId || this.core.selected.id
-    this.unsubscribe(`r/${roomId}/${roomId}/+t`)
-    this.unsubscribe(`r/${roomId}/${roomId}/+d`)
-    this.unsubscribe(`r/${roomId}/${roomId}/+r`)
+    this.unsubscribe(`r/${roomId}/${roomId}/+/t`)
+    this.unsubscribe(`r/${roomId}/${roomId}/+/d`)
+    this.unsubscribe(`r/${roomId}/${roomId}/+/r`)
   }
   get subscribeTyping () { return this.subscribeRoom.bind(this) }
   get unsubscribeTyping () { return this.unsubscribeRoom.bind(this) }
