@@ -22,7 +22,8 @@
     "test": "mocha --require @babel/register --colors 'test/**/*test.js'",
     "test:watch": "npm run test -- -w",
     "clean": "rimraf dist lib",
-    "preversion": "npm-run-all clean build"
+    "preversion": "npm-run-all clean build",
+    "prepublish": "npm-run-all clean build"
   },
   "devDependencies": {
     "@babel/cli": "^7.4.3",
