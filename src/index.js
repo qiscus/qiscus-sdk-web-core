@@ -930,7 +930,7 @@ class QiscusSDK {
       username_as: this.username,
       username_real: this.user_id,
       user_avatar_url: this.userData.avatar_url,
-      id: Math.random() * 100000000,
+      id: Math.round(Math.random() * 10e6),
       type: type || 'text',
       timestamp: format(new Date()),
       unique_id: uniqueId
