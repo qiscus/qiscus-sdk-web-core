@@ -132,8 +132,10 @@ export interface IQRoomAdapter {
   getParticipantList (roomId: number, offset?: number | null, sorting?: 'asc' | 'desc' | null): Promise<IQParticipant[]>
   createGroup (name: string, userIds: string[], avatarUrl?: string, extras?: string): Promise<IQRoom>
   removeParticipants (roomId: string, participantIds: string[]): Promise<string[]>
-  addParticipants (roomId: number, participantIds: string[]): Promise<IQUser[]>
-  getRoomInfo (roomId: number, uniqueId: number, page?: number, showRemoved?: boolean, showParticipant?: boolean): Promise<IQRoom[]>
+
+  addParticipants (roomId: number, participantIds: string[]): Promise<IQParticipant[]>
+
+  getRoomInfo (roomId: number, uniqueId: number, page?: number, showRemoved?: boolean, showParticipant?: boolean): Promise<IQRoom>
   clearRoom (roomUniqueIds: number[]): Promise<IQRoom[]>
   getUnreadCount (): Promise<number>
   readonly rooms: Map<number, IQRoom>

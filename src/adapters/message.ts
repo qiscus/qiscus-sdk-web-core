@@ -57,23 +57,23 @@ export class QMessage implements IQMessage {
 }
 
 export default function getMessageAdapter (
-  http: () => IQHttpAdapter,
-  user: () => IQUserAdapter,
-  getRoomAdapter: () => IQRoomAdapter
+  http: IQHttpAdapter,
+  user: IQUserAdapter,
+  roomAdapter: IQRoomAdapter
 ): IQMessageAdapter {
   let messageStore: Map<string, IQMessage> = new Map()
   return {
     get messages() { return messageStore },
     sendMessage (roomId: number, messageT: IQMessageT): Promise<IQMessage> {
-      const message = QMessage.prepareNew(user().currentUser.userId, roomId, messageT.message)
+      const message = QMessage.prepareNew(user.currentUser.userId, roomId, messageT.message)
       messageStore.set(message.uniqueId, message)
       const url = QUrlBuilder('post_comment')
-        .param('token', user().token)
+        .param('token', user.token)
         .param('topic_id', message.roomId)
         .param('message', message.content)
         .param('extras', message.extras)
         .build()
-      return http().get<PostCommentResponse.RootObject>(url)
+      return http.get<PostCommentResponse.RootObject>(url)
         .then(resp => resp.results.comment)
         .then<IQMessage>((comment) => {
           message.updateFromJson(comment)
@@ -83,13 +83,13 @@ export default function getMessageAdapter (
     },
     getMessages (roomId: number, lastMessageId: number = 0, limit: number = 20, after: boolean = false): Promise<IQMessage[]> {
       const url = QUrlBuilder('load_comments')
-        .param('token', user().token)
+        .param('token', user.token)
         .param('topic_id', roomId)
         .param('last_comment_id', lastMessageId)
         .param('limit', limit)
         .param('after', after)
         .build()
-      return http().get<GetCommentsResponse.RootObject>(url)
+      return http.get<GetCommentsResponse.RootObject>(url)
         .then(res => res.results.comments)
         .then((comments) => {
           const _messages = comments.map<IQMessage>((comment) => QMessage.fromJson(comment))
@@ -101,10 +101,10 @@ export default function getMessageAdapter (
     },
     deleteMessage (messageIds: number[]): Promise<IQMessage[]> {
       const url = QUrlBuilder('delete_messages')
-        .param('token', user().token)
+        .param('token', user.token)
         .param('unique_ids[]', messageIds)
         .build()
-      return http().delete<DeleteCommentsResponse.RootObject>(url)
+      return http.delete<DeleteCommentsResponse.RootObject>(url)
         .then<IQMessage[]>((resp) => {
           return resp.results.comments
             .map<IQMessage>((comment) => {
@@ -120,15 +120,15 @@ export default function getMessageAdapter (
     },
     markAsRead (roomId: number, messageId: number): Promise<IQMessage> {
       const url = QUrlBuilder('update_comment_status')
-        .param('token', user().token)
+        .param('token', user.token)
         .param('last_comment_read_id', messageId)
         .param('room_id', roomId)
         .build()
-      return http().post<UpdateCommentStatusResponse.RootObject>(url)
+      return http.post<UpdateCommentStatusResponse.RootObject>(url)
         .then(resp => resp.results)
         .then((result) => {
-          if (getRoomAdapter().rooms.has(roomId)) {
-            const room = getRoomAdapter().rooms.get(roomId)
+          if (roomAdapter.rooms.has(roomId)) {
+            const room = roomAdapter.rooms.get(roomId)
             const userId = result.user_id
             const messageId = result.last_comment_read_id
             // Logic here:
@@ -156,11 +156,11 @@ export default function getMessageAdapter (
     },
     markAsDelivered (roomId: number, messageId: number): Promise<IQMessage> {
       const url = QUrlBuilder('update_comment_status')
-        .param('token', user().token)
+        .param('token', user.token)
         .param('last_comment_received_id', messageId)
         .param('room_id', roomId)
         .build()
-      return http().post<UpdateCommentStatusResponse.RootObject>(url)
+      return http.post<UpdateCommentStatusResponse.RootObject>(url)
         .then(resp => resp.results)
         .then((result) => {
           return null

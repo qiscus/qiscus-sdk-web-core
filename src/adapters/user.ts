@@ -1,6 +1,6 @@
 import { IQHttpAdapter } from './http'
 import QUrlBuilder from '../utils/url-builder'
-import { IQUserAdapter, IQUser, IQUserExtraProps, QNonce } from '../defs';
+import { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from '../defs'
 
 export class QUser implements IQUser {
   id: number
@@ -31,7 +31,7 @@ type NonceResponse = {
  * get user.currentUser
  *
  */
-export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapter {
+export default function getUserAdapter (http: IQHttpAdapter): IQUserAdapter {
   let currentUser: IQUser | null = null
   let token: string | null = null
 
@@ -44,7 +44,7 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
         username: name,
         extras: extras
       }
-      const resp = await http().post<UserResponse.RootObject>('login_or_register', data);
+      const resp = await http.post<UserResponse.RootObject>('login_or_register', data)
       const user = QUser.fromJson(resp.results.user);
       currentUser = user;
       token = resp.results.user.token;
@@ -55,7 +55,7 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
       token = null
     },
     async blockUser (userId: string): Promise<IQUser> {
-      const resp = await http().post<BlockUserResponse.RootObject>('block_user', {
+      const resp = await http.post<BlockUserResponse.RootObject>('block_user', {
         token: this.token,
         user_email: userId
       });
@@ -67,7 +67,7 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
         .param('page', page)
         .param('limit', limit)
         .build()
-      const resp = await http().get<BlockedUserListResponse.RootObject>(url);
+      const resp = await http.get<BlockedUserListResponse.RootObject>(url)
       return resp.results.blocked_users
         .map((user) => QUser.fromJson(user));
     },
@@ -78,19 +78,19 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
         .param('page', page)
         .param('limit', limit)
         .build()
-      const resp = await http().get<UserListResponse.RootObject>(url);
+      const resp = await http.get<UserListResponse.RootObject>(url)
       return resp.results.users
         .map((user: any) => QUser.fromJson(user));
     },
     async unblockUser (userId: string): Promise<IQUser> {
-      const resp = await http().post<BlockUserResponse.RootObject>('unblock_user', {
+      const resp = await http.post<BlockUserResponse.RootObject>('unblock_user', {
         token: this.token,
         user_email: userId
       });
       return QUser.fromJson(resp.results.user);
     },
     async setUserFromIdentityToken (identityToken: string): Promise<IQUser> {
-      const resp = await http().post<UserResponse.RootObject>('auth/verify_identity_token', {
+      const resp = await http.post<UserResponse.RootObject>('auth/verify_identity_token', {
         identity_token: identityToken
       });
       return QUser.fromJson(resp.results.user);
@@ -102,19 +102,19 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
         avatar_url: avatarUrl,
         extras: extras
       }
-      const resp = await http().patch<UserResponse.RootObject>('my_profile', data);
+      const resp = await http.patch<UserResponse.RootObject>('my_profile', data)
       return QUser.fromJson(resp.results.user);
     },
     async getNonce (): Promise<QNonce> {
-      const resp = await http().get<NonceResponse>('auth/nonce');
+      const resp = await http.get<NonceResponse>('auth/nonce')
       return { expired: resp.results.expired_at, nonce: resp.results.nonce };
     },
     async getUserData (): Promise<IQUser> {
-      const resp = await http().get<UserResponse.RootObject>('my_profile');
+      const resp = await http.get<UserResponse.RootObject>('my_profile')
       return QUser.fromJson(resp.results.user);
     },
     async registerDeviceToken(deviceToken: string, platform: string = 'rn'): Promise<boolean> {
-      const resp = await http().post<DeviceTokenResponse.RootObject>('set_user_device_token', {
+      const resp = await http.post<DeviceTokenResponse.RootObject>('set_user_device_token', {
         token: token,
         device_platform: platform,
         device_token: deviceToken
@@ -122,7 +122,7 @@ export default function getUserAdapter (http: () => IQHttpAdapter): IQUserAdapte
       return resp.results.changed;
     },
     async unregisterDeviceToken(deviceToken: string, platform: string = 'rn'): Promise<boolean> {
-      const resp = await http().post<DeviceTokenResponse.RootObject>('remove_user_device_token', {
+      const resp = await http.post<DeviceTokenResponse.RootObject>('remove_user_device_token', {
         token: token,
         device_platform: platform,
         device_token: deviceToken

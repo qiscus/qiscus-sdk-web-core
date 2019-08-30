@@ -1,22 +1,25 @@
 import QUrlBuilder from '../utils/url-builder'
 import mitt from 'mitt'
-import { IQMessage, IQRoom, IQUserAdapter } from '../defs';
-import { IQHttpAdapter } from './http';
+import { IQMessage, IQRoom } from '../defs'
+import { IQHttpAdapter } from './http'
 
 export interface IQSyncAdapter {
   synchronize (lastMessageId?: number): void
+
   synchronizeEvent (lastEventId?: number): void
+
   onNewMessage (callback: (message: IQMessage) => void): () => void
+
   onMessageRead (callback: (message: IQMessage) => void): () => void
+
   onMessageDelivered (callback: (message: IQMessage) => void): () => void
+
   onMessageDeleted (callback: (message: IQMessage) => void): () => void
+
   onRoomCleared (callback: (message: IQRoom) => void): () => void
 }
 
-export default function getSyncAdapter ({ http, user }: {
-  http: () => IQHttpAdapter,
-  user: () => IQUserAdapter
-}): IQSyncAdapter {
+export default function getSyncAdapter (http: IQHttpAdapter, token: string): IQSyncAdapter {
   // @ts-ignore
   const emitter: mitt.Emitter = mitt()
   let lastMessageId = 0
@@ -26,10 +29,10 @@ export default function getSyncAdapter ({ http, user }: {
     synchronize (messageId: number): void {
       messageId = messageId || lastMessageId
       const url = QUrlBuilder('sync')
-        .param('token', user().token)
+        .param('token', token)
         .param('last_received_comment_id', messageId)
         .build()
-      http()
+      http
         .get<SyncResponse.RootObject>(url)
         .then((resp) => {
           const results = resp.results
@@ -46,11 +49,11 @@ export default function getSyncAdapter ({ http, user }: {
     synchronizeEvent (eventId: number): void {
       eventId = eventId || lastEventId
       const url = QUrlBuilder('sync_event')
-        .param('token', user().token)
+        .param('token', token)
         .param('start_event_id', eventId)
         .build()
 
-      http()
+      http
         .get<SyncEventResponse.RootObject>(url)
         .then((resp) => {
           const events = resp.events

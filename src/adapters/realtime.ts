@@ -1,12 +1,8 @@
 import mitt from 'mitt'
-import pipe from 'callbag-pipe'
-import interval from 'callbag-interval'
-import observe from 'callbag-observe'
-import tap from 'callbag-tap'
-import filter from 'callbag-filter'
 import { IQHttpAdapter } from './http'
 import getSyncAdapter from './sync'
-import { IQMessage, IQRoom, IQUserAdapter } from '../defs';
+import { IQMessage, IQRoom, IQUserAdapter } from '../defs'
+import xs from 'xstream'
 
 type Callback<T> = (data: T) => void
 type Subscription = () => void
@@ -26,50 +22,28 @@ export interface IQRealtimeAdapter {
   setPresence (presence: boolean): void
 }
 
-/**
- *
- * const realtime = getRealtimeAdapter()
- * realtime.onNewMessage(callback)
- * realtime.onMessageRead(callback)
- * realtime.onMessageDelivered(callback)
- * realtime.onMessageDeleted(callback)
- * realtime.onRoomCleared(callback)
- * realtime.onTyping(callback)
- * realtime.onPresence(callback)
- *
- * realtime.synchronize(lastMessageId = 0)
- * realtime.synchronizeEvent(lastEventId = 0)
- * realtime.setTyping(isTyping)
- *
- * @param syncInterval
- * @param http () => IQHttpAdapter
- * @param user
- */
-type RealtimeAdapterExtraParams = {
-  http: () => IQHttpAdapter,
-  user: () => IQUserAdapter,
-  shouldSync: () => boolean,
-  brokerUrl: () => string
-}
 export default function getRealtimeAdapter (
-  syncInterval: number = 5000,
-  { http, user, shouldSync, brokerUrl }: RealtimeAdapterExtraParams
+  http: IQHttpAdapter,
+  syncInterval: number,
+  brokerUrl: string,
+  shouldSync: boolean,
+  isLogin: boolean,
+  token: string
 ): IQRealtimeAdapter {
   // @ts-ignore
   const emitter: mitt.Emitter = mitt()
   let isMqttConnected = false
-  const sync = getSyncAdapter({ http, user })
+  const sync = getSyncAdapter(http, token)
 
-  pipe(
-    // @ts-ignore
-    interval(syncInterval),
-    filter(() => user().currentUser != null),
-    filter(() => !isMqttConnected || shouldSync()),
-    observe(() => {
-      sync.synchronize()
-      sync.synchronizeEvent()
+  xs.periodic(syncInterval)
+    .filter(() => isLogin)
+    .filter(() => isMqttConnected || shouldSync)
+    .subscribe({
+      next () {
+        sync.synchronize()
+        sync.synchronizeEvent()
+      }
     })
-  )
 
   return {
     onMessageDeleted (callback: (data: IQMessage) => void): () => void {
@@ -106,4 +80,29 @@ export default function getRealtimeAdapter (
       sync.synchronizeEvent(lastEventId)
     }
   }
+}
+/**
+ *
+ * const realtime = getRealtimeAdapter()
+ * realtime.onNewMessage(callback)
+ * realtime.onMessageRead(callback)
+ * realtime.onMessageDelivered(callback)
+ * realtime.onMessageDeleted(callback)
+ * realtime.onRoomCleared(callback)
+ * realtime.onTyping(callback)
+ * realtime.onPresence(callback)
+ *
+ * realtime.synchronize(lastMessageId = 0)
+ * realtime.synchronizeEvent(lastEventId = 0)
+ * realtime.setTyping(isTyping)
+ *
+ * @param syncInterval
+ * @param http () => IQHttpAdapter
+ * @param user
+ */
+type RealtimeAdapterExtraParams = {
+  http: () => IQHttpAdapter,
+  user: () => IQUserAdapter,
+  shouldSync: () => boolean,
+  brokerUrl: () => string
 }
