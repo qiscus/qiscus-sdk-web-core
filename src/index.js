@@ -283,7 +283,7 @@ class QiscusSDK {
           // pastiin sync
           const roomLastCommentId = lastComment.id
           const commentBeforeThis = self.selected.comments.find(c => c.id === lastComment.comment_before_id)
-          if (!commentBeforeThis) {
+          if (!lastComment.isPending && !commentBeforeThis) {
             this.logging('comment before id not found! ', comment.comment_before_id)
             // need to fix, these method does not work
             self.synchronize(roomLastCommentId)
