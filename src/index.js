@@ -152,6 +152,23 @@ class QiscusSDK {
         this.events.emit('room-cleared', room)
       })
     })
+
+    this.realtimeAdapter = new MqttAdapter(this.mqttURL, this)
+    this.realtimeAdapter.on('message-delivered', ({ commentId, commentUniqueId, userId }) =>
+      this._setDelivered(commentId, commentUniqueId, userId)
+    )
+    this.realtimeAdapter.on('message-read', ({ commentId, commentUniqueId, userId }) =>
+      this._setRead(commentId, commentUniqueId, userId)
+    )
+    this.realtimeAdapter.on('new-message', (message) => this.events.emit('newmessages', [message]))
+    this.realtimeAdapter.on('presence', (data) => this.events.emit('presence', data))
+    this.realtimeAdapter.on('comment-deleted', (data) => this.events.emit('comment-deleted', data))
+    this.realtimeAdapter.on('room-cleared', (data) => this.events.emit('room-cleared', data))
+    this.realtimeAdapter.on('typing', (data) => this.events.emit('typing', {
+      message: data.message,
+      username: data.userId,
+      room_id: data.roomId
+    }))
   }
 
   _setRead (messageId, messageUniqueId, userId) {
@@ -165,7 +182,7 @@ class QiscusSDK {
       participants: room.participants,
       actor: userId,
       comment_id: messageId,
-      activateActorId: this.user_id
+      activeActorId: this.user_id
     }
     room.comments.forEach((it) => {
       if (it.id <= message.id) {
@@ -186,7 +203,7 @@ class QiscusSDK {
       participants: room.participants,
       actor: userId,
       comment_id: messageId,
-      activateActorId: this.user_id
+      activeActorId: this.user_id
     }
     room.comments.forEach((it) => {
       if (it.id <= message.id) {
@@ -306,37 +323,36 @@ class QiscusSDK {
      * This event will be called when login is sucess
      * Basically, it sets up necessary properties for qiscusSDK
      */
-    self.events.on('login-success', (response) => {
+    this.events.on('login-success', (response) => {
       this.logging('login-success', response)
 
-      const mqttURL = self.mqttURL
-      self.isLogin = true
-      self.userData = response.user
-      self.last_received_comment_id = self.userData.last_comment_id
+      const mqttURL = this.mqttURL
+      this.isLogin = true
+      this.userData = response.user
+      this.last_received_comment_id = this.userData.last_comment_id
 
       // now that we have the token, etc, we need to set all our adapters
-      // /////////////// API CLIENT /////////////////
-      self.HTTPAdapter = new HttpAdapter({
-        baseURL: self.baseURL,
-        AppId: self.AppId,
-        userId: self.user_id,
-        version: self.version
+      this.HTTPAdapter = new HttpAdapter({
+        baseURL: this.baseURL,
+        AppId: this.AppId,
+        userId: this.user_id,
+        version: this.version
       })
-      self.HTTPAdapter.setToken(self.userData.token)
+      this.HTTPAdapter.setToken(this.userData.token)
 
-      // ////////////// CORE BUSINESS LOGIC ////////////////////////
-      self.userAdapter = new UserAdapter(self.HTTPAdapter)
-      self.roomAdapter = new RoomAdapter(self.HTTPAdapter)
-      self.realtimeAdapter = new MqttAdapter(mqttURL, self)
-      self.realtimeAdapter.subscribeUserChannel()
-      setInterval(() => this.realtimeAdapter.publishPresence(this.user_id), 3500)
+      this.userAdapter = new UserAdapter(this.HTTPAdapter)
+      this.roomAdapter = new RoomAdapter(this.HTTPAdapter)
 
-      if (self.sync === 'http' || self.sync === 'both') self.activateSync()
-      if (self.options.loginSuccessCallback) {
-        self.options.loginSuccessCallback(response)
+      this.realtimeAdapter.subscribeUserChannel()
+      if (this.presensePublisherId != null && this.presensePublisherId !== -1) clearInterval(this.presensePublisherId)
+      this.presensePublisherId = setInterval(() => this.realtimeAdapter.publishPresence(this.user_id), 3500)
+
+      if (this.sync === 'http' || this.sync === 'both') this.activateSync()
+      if (this.options.loginSuccessCallback) {
+        this.options.loginSuccessCallback(response)
       }
 
-      self.customEventAdapter = CustomEventAdapter(self.realtimeAdapter, self.user_id)
+      this.customEventAdapter = CustomEventAdapter(this.realtimeAdapter, this.user_id)
     })
 
     /**
@@ -971,7 +987,8 @@ class QiscusSDK {
           pendingComment.markAsRead({
             participants: this.selected.participants,
             actor: this.user_id,
-            comment_id: res.id
+            comment_id: res.id,
+            activeActorId: this.user_id
           })
           pendingComment.id = res.id
           pendingComment.before_id = res.comment_before_id
