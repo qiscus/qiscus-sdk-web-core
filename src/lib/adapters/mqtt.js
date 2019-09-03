@@ -70,42 +70,6 @@ export default class MqttAdapter {
       core.activateSync()
     })
     // #endregion
-
-    // TODO: Update core to use latest emitter
-    // #region backward-compatible
-    this.on('new-message', (message) => {
-      core.events.emit('newmessages', [message])
-    })
-    this.on('presence', (data) => {
-      core.events.emit('presence', data)
-    })
-    this.on('comment-deleted', (data) => {
-      core.events.emit('comment-deleted', data)
-    })
-    this.on('room-cleared', (data) => {
-      core.events.emit('room-cleared', data)
-    })
-    this.on('typing', (data) => {
-      core.events.emit('typing', {
-        message: data.message,
-        username: data.userId,
-        room_id: data.roomId
-      })
-    })
-    this.on('comment-delivered', (data) => {
-      this.logger('emitting comment-delivered', data)
-      core.events.emit('comment-delivered', {
-        actor: data.userId,
-        comment: data.comment
-      })
-    })
-    this.on('comment-read', (data) => {
-      core.events.emit('comment-read', {
-        comment: data.comment,
-        actor: data.userId
-      })
-    })
-    // #endregion
   }
 
   get connected () { return this.mqtt.connected }
@@ -142,19 +106,12 @@ export default class MqttAdapter {
 
   // #region regexp
   get reNewMessage () { return /^([\w]+)\/c/i }
-
   get reNotification () { return /^([\w]+)\/n/i }
-
   get reTyping () { return /^r\/([\d]+)\/([\d]+)\/([\S]+)\/t$/i }
-
   get reDelivery () { return /^r\/([\d]+)\/([\d]+)\/([\S]+)\/d$/i }
-
   get reRead () { return /^r\/([\d]+)\/([\d]+)\/([\S]+)\/r$/i }
-
   get reOnlineStatus () { return /^u\/([\S]+)\/s$/i }
-
   get reChannelMessage () { return /^([\S]+)\/([\S]+)\/c/i }
-
   // #endregion
 
   noop () { }

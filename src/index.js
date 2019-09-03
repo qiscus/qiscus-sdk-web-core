@@ -24,7 +24,6 @@ import Package from '../package.json'
 class QiscusSDK {
   /**
    * Creates an instance of QiscusSDK.
-   * @memberof QiscusSDK
    */
   constructor () {
     this.events = mitt()
@@ -169,6 +168,7 @@ class QiscusSDK {
       username: data.userId,
       room_id: data.roomId
     }))
+    this.customEventAdapter = CustomEventAdapter(this.realtimeAdapter, this.user_id)
   }
 
   _setRead (messageId, messageUniqueId, userId) {
@@ -271,8 +271,9 @@ class QiscusSDK {
       // first we need to make sure we sort this data out based on room_id
       this.logging('newmessages', comments)
 
+      const lastReceivedMessageNotEmpty = this.lastReceiveMessages.length > 0
       if (
-        this.lastReceiveMessages.length > 0 &&
+        lastReceivedMessageNotEmpty &&
         this.lastReceiveMessages[0].unique_temp_id === comments[0].unique_temp_id
       ) {
         this.logging('lastReceiveMessages double', comments)
@@ -326,7 +327,6 @@ class QiscusSDK {
     this.events.on('login-success', (response) => {
       this.logging('login-success', response)
 
-      const mqttURL = this.mqttURL
       this.isLogin = true
       this.userData = response.user
       this.last_received_comment_id = this.userData.last_comment_id
@@ -351,8 +351,6 @@ class QiscusSDK {
       if (this.options.loginSuccessCallback) {
         this.options.loginSuccessCallback(response)
       }
-
-      this.customEventAdapter = CustomEventAdapter(this.realtimeAdapter, this.user_id)
     })
 
     /**
@@ -536,7 +534,6 @@ class QiscusSDK {
     if (this.options.newMessagesCallback) {
       this.options.newMessagesCallback(comments)
     }
-    // let's sort the comments
   }
 
   updateLastReceivedComment (id) {
@@ -545,11 +542,12 @@ class QiscusSDK {
 
   /**
    * Setting Up User Credentials for next API Request
-   * @param {string} userId - client userId (will be used for login or register)
-   * @param {string} key - client unique key
-   * @param {string} username - client username
-   * @param {string} avatar_url - the url for chat avatar (optional)
-   * @return {void}
+   * @param userId {string} - client userId (will be used for login or register)
+   * @param key {string} - client unique key
+   * @param username {string} - client username
+   * @param avatarURL {string} - the url for chat avatar (optional)
+   * @param extras {object} - extra data for user
+   * @return {Promise}
    */
   setUser (userId, key, username, avatarURL, extras) {
     const self = this
