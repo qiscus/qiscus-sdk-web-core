@@ -131,6 +131,7 @@ class Comment {
     const participants = options.participants
     const actorId = options.actor
     const commentId = options.comment_id
+    const activeActorId = options.activeActorId
 
     const actor = participants.find(p => p.email === actorId)
     if (actor != null) {
@@ -139,6 +140,8 @@ class Comment {
       actor.last_comment_received_id = commentId
       actor.last_comment_received_id_str = commentId.toString()
     }
+
+    if (activeActorId === actorId) return
 
     // Get list of participants that has not read the message
     // excluding current active user
