@@ -1,6 +1,6 @@
 {
   "name": "qiscus-sdk-core",
-  "version": "2.8.31-2",
+  "version": "2.8.32",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
   "main": "lib/index.js",
@@ -23,7 +23,7 @@
     "test:watch": "npm run test -- -w",
     "clean": "rimraf dist lib",
     "preversion": "npm-run-all clean build",
-    "prepublish": "npm-run-all clean build"
+    "prepublishOnly": "npm-run-all clean build"
   },
   "devDependencies": {
     "@babel/cli": "^7.4.3",

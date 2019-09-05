@@ -24,7 +24,6 @@ import Package from '../package.json'
 class QiscusSDK {
   /**
    * Creates an instance of QiscusSDK.
-   * @memberof QiscusSDK
    */
   constructor () {
     this.events = mitt()
@@ -152,6 +151,24 @@ class QiscusSDK {
         this.events.emit('room-cleared', room)
       })
     })
+
+    this.realtimeAdapter = new MqttAdapter(this.mqttURL, this)
+    this.realtimeAdapter.on('message-delivered', ({ commentId, commentUniqueId, userId }) =>
+      this._setDelivered(commentId, commentUniqueId, userId)
+    )
+    this.realtimeAdapter.on('message-read', ({ commentId, commentUniqueId, userId }) =>
+      this._setRead(commentId, commentUniqueId, userId)
+    )
+    this.realtimeAdapter.on('new-message', (message) => this.events.emit('newmessages', [message]))
+    this.realtimeAdapter.on('presence', (data) => this.events.emit('presence', data))
+    this.realtimeAdapter.on('comment-deleted', (data) => this.events.emit('comment-deleted', data))
+    this.realtimeAdapter.on('room-cleared', (data) => this.events.emit('room-cleared', data))
+    this.realtimeAdapter.on('typing', (data) => this.events.emit('typing', {
+      message: data.message,
+      username: data.userId,
+      room_id: data.roomId
+    }))
+    this.customEventAdapter = CustomEventAdapter(this.realtimeAdapter, this.user_id)
   }
 
   _setRead (messageId, messageUniqueId, userId) {
@@ -165,7 +182,7 @@ class QiscusSDK {
       participants: room.participants,
       actor: userId,
       comment_id: messageId,
-      activateActorId: this.user_id
+      activeActorId: this.user_id
     }
     room.comments.forEach((it) => {
       if (it.id <= message.id) {
@@ -186,7 +203,7 @@ class QiscusSDK {
       participants: room.participants,
       actor: userId,
       comment_id: messageId,
-      activateActorId: this.user_id
+      activeActorId: this.user_id
     }
     room.comments.forEach((it) => {
       if (it.id <= message.id) {
@@ -254,8 +271,9 @@ class QiscusSDK {
       // first we need to make sure we sort this data out based on room_id
       this.logging('newmessages', comments)
 
+      const lastReceivedMessageNotEmpty = this.lastReceiveMessages.length > 0
       if (
-        this.lastReceiveMessages.length > 0 &&
+        lastReceivedMessageNotEmpty &&
         this.lastReceiveMessages[0].unique_temp_id === comments[0].unique_temp_id
       ) {
         this.logging('lastReceiveMessages double', comments)
@@ -283,7 +301,7 @@ class QiscusSDK {
           // pastiin sync
           const roomLastCommentId = lastComment.id
           const commentBeforeThis = self.selected.comments.find(c => c.id === lastComment.comment_before_id)
-          if (!commentBeforeThis) {
+          if (!lastComment.isPending && !commentBeforeThis) {
             this.logging('comment before id not found! ', comment.comment_before_id)
             // need to fix, these method does not work
             self.synchronize(roomLastCommentId)
@@ -306,37 +324,33 @@ class QiscusSDK {
      * This event will be called when login is sucess
      * Basically, it sets up necessary properties for qiscusSDK
      */
-    self.events.on('login-success', (response) => {
+    this.events.on('login-success', (response) => {
       this.logging('login-success', response)
 
-      const mqttURL = self.mqttURL
-      self.isLogin = true
-      self.userData = response.user
-      self.last_received_comment_id = self.userData.last_comment_id
+      this.isLogin = true
+      this.userData = response.user
+      this.last_received_comment_id = this.userData.last_comment_id
 
       // now that we have the token, etc, we need to set all our adapters
-      // /////////////// API CLIENT /////////////////
-      self.HTTPAdapter = new HttpAdapter({
-        baseURL: self.baseURL,
-        AppId: self.AppId,
-        userId: self.user_id,
-        version: self.version
+      this.HTTPAdapter = new HttpAdapter({
+        baseURL: this.baseURL,
+        AppId: this.AppId,
+        userId: this.user_id,
+        version: this.version
       })
-      self.HTTPAdapter.setToken(self.userData.token)
+      this.HTTPAdapter.setToken(this.userData.token)
 
-      // ////////////// CORE BUSINESS LOGIC ////////////////////////
-      self.userAdapter = new UserAdapter(self.HTTPAdapter)
-      self.roomAdapter = new RoomAdapter(self.HTTPAdapter)
-      self.realtimeAdapter = new MqttAdapter(mqttURL, self)
-      self.realtimeAdapter.subscribeUserChannel()
-      setInterval(() => this.realtimeAdapter.publishPresence(this.user_id), 3500)
+      this.userAdapter = new UserAdapter(this.HTTPAdapter)
+      this.roomAdapter = new RoomAdapter(this.HTTPAdapter)
 
-      if (self.sync === 'http' || self.sync === 'both') self.activateSync()
-      if (self.options.loginSuccessCallback) {
-        self.options.loginSuccessCallback(response)
+      this.realtimeAdapter.subscribeUserChannel()
+      if (this.presensePublisherId != null && this.presensePublisherId !== -1) clearInterval(this.presensePublisherId)
+      this.presensePublisherId = setInterval(() => this.realtimeAdapter.publishPresence(this.user_id), 3500)
+
+      if (this.sync === 'http' || this.sync === 'both') this.activateSync()
+      if (this.options.loginSuccessCallback) {
+        this.options.loginSuccessCallback(response)
       }
-
-      self.customEventAdapter = CustomEventAdapter(self.realtimeAdapter, self.user_id)
     })
 
     /**
@@ -520,7 +534,6 @@ class QiscusSDK {
     if (this.options.newMessagesCallback) {
       this.options.newMessagesCallback(comments)
     }
-    // let's sort the comments
   }
 
   updateLastReceivedComment (id) {
@@ -529,11 +542,12 @@ class QiscusSDK {
 
   /**
    * Setting Up User Credentials for next API Request
-   * @param {string} userId - client userId (will be used for login or register)
-   * @param {string} key - client unique key
-   * @param {string} username - client username
-   * @param {string} avatar_url - the url for chat avatar (optional)
-   * @return {void}
+   * @param userId {string} - client userId (will be used for login or register)
+   * @param key {string} - client unique key
+   * @param username {string} - client username
+   * @param avatarURL {string} - the url for chat avatar (optional)
+   * @param extras {object} - extra data for user
+   * @return {Promise}
    */
   setUser (userId, key, username, avatarURL, extras) {
     const self = this
@@ -930,7 +944,7 @@ class QiscusSDK {
       username_as: this.username,
       username_real: this.user_id,
       user_avatar_url: this.userData.avatar_url,
-      id: Math.random() * 100000000,
+      id: Math.round(Math.random() * 10e6),
       type: type || 'text',
       timestamp: format(new Date()),
       unique_id: uniqueId
@@ -971,7 +985,8 @@ class QiscusSDK {
           pendingComment.markAsRead({
             participants: this.selected.participants,
             actor: this.user_id,
-            comment_id: res.id
+            comment_id: res.id,
+            activeActorId: this.user_id
           })
           pendingComment.id = res.id
           pendingComment.before_id = res.comment_before_id

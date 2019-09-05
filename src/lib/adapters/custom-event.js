@@ -40,7 +40,7 @@ export default function CustomEventAdapter (mqttAdapter, userId) {
         const parsedPayload = JSON.parse(payload)
         callback(parsedPayload)
       }
-      events.addListener(topic, cb)
+      events.on(topic, cb)
       subscribedTopics[topic] = cb
     },
     unsubscribeEvent (roomId) {
@@ -50,7 +50,7 @@ export default function CustomEventAdapter (mqttAdapter, userId) {
       const topic = getTopic(roomId)
       if (!subscribedTopics[topic]) return
       mqttAdapter.mqtt.unsubscribe(topic)
-      events.removeListener(topic, subscribedTopics[topic])
+      events.off(topic, subscribedTopics[topic])
       subscribedTopics[topic] = null
       delete subscribedTopics[topic]
     }
