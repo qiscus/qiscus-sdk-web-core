@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import Comment from '../lib/Comment.js'
+import Comment from '../src/lib/Comment'
 
 describe('Qiscus SDK Core', function () {
   describe('Comment', function () {
