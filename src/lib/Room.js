@@ -17,28 +17,28 @@ export class Room {
    * @memberof Room
    */
   constructor (roomData) {
-    this.id = roomData.id
-    this.last_comment_id = roomData.last_comment_id
-    this.last_comment_message = roomData.last_comment_message
-    this.last_comment_message_created_at = roomData.last_comment_message_created_at
-    this.last_comment_topic_title = roomData.last_comment_topic_title
-    this.avatar = roomData.room_avatar || roomData.avatarURL || roomData.avatar_url
-    this.name = roomData.room_name
-    this.room_type = roomData.room_type || roomData.chat_type
-    this.secret_code = roomData.secret_code
-    this.participants = roomData.participants
-    this.options = roomData.options
-    this.topics = []
-    this.comments = []
-    this.count_notif = roomData.unread_count
-    this.isLoaded = false
-    this.unread_comments = []
-    this.custom_title = null
-    this.custom_subtitle = null
-    this.options = roomData.options
-    this.unique_id = roomData.unique_id
-    this.isChannel = roomData.is_public_channel
-    this.participantNumber = roomData.room_total_participants
+    this.id = roomData.id;
+    this.last_comment_id = roomData.last_comment_id;
+    this.last_comment_message = roomData.last_comment_message;
+    this.last_comment_message_created_at = roomData.last_comment_message_created_at;
+    this.last_comment_topic_title = roomData.last_comment_topic_title;
+    this.avatar = roomData.room_avatar || roomData.avatarURL || roomData.avatar_url;
+    this.name = roomData.room_name;
+    this.room_type = roomData.room_type || roomData.chat_type;
+    this.secret_code = roomData.secret_code;
+    this.participants = roomData.participants;
+    this.options = roomData.options;
+    this.topics = [];
+    this.comments = [];
+    this.count_notif = roomData.unread_count;
+    this.isLoaded = false;
+    this.unread_comments = [];
+    this.custom_title = null;
+    this.custom_subtitle = null;
+    this.options = roomData.options;
+    this.unique_id = roomData.unique_id;
+    this.isChannel = roomData.is_public_channel;
+    this.participantNumber = roomData.room_total_participants;
     if (roomData.comments) this.receiveComments(roomData.comments)
   }
 
@@ -70,14 +70,14 @@ export class Room {
    */
   receiveComment (comment) {
     // Ignore if not from the same room
-    if (comment.room_id !== this.id) return
+    if (comment.room_id !== this.id) return;
     // let's check first whether this room already has this specific comment
-    const commentToFind = this.comments.find(cmt => cmt.unique_id === comment.unique_id)
+    const commentToFind = this.comments.find(cmt => cmt.unique_id === comment.unique_id);
     if (commentToFind) {
-      commentToFind.id = comment.id
-      commentToFind.message = comment.message
-      commentToFind.date = comment.date
-      commentToFind.time = comment.time
+      commentToFind.id = comment.id;
+      commentToFind.message = comment.message;
+      commentToFind.date = comment.date;
+      commentToFind.time = comment.time;
       commentToFind.unix_timestamp = comment.unix_timestamp
     } else {
       this.comments.push(comment)
@@ -96,7 +96,7 @@ export class Room {
 
   addParticipant (participant) {
     // get if there's existing participant, if any then push
-    let participantToFind = this.getParticipant(participant.email)
+    let participantToFind = this.getParticipant(participant.email);
     if (!participantToFind) this.participants.push(participant)
   }
 }

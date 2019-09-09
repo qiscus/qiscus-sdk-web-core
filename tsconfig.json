@@ -1,20 +1,21 @@
 {
   "compilerOptions": {
     "checkJs": false,
+    "allowJs": true,
     "module": "commonjs",
-    "target": "es5",
+    "target": "esnext",
     "outDir": "lib",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "downlevelIteration": true,
+    "esModuleInterop": true,
+    "incremental": true,
     "lib": [
       "dom",
       "es2015",
       "es2016",
       "es2017"
-    ],
-    "moduleResolution": "node",
-    "declaration": true,
-    "allowSyntheticDefaultImports": true,
-    "downlevelIteration": true,
-    "esModuleInterop": true
+    ]
   },
   "include": [
     "./src"

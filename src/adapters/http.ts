@@ -15,19 +15,19 @@ export default function getHttpAdapter ({ baseUrl, getAppId, getUserId, getToken
       beforeRequest: [
         (options) => {
           // @ts-ignore
-          options.headers.set('qiscus-sdk-app-id',  getAppId())
+          options.headers.set('qiscus-sdk-app-id',  getAppId());
           // @ts-ignore
-          options.headers.set('qiscus-sdk-user-id', getUserId())
+          options.headers.set('qiscus-sdk-user-id', getUserId());
           // @ts-ignore
-          options.headers.set('qiscus-sdk-token', getToken())
+          options.headers.set('qiscus-sdk-token', getToken());
           // @ts-ignore
-          options.headers.set('qiscus-sdk-version', getSdkVersion())
+          options.headers.set('qiscus-sdk-version', getSdkVersion());
           // @ts-ignore
           options.headers.set('qiscus-sdk-platform', 'JavaScript')
         }
       ]
     }
-  })
+  });
 
   return {
     delete<T> (path: string, data?: object): Promise<T> {

@@ -21,24 +21,24 @@ export interface IQSyncAdapter {
 
 export default function getSyncAdapter (http: IQHttpAdapter, token: string): IQSyncAdapter {
   // @ts-ignore
-  const emitter: mitt.Emitter = mitt()
-  let lastMessageId = 0
-  let lastEventId = 0
+  const emitter: mitt.Emitter = mitt();
+  let lastMessageId = 0;
+  let lastEventId = 0;
 
   return {
     synchronize (messageId: number): void {
-      messageId = messageId || lastMessageId
+      messageId = messageId || lastMessageId;
       const url = QUrlBuilder('sync')
         .param('token', token)
         .param('last_received_comment_id', messageId)
-        .build()
+        .build();
       http
         .get<SyncResponse.RootObject>(url)
         .then((resp) => {
-          const results = resp.results
-          const messages = results.comments
-          lastMessageId = results.meta.last_received_comment_id
-          emitter.emit('last-message-id', lastMessageId)
+          const results = resp.results;
+          const messages = results.comments;
+          lastMessageId = results.meta.last_received_comment_id;
+          emitter.emit('last-message-id', lastMessageId);
           for (let message of messages) {
             emitter.emit('message.new', message)
           }
@@ -47,22 +47,22 @@ export default function getSyncAdapter (http: IQHttpAdapter, token: string): IQS
         })
     },
     synchronizeEvent (eventId: number): void {
-      eventId = eventId || lastEventId
+      eventId = eventId || lastEventId;
       const url = QUrlBuilder('sync_event')
         .param('token', token)
         .param('start_event_id', eventId)
-        .build()
+        .build();
 
       http
         .get<SyncEventResponse.RootObject>(url)
         .then((resp) => {
-          const events = resp.events
+          const events = resp.events;
           const lastId = events.map(it => it.id)
             .slice()
             .sort((a, b) => a - b)
-            .pop()
+            .pop();
           if (lastId != null) {
-            lastEventId = lastId
+            lastEventId = lastId;
             emitter.emit('last-event-id', lastEventId)
           }
           for (let event of events) {
@@ -82,23 +82,23 @@ export default function getSyncAdapter (http: IQHttpAdapter, token: string): IQS
         })
     },
     onNewMessage (callback: (message: IQMessage) => void): () => void {
-      emitter.on('message.new', callback)
+      emitter.on('message.new', callback);
       return () => emitter.off('message.new', callback)
     },
     onMessageDelivered (callback: (message: IQMessage) => void): () => void {
-      emitter.on('message.delivered', callback)
+      emitter.on('message.delivered', callback);
       return () => emitter.off('message.delivered', callback)
     },
     onMessageRead (callback: (message: IQMessage) => void): () => void {
-      emitter.on('message.read', callback)
+      emitter.on('message.read', callback);
       return () => emitter.off('message.read', callback)
     },
     onMessageDeleted (callback: (message: IQMessage) => void): () => void {
-      emitter.on('message.deleted', callback)
+      emitter.on('message.deleted', callback);
       return () => emitter.off('message.deleted', callback)
     },
     onRoomCleared (callback: (message: IQRoom) => void): () => void {
-      emitter.on('room.cleared', callback)
+      emitter.on('room.cleared', callback);
       return () => emitter.off('room.cleared', callback)
     }
   }

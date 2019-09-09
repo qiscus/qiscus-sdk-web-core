@@ -1,28 +1,44 @@
-import mitt from 'mitt'
-import { IQHttpAdapter } from './http'
-import getSyncAdapter from './sync'
-import { IQMessage, IQRoom, IQUserAdapter } from '../defs'
-import xs from 'xstream'
+import {IQHttpAdapter} from './http';
+import getSyncAdapter from './sync';
+import {IQMessage, IQRoom} from '../defs';
+import xs from 'xstream';
+import getMqttAdapter, {IQMqttAdapter} from './mqtt';
+import {subscribeOnNext} from '../utils/stream';
 
 type Callback<T> = (data: T) => void
 type Subscription = () => void
 
 export interface IQRealtimeAdapter {
-  onNewMessage (callback: Callback<IQMessage>): Subscription
-  onMessageDelivered (callback: Callback<IQMessage>): Subscription
-  onMessageRead (callback: Callback<IQMessage>): Subscription
-  onMessageDeleted (callback: Callback<IQMessage>): Subscription
-  onRoomCleared (callback: Callback<IQRoom>): Subscription
-  onTyping (callback: Callback<boolean>): Subscription
-  onPresence (callback: Callback<any>): Subscription
-
-  synchronize (lastMessageId: number): void
-  synchronizeEvent (lastEventId: number): void
-  setTyping (isTyping: boolean): void
-  setPresence (presence: boolean): void
+  onNewMessage(callback: Callback<IQMessage>): Subscription
+  onMessageDelivered(callback: Callback<IQMessage>): Subscription
+  onMessageRead(callback: Callback<IQMessage>): Subscription
+  onMessageDeleted(callback: Callback<IQMessage>): Subscription
+  onRoomCleared(callback: Callback<IQRoom>): Subscription
+  onTyping(callback: Callback<boolean>): Subscription
+  onPresence(callback: Callback<any>): Subscription
+  synchronize(lastMessageId: number): void
+  synchronizeEvent(lastEventId: number): void
+  sendTyping(roomId: number, userId: string, isTyping: boolean): void
+  sendPresence(userId: string): void
+  readonly mqtt: IQMqttAdapter
 }
 
-export default function getRealtimeAdapter (
+type SyncMethod<T> = (callback: Callback<T>) => Subscription
+const fromSync = <T>(method: SyncMethod<T>) => {
+  let subscription: Subscription = null;
+  return xs.create<T>({
+    start(listener) {
+      subscription = method((data) => {
+        listener.next(data);
+      });
+    },
+    stop() {
+      subscription();
+    }
+  });
+};
+
+export default function getRealtimeAdapter(
   http: IQHttpAdapter,
   syncInterval: number,
   brokerUrl: string,
@@ -30,79 +46,78 @@ export default function getRealtimeAdapter (
   isLogin: boolean,
   token: string
 ): IQRealtimeAdapter {
-  // @ts-ignore
-  const emitter: mitt.Emitter = mitt()
-  let isMqttConnected = false
-  const sync = getSyncAdapter(http, token)
+  let isMqttConnected = false;
+  const sync = getSyncAdapter(http, token);
+  const mqtt = getMqttAdapter(brokerUrl);
 
   xs.periodic(syncInterval)
     .filter(() => isLogin)
     .filter(() => isMqttConnected || shouldSync)
     .subscribe({
-      next () {
-        sync.synchronize()
-        sync.synchronizeEvent()
+      next() {
+        sync.synchronize();
+        sync.synchronizeEvent();
       }
-    })
+    });
 
   return {
-    onMessageDeleted (callback: (data: IQMessage) => void): () => void {
-      return sync.onMessageDeleted(callback)
+    get mqtt() {
+      return mqtt;
     },
-    onMessageDelivered (callback: (data: IQMessage) => void): () => void {
-      return sync.onMessageDelivered(callback)
+    onMessageDeleted(callback: Callback<IQMessage>): Subscription {
+      const subscription = xs.merge(
+        fromSync(sync.onMessageDeleted),
+        fromSync(mqtt.onMessageDeleted)
+      ).compose(subscribeOnNext(callback));
+      return () => subscription.unsubscribe();
     },
-    onMessageRead (callback: (data: IQMessage) => void): () => void {
-      return sync.onMessageRead(callback)
+    onMessageDelivered(callback: Callback<IQMessage>): Subscription {
+      const subscription = xs.merge(
+        fromSync(sync.onMessageDelivered),
+        fromSync(mqtt.onMessageDelivered)
+      ).compose(subscribeOnNext(callback));
+      return () => subscription.unsubscribe();
     },
-    onNewMessage (callback: (data: IQMessage) => void): () => void {
-      return sync.onNewMessage(callback)
+    onMessageRead(callback: Callback<IQMessage>): Subscription {
+      const subscription = xs.merge(
+        fromSync(sync.onMessageRead),
+        fromSync(mqtt.onMessageRead)
+      ).compose(subscribeOnNext(callback));
+      return () => subscription.unsubscribe();
     },
-    onPresence (callback: (data: any) => void): () => void {
-      emitter.on('presence', callback)
-      return () => emitter.off('presence', callback)
+    onNewMessage(callback: Callback<IQMessage>): Subscription {
+      const subscription = xs.merge(
+        fromSync(sync.onNewMessage),
+        fromSync(mqtt.onNewMessage)
+      ).compose(subscribeOnNext(callback));
+      return () => subscription.unsubscribe();
     },
-    onRoomCleared (callback: (data: IQRoom) => void): () => void {
-      return sync.onRoomCleared(callback)
+    onPresence(callback: Callback<any>): Subscription {
+      const subscription = fromSync(mqtt.onUserPresence)
+        .compose(subscribeOnNext(callback));
+      return () => subscription.unsubscribe();
     },
-    onTyping (callback: (data: boolean) => void): () => void {
-      emitter.on('typing', callback)
-      return () => emitter.off('typing', callback)
+    onRoomCleared(callback: Callback<IQRoom>): Subscription {
+      const subscription = fromSync(sync.onRoomCleared)
+        .compose(subscribeOnNext(callback));
+      return () => subscription.unsubscribe();
     },
-    setPresence (presence: boolean): void {
+    onTyping(callback: Callback<any>): Subscription {
+      const subscription = fromSync(mqtt.onUserTyping)
+        .compose(subscribeOnNext(callback));
+      return () => subscription.unsubscribe();
     },
-    setTyping (isTyping: boolean): void {
+    sendPresence(userId: string): void {
+      mqtt.sendPresence(userId);
     },
-    synchronize (lastMessageId: number): void {
-      sync.synchronize(lastMessageId)
+    sendTyping(roomId: number, userId: string, isTyping: boolean): void {
+      mqtt.sendTyping(roomId, userId, isTyping);
     },
-    synchronizeEvent (lastEventId: number): void {
-      sync.synchronizeEvent(lastEventId)
+    synchronize(lastMessageId: number): void {
+      sync.synchronize(lastMessageId);
+    },
+    synchronizeEvent(lastEventId: number): void {
+      sync.synchronizeEvent(lastEventId);
     }
-  }
-}
-/**
- *
- * const realtime = getRealtimeAdapter()
- * realtime.onNewMessage(callback)
- * realtime.onMessageRead(callback)
- * realtime.onMessageDelivered(callback)
- * realtime.onMessageDeleted(callback)
- * realtime.onRoomCleared(callback)
- * realtime.onTyping(callback)
- * realtime.onPresence(callback)
- *
- * realtime.synchronize(lastMessageId = 0)
- * realtime.synchronizeEvent(lastEventId = 0)
- * realtime.setTyping(isTyping)
- *
- * @param syncInterval
- * @param http () => IQHttpAdapter
- * @param user
- */
-type RealtimeAdapterExtraParams = {
-  http: () => IQHttpAdapter,
-  user: () => IQUserAdapter,
-  shouldSync: () => boolean,
-  brokerUrl: () => string
+  };
 }

@@ -4,13 +4,13 @@ interface IQUrlBuilder {
 }
 
 export default function QUrlBuilder (basePath: string): IQUrlBuilder {
-  const params = {}
+  const params = {};
 
-  const getQuery = (key, value) => `${key}=${value}`
+  const getQuery = (key, value) => `${key}=${value}`;
 
   return {
     param (key: string, value: any): IQUrlBuilder {
-      params[key] = value
+      params[key] = value;
       return this
     },
     build (): string {
@@ -22,7 +22,7 @@ export default function QUrlBuilder (basePath: string): IQUrlBuilder {
           }
           return getQuery(key, params[key])
         })
-        .join('&')
+        .join('&');
 
       return [basePath].concat(query).join('?')
     }

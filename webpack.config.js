@@ -1,19 +1,19 @@
-const path = require('path')
-const webpack = require('webpack')
+const path = require('path');
+const webpack = require('webpack');
 
-module.exports = (env) => {
-  const filename = env.production
-    ? 'qiscus-sdk-core.min.js'
-    : 'qiscus-sdk-core.js'
+module.exports = env => {
+  const filename = env.production ?
+    'qiscus-sdk-core.min.js' :
+    'qiscus-sdk-core.js';
   return {
-    // entry: ['@babel/polyfill', path.join(__dirname, 'src', 'index.js')],
+    // Entry: ['@babel/polyfill', path.join(__dirname, 'src', 'index.js')],
     entry: [path.join(__dirname, 'src', 'main.ts')],
     devtool: env.production ? 'source-map' : 'cheap-module-eval-source-map',
     mode: env.production ? 'production' : 'development',
     target: env.target || 'web',
     output: {
       path: path.join(__dirname, 'dist'),
-      filename: filename,
+      filename,
       library: 'QiscusSDKCore',
       libraryTarget: 'umd',
       libraryExport: 'default',
@@ -31,14 +31,14 @@ module.exports = (env) => {
       }]
     },
     resolve: {
-      extensions: [ '.tsx', '.ts', '.js' ]
+      extensions: ['.tsx', '.ts', '.js']
     },
     plugins: [
-      new webpack.DefinePlugin({ 'global.GENTLY': false })
+      new webpack.DefinePlugin({'global.GENTLY': false})
     ],
     performance: {
       maxEntrypointSize: 512000,
       maxAssetSize: 512000
     }
-  }
-}
+  };
+};

@@ -1,19 +1,20 @@
 import { IQHttpAdapter } from './http'
 import QUrlBuilder from '../utils/url-builder'
 import { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from '../defs'
+import {UrlBuilder} from "../utils/utils";
 
 export class QUser implements IQUser {
-  id: number
-  userId: string
-  displayName: string
-  avatarUrl?: string
+  id: number;
+  userId: string;
+  displayName: string;
+  avatarUrl?: string;
 
   static fromJson (json: { id: number, email: string, username: string, avatar_url: string }): IQUser {
-    const user = new QUser()
-    user.id = json.id
-    user.userId = json.email
-    user.displayName = json.username
-    user.avatarUrl = json.avatar_url
+    const user = new QUser();
+    user.id = json.id;
+    user.userId = json.email;
+    user.displayName = json.username;
+    user.avatarUrl = json.avatar_url;
     return user
   }
 }
@@ -32,8 +33,8 @@ type NonceResponse = {
  *
  */
 export default function getUserAdapter (http: IQHttpAdapter): IQUserAdapter {
-  let currentUser: IQUser | null = null
-  let token: string | null = null
+  let currentUser: IQUser | null = null;
+  let token: string | null = null;
 
   return {
     async login (userId: string, userKey: string, { avatarUrl, extras, name }: IQUserExtraProps): Promise<IQUser> {
@@ -43,15 +44,15 @@ export default function getUserAdapter (http: IQHttpAdapter): IQUserAdapter {
         avatar_url: avatarUrl,
         username: name,
         extras: extras
-      }
-      const resp = await http.post<UserResponse.RootObject>('login_or_register', data)
+      };
+      const resp = await http.post<UserResponse.RootObject>('login_or_register', data);
       const user = QUser.fromJson(resp.results.user);
       currentUser = user;
       token = resp.results.user.token;
       return user;
     },
     clear () {
-      currentUser = null
+      currentUser = null;
       token = null
     },
     async blockUser (userId: string): Promise<IQUser> {
@@ -66,8 +67,8 @@ export default function getUserAdapter (http: IQHttpAdapter): IQUserAdapter {
         .param('token', this.token)
         .param('page', page)
         .param('limit', limit)
-        .build()
-      const resp = await http.get<BlockedUserListResponse.RootObject>(url)
+        .build();
+      const resp = await http.get<BlockedUserListResponse.RootObject>(url);
       return resp.results.blocked_users
         .map((user) => QUser.fromJson(user));
     },
@@ -77,8 +78,8 @@ export default function getUserAdapter (http: IQHttpAdapter): IQUserAdapter {
         .param('query', query)
         .param('page', page)
         .param('limit', limit)
-        .build()
-      const resp = await http.get<UserListResponse.RootObject>(url)
+        .build();
+      const resp = await http.get<UserListResponse.RootObject>(url);
       return resp.results.users
         .map((user: any) => QUser.fromJson(user));
     },
@@ -101,16 +102,19 @@ export default function getUserAdapter (http: IQHttpAdapter): IQUserAdapter {
         name,
         avatar_url: avatarUrl,
         extras: extras
-      }
-      const resp = await http.patch<UserResponse.RootObject>('my_profile', data)
+      };
+      const resp = await http.patch<UserResponse.RootObject>('my_profile', data);
       return QUser.fromJson(resp.results.user);
     },
     async getNonce (): Promise<QNonce> {
-      const resp = await http.get<NonceResponse>('auth/nonce')
+      const resp = await http.get<NonceResponse>('auth/nonce');
       return { expired: resp.results.expired_at, nonce: resp.results.nonce };
     },
     async getUserData (): Promise<IQUser> {
-      const resp = await http.get<UserResponse.RootObject>('my_profile')
+      const url = new UrlBuilder('my_profile')
+        .param('token', token)
+        .build();
+      const resp = await http.get<UserResponse.RootObject>(url);
       return QUser.fromJson(resp.results.user);
     },
     async registerDeviceToken(deviceToken: string, platform: string = 'rn'): Promise<boolean> {
