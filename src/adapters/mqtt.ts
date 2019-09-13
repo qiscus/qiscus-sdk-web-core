@@ -1,9 +1,9 @@
 import { match, when } from '../utils/match'
 import mitt from 'mitt'
 import connect from 'mqtt/lib/connect'
-import { atom, Atom } from 'derivable'
+import { atom, Atom, Derivable } from 'derivable'
 import { IClientPublishOptions, MqttClient } from 'mqtt'
-import { tryCatch } from '../utils/stream'
+import { IQMessageAdapter, Subscription, Callback } from '../defs'
 
 const reNewMessage = /^([\w]+)\/c/i;
 const reNotification = /^([\w]+)\/n/i;
@@ -16,12 +16,12 @@ const reCustomEvent = /^r\/[\w]+\/[\w]+\/e$/i;
 
 
 const noop = () => {};
-type Callback<T> = (data: T) => void
-type Subscription = () => void
 
 export interface IQMqttAdapter {
   connect (userId: string): void
   onMqttConnected (callback: Callback<any>): Subscription
+  onMqttReconnecting (callback: Callback<void>): Subscription
+  onMqttDisconnected (callback: Callback<void>): Subscription
   onNewMessage (callback: Callback<any>): Subscription
   onMessageDelivered (callback: Callback<any>): Subscription
   onMessageRead (callback: Callback<any>): Subscription
@@ -35,9 +35,15 @@ export interface IQMqttAdapter {
   publishCustomEvent(roomId: number, userId: string, data: any): void
   subscribeCustomEvent(roomId: number, callback: Callback<any>): void
   unsubscribeCustomEvent(roomId: number): void
+  subscribeUser(userToken: string): Subscription
+  subscribeRoom(roomId: string): Subscription
+  subscribeChannel(appId: string, channelUniqueId: string): Subscription
+  readonly mqtt: any
 }
 
-type MQTTHandler = (topic: string) => (data: any) => {}
+interface MQTTHandler {
+  (topic: string): (data: any) => void
+}
 interface IQMqttHandler {
   newMessage: MQTTHandler
   notificationHandler: MQTTHandler
@@ -53,7 +59,7 @@ const getMqttHandler = (): IQMqttHandler => {
   return null
 };
 
-export default function getMqttAdapter (brokerUrl: string): IQMqttAdapter {
+export default function getMqttAdapter (message: Derivable<IQMessageAdapter>, brokerUrl: Derivable<string>): IQMqttAdapter {
   // @ts-ignore
   const emitter = mitt();
   const handler = getMqttHandler();
@@ -74,8 +80,9 @@ export default function getMqttAdapter (brokerUrl: string): IQMqttAdapter {
   const mqtt: Atom<MqttClient | null> = atom(null);
 
   return {
+    get mqtt() { return mqtt.get() },
     connect (userId: string): void {
-      const _mqtt = connect(brokerUrl, {
+      const _mqtt = connect(brokerUrl.get(), {
         will: {
           topic: `u/${userId}/s`,
           payload: 0,
@@ -87,7 +94,7 @@ export default function getMqttAdapter (brokerUrl: string): IQMqttAdapter {
       _mqtt.on('message', (topic: string, message: any) => {
         message = message.toString();
         const func = matcher(topic);
-        if (func != null) func(message)
+        if (func != null) func(message);
       });
       _mqtt.on('connect', () => {
         emitter.emit('mqtt::connected')
@@ -102,9 +109,17 @@ export default function getMqttAdapter (brokerUrl: string): IQMqttAdapter {
         emitter.emit('mqtt::error')
       })
     },
-    onMqttConnected (callback: (data) => void): () => void {
+    onMqttConnected (callback: Callback<any>): () => void {
       emitter.on('mqtt::connected', callback);
       return () => emitter.off('mqtt::connected', callback)
+    },
+    onMqttReconnecting (callback: Callback<void>): Subscription {
+      emitter.on('mqtt::reconnecting', callback);
+      return () => emitter.off('mqtt::reconnecting', callback);
+    },
+    onMqttDisconnected (callback: Callback<void>): Subscription {
+      emitter.on('mqtt::close', callback);
+      return () => emitter.off('mqtt::close', callback);
     },
     onMessageDeleted (callback: (data: any) => void): () => void {
       emitter.on('message::deleted', callback);
@@ -124,6 +139,9 @@ export default function getMqttAdapter (brokerUrl: string): IQMqttAdapter {
     },
     onNewMessage (callback: (data: any) => void): () => void {
       emitter.on('message::new', callback);
+      emitter.on('message::new', (message) => {
+        console.log('mqtt.on:message', message)
+      })
       return () => emitter.off('message::new', callback)
     },
     onRoomDeleted (callback: (data: any) => void): () => void {
@@ -165,6 +183,30 @@ export default function getMqttAdapter (brokerUrl: string): IQMqttAdapter {
     sendTyping (roomId: number, userId: string, isTyping: boolean): void {
       const payload = isTyping ? '1' : '0';
       mqtt.get().publish(`r/${roomId}/${roomId}/${userId}/t`, payload)
+    },
+    subscribeUser(userToken: string): Subscription {
+      mqtt.get()
+        .subscribe(`${userToken}/c`)
+        .subscribe(`${userToken}/n`);
+      return () => mqtt.get()
+        .unsubscribe(`${userToken}/c`)
+        .unsubscribe(`${userToken}/n`);
+    },
+    subscribeRoom(roomId: string): Subscription {
+      mqtt.get()
+        .subscribe(`r/${roomId}/${roomId}/+/t`)
+        .subscribe(`r/${roomId}/${roomId}/+/d`)
+        .subscribe(`r/${roomId}/${roomId}/+/r`);
+      return () => mqtt.get()
+        .unsubscribe(`r/${roomId}/${roomId}/+/t`)
+        .unsubscribe(`r/${roomId}/${roomId}/+/d`)
+        .unsubscribe(`r/${roomId}/${roomId}/+/r`);
+    },
+    subscribeChannel(appId: string, channelUniqueId: string): Subscription {
+      mqtt.get()
+        .subscribe(`${appId}/${channelUniqueId}/c`);
+      return () => mqtt.get()
+        .unsubscribe(`${appId}/${channelUniqueId}/c`);
     }
   }
 }

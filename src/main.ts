@@ -18,10 +18,11 @@ import {
   IQRoom,
   IQRoomAdapter,
   IQUser,
-  IQUserAdapter
-} from './defs'
+  IQUserAdapter, Subscription,
+  Callback
+} from './defs';
 import {
-  isArrayOfNumber, isArrayOfString, isOptArrayNumber, isOptArrayString,
+  isArrayOfNumber, isArrayOfString,
   isOptBoolean,
   isOptCallback,
   isOptJson,
@@ -33,8 +34,8 @@ import {
   isReqNumber,
   isReqString
 } from './utils/param-utils'
-import { process, tap, toCallbackOrPromise } from './utils/stream'
-import xs from 'xstream'
+import {bufferUntil, process, tap, toCallbackOrPromise, toEventSubscription} from './utils/stream';
+import xs, {Stream} from 'xstream';
 
 const __secret = Symbol('secret');
 export type QSyncMode = 'socket' | 'http' | 'both'
@@ -54,8 +55,7 @@ export default class Qiscus implements IQiscus {
   private static _instance: Qiscus = null;
 
   //<editor-fold desc="Property">
-  private readonly get _secret() { return __secret; }
-  private readonly syncMode: Atom<QSyncMode> = atom('socket');
+  private readonly _syncMode: Atom<QSyncMode> = atom('socket');
   private readonly _currentUser: Atom<IQUser | null> = atom(null);
   private readonly _rooms: Atom<{ [key: number]: IQRoom }> = atom({});
   private readonly _messages: Atom<{ [key: string]: IQMessage }> = atom({});
@@ -71,20 +71,18 @@ export default class Qiscus implements IQiscus {
   private readonly _brokerUrl: Atom<string | null> = atom(null);
   private readonly _appId: Atom<string> = atom(null);
   private readonly _isLogin = this._token.derive(token => token != null);
-  private readonly _shouldSync = atom(true);
+  private readonly _shouldSync = atom(false);
 
   private readonly _currentRoomId: Atom<number | null> = atom(null);
   private readonly _currentRoom: Derivable<IQRoom | null> = this._rooms
     .derive((rooms) => {
       const r = rooms[this._currentRoomId.get()];
-      const messages = this._messages.derive((messages) =>
-        Object.values(messages)
-          .filter(it => it.roomId === r.id)
-          .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-      );
+      const messages = Object.values(this._messages.get())
+        .filter(it => it.roomId === r.id)
+        .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
       return {
         ...r,
-        messages: messages.get()
+        messages: messages
       }
     });
 
@@ -165,19 +163,28 @@ export default class Qiscus implements IQiscus {
     this._appId.set(appId);
     this._baseUrl.set(baseUrl);
     this._brokerUrl.set(brokerUrl);
-    this.syncMode.set('socket');
+    this._syncMode.set('socket');
     this._syncInterval.set(syncInterval);
     this._httpAdapter.set(getHttpAdapter({
       baseUrl: this.baseUrl,
       getAppId: () => this.appId,
       getToken: () => this.token,
-      getUserId: () => this.userAdapter.currentUserId,
+      getUserId: () => this.currentUser.userId,
       getSdkVersion: () => '3-beta'
     }));
-    this._userAdapter.set(getUserAdapter(this.httpAdapter));
-    this._roomAdapter.set(getRoomAdapter(this.httpAdapter, this.userAdapter));
-    this._messageAdapter.set(getMessageAdapter(this.httpAdapter, this.userAdapter, this.roomAdapter));
-    this._realtimeAdapter.set(getRealtimeAdapter(this.httpAdapter, this.syncInterval, this.brokerUrl, this.shouldSync, this.isLogin, this.token))
+    this._userAdapter.set(getUserAdapter(this._httpAdapter));
+    this._roomAdapter.set(getRoomAdapter(this._httpAdapter, this._userAdapter));
+    this._messageAdapter.set(getMessageAdapter(this._httpAdapter, this._userAdapter, this._roomAdapter));
+    this._realtimeAdapter.set(getRealtimeAdapter(
+      this._httpAdapter,
+      this._messageAdapter,
+      this._roomAdapter,
+      this._syncInterval,
+      this._brokerUrl,
+      this._shouldSync,
+      this._isLogin,
+      this._token
+    ))
   }
 
   // User Adapter ------------------------------------------
@@ -212,12 +219,6 @@ export default class Qiscus implements IQiscus {
         )
       )
       .flatten()
-      .compose(
-        tap(user => {
-          this._currentUser.set(user);
-          this._token.set(this.userAdapter.token)
-        })
-      )
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -230,6 +231,7 @@ export default class Qiscus implements IQiscus {
         process(userId, isReqString({ userId })),
         process(callback, isReqString({ callback }))
       )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([userId]) => xs.fromPromise(this.userAdapter.blockUser(userId)))
       .flatten()
       .compose(toCallbackOrPromise(callback))
@@ -257,6 +259,7 @@ export default class Qiscus implements IQiscus {
         process(userId, isReqString({ userId })),
         process(callback, isOptCallback({ callback }))
       )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([userId]) => xs.fromPromise(this.userAdapter.unblockUser(userId)))
       .flatten()
       .compose(toCallbackOrPromise(callback))
@@ -281,6 +284,7 @@ export default class Qiscus implements IQiscus {
         avatarUrl,
         JSON.stringify(extras)
       ])
+      .compose(bufferUntil(() => this.isLogin))
       .map(([username, avatarUrl, extras]) =>
         xs.fromPromise(this.userAdapter.updateUser(username, avatarUrl, extras))
       )
@@ -300,6 +304,7 @@ export default class Qiscus implements IQiscus {
         process(limit, isOptNumber({ limit })),
         process(callback, isOptCallback({ callback }))
       )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([page, limit]) =>
         xs.fromPromise(this.userAdapter.getBlockedUser(page, limit))
       )
@@ -320,6 +325,7 @@ export default class Qiscus implements IQiscus {
         process(limit, isOptString({ limit })),
         process(callback, isOptCallback({ callback }))
       )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([search, page, limit]) =>
         xs.fromPromise(this.userAdapter.getUserList(search, page, limit))
       )
@@ -342,6 +348,7 @@ export default class Qiscus implements IQiscus {
     // this method should update current user
     return xs
       .combine(process(callback, isOptCallback({ callback })))
+      .compose(bufferUntil(() => this.isLogin))
       .map(() => xs.fromPromise(this.userAdapter.getUserData()))
       .flatten()
       .compose(tap((user) => this._currentUser.set(user)))
@@ -357,6 +364,7 @@ export default class Qiscus implements IQiscus {
         process(token, isReqString({ token })),
         process(callback, isOptCallback({ callback }))
       )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([token]) =>
         xs.fromPromise(this.userAdapter.registerDeviceToken(token))
       )
@@ -373,6 +381,7 @@ export default class Qiscus implements IQiscus {
         process(token, isReqString({ token })),
         process(callback, isOptCallback({ callback }))
       )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([token]) =>
         xs.fromPromise(this.userAdapter.unregisterDeviceToken(token))
       )
@@ -398,6 +407,7 @@ export default class Qiscus implements IQiscus {
       .map(([roomId, name, avatarUrl, extras]) => {
         return { roomId, name, avatarUrl, extras: JSON.stringify(extras) }
       })
+      .compose(bufferUntil(() => this.isLogin))
       .map(({ roomId, name, avatarUrl, extras }) =>
         xs.fromPromise(this.roomAdapter.updateRoom(roomId, name, avatarUrl, extras))
       )
@@ -420,6 +430,13 @@ export default class Qiscus implements IQiscus {
 
   getChannel(uniqueId: string, callback?: IQCallback<IQRoom>): void | Promise<IQRoom> {
     throw new Error("Method not implemented.");
+    return xs.combine(
+      process(uniqueId, isReqString({ uniqueId })),
+      process(callback, isOptCallback({ callback }))
+    )
+      .map(([uniqueId]) => xs.fromPromise(this.roomAdapter.getChannel(uniqueId)))
+      .flatten()
+      .compose(toCallbackOrPromise(callback))
   }
   // -------------------------------------------------------
 
@@ -437,6 +454,7 @@ export default class Qiscus implements IQiscus {
       process(callback, isOptCallback({ callback }))
     )
       .map(([userId, avatarUrl, extras]) => [userId, avatarUrl, JSON.stringify(extras)])
+      .compose(bufferUntil(() => this.isLogin))
       .map(([userId, avatarUrl, extras]) =>
         xs.fromPromise(this.roomAdapter.chatUser(userId, avatarUrl, extras))
       )
@@ -457,9 +475,10 @@ export default class Qiscus implements IQiscus {
       process(userIds, isReqArrayString({ userIds })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([roomId, userIds]) => xs.fromPromise(this.roomAdapter.addParticipants(roomId, userIds)))
       .flatten()
-      .compose(tap((participants) => {
+      .compose<Stream<IQParticipant[]>>(tap((participants) => {
         this._getParticipantsOfRoomById(roomId)
           .update((it) => [
             ...it,
@@ -480,25 +499,11 @@ export default class Qiscus implements IQiscus {
       process(userIds, isReqArrayString({ userIds })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([roomId, userIds]) =>
         xs.fromPromise(this.roomAdapter.removeParticipants(roomId, userIds))
       )
       .flatten()
-      .map<IQParticipant[] | string[]>((userIds) => {
-        const room = this._getRoomById(roomId).get();
-        if (room == null) return userIds;
-        return room.participants.filter(p => userIds.includes(p.userId))
-      })
-      .compose(tap((participants: IQParticipant[] | string[]) => {
-        this._getRoomById(roomId).update((room) => {
-          if (room == null) return room;
-          const ps = (participants as any[]).filter((it) => typeof it !== 'string');
-          return {
-            ...room,
-            participants: ps
-          }
-        })
-      }))
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -511,6 +516,7 @@ export default class Qiscus implements IQiscus {
       process(roomIds, isReqArrayNumber({ roomIds })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([roomIds]) => xs.fromPromise(this.roomAdapter.clearRoom(roomIds)))
       .flatten()
       .compose(tap((rooms) => {
@@ -544,6 +550,7 @@ export default class Qiscus implements IQiscus {
       .map(([name, userIds, avatarUrl, extras]) =>
         ({ name, userIds, avatarUrl, extras: JSON.stringify(extras) })
       )
+      .compose(bufferUntil(() => this.isLogin))
       .map(({ name, userIds, avatarUrl, extras }) =>
         xs.fromPromise(this.roomAdapter.createGroup(name, userIds, avatarUrl, extras))
       )
@@ -569,6 +576,7 @@ export default class Qiscus implements IQiscus {
       process(callback, isOptCallback({ callback }))
     )
       .map(([uniqueId, name, avatarUrl, extras]) => [uniqueId, name, avatarUrl, JSON.stringify(extras)])
+      .compose(bufferUntil(() => this.isLogin))
       .map(([uniqueId, name, avatarUrl, extras]) =>
         xs.fromPromise(this.roomAdapter.getChannel(uniqueId, name, avatarUrl, extras))
       )
@@ -591,6 +599,7 @@ export default class Qiscus implements IQiscus {
       process(sorting, isOptString({ sorting })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([roomId, offset, sorting]) =>
         xs.fromPromise(this.roomAdapter.getParticipantList(roomId, offset, sorting))
       )
@@ -620,6 +629,7 @@ export default class Qiscus implements IQiscus {
       process(showParticipant, isOptBoolean({ showParticipant })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([_, page, showRemoved, showParticipant]) =>
         xs.fromPromise(this.roomAdapter.getRoomInfo(roomIds, uniqueIds, page, showRemoved, showParticipant))
       )
@@ -643,6 +653,7 @@ export default class Qiscus implements IQiscus {
       process(limit, isOptNumber({ limit })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([showParticipant, showRemoved, showEmpty, page, limit]) =>
         xs.fromPromise(this.roomAdapter.getRoomList(showParticipant, showRemoved, showEmpty, page, limit))
       )
@@ -669,6 +680,7 @@ export default class Qiscus implements IQiscus {
       process(roomId, isReqNumber({ roomId })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([roomId]) => xs.fromPromise(this.roomAdapter.getRoom(roomId)))
       .flatten()
       .compose(tap((room: IQRoom) => this._currentRoomId.set(room.id)))
@@ -682,6 +694,7 @@ export default class Qiscus implements IQiscus {
     return xs.combine(
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(() => xs.fromPromise(this.roomAdapter.getUnreadCount()))
       .flatten()
       .compose(toCallbackOrPromise(callback))
@@ -699,6 +712,7 @@ export default class Qiscus implements IQiscus {
       process(message, isReqJson({ message })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .compose(tap(([roomId, message]) => {
         const m = QMessage.prepareNew(
           this.currentUser.userId,
@@ -737,6 +751,7 @@ export default class Qiscus implements IQiscus {
       process(messageId, isReqNumber({ messageId })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([roomId, messageId]) =>
         xs.fromPromise(this.messageAdapter.markAsDelivered(roomId, messageId))
       )
@@ -757,6 +772,7 @@ export default class Qiscus implements IQiscus {
       process(messageId, isReqNumber({ messageId })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([roomId, messageId]) =>
         xs.fromPromise(this.messageAdapter.markAsRead(roomId, messageId)
       ))
@@ -775,6 +791,7 @@ export default class Qiscus implements IQiscus {
       process(messageUniqueIds, isReqArrayString({ messageUniqueIds })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([messageUniqueIds]) =>
         xs.fromPromise(this.messageAdapter.deleteMessage(messageUniqueIds))
       )
@@ -805,6 +822,7 @@ export default class Qiscus implements IQiscus {
       process(messageId, isOptNumber({ messageId })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([roomId, limit, messageId]) =>
         xs.fromPromise(this.messageAdapter.getMessages(roomId, messageId, limit, false))
       )
@@ -833,6 +851,7 @@ export default class Qiscus implements IQiscus {
       process(messageId, isOptNumber({ messageId })),
       process(callback, isOptCallback({ callback }))
     )
+      .compose(bufferUntil(() => this.isLogin))
       .map(([roomId, limit, messageId]) =>
         xs.fromPromise(this.messageAdapter.getMessages(roomId, messageId, limit, true))
       )
@@ -880,5 +899,49 @@ export default class Qiscus implements IQiscus {
 
   synchronizeEvent (lastEventId: number): void {
     this.realtimeAdapter.synchronizeEvent(lastEventId)
+  }
+
+  onNewMessage(handler: Callback<IQMessage>): Subscription {
+    return xs.of({
+      isLogin: () => this.isLogin,
+      handler
+    })
+      .compose(bufferUntil(() => this.isLogin))
+      .map(it => it.handler)
+      .compose(toEventSubscription(this.realtimeAdapter.onNewMessage));
+  }
+  onMessageDeleted(handler: Callback<IQMessage>): Subscription {
+    return xs.of(handler)
+      .compose(bufferUntil(() => this.isLogin))
+      .compose(toEventSubscription(this.realtimeAdapter.onMessageDeleted));
+  }
+  onMessageDelivered(handler: Callback<IQMessage>): Subscription {
+    return xs.of(handler)
+      .compose(bufferUntil(() => this.isLogin))
+      .compose(toEventSubscription(this.realtimeAdapter.onMessageDelivered));
+  }
+  onMessageRead(handler: Callback<IQMessage>): Subscription {
+    return xs.of(handler)
+      .compose(bufferUntil(() => this.isLogin))
+      .compose(toEventSubscription(this.realtimeAdapter.onMessageRead));
+  }
+  onUserTyping(handler: Callback<boolean>): Subscription {
+    return xs.of(handler)
+      .compose(bufferUntil(() => this.isLogin))
+      .compose(toEventSubscription(this.realtimeAdapter.onTyping));
+  }
+  onUserPresence(handler: Callback<boolean>): Subscription {
+    return xs.of(handler)
+      .compose(bufferUntil(() => this.isLogin))
+      .compose(toEventSubscription(this.realtimeAdapter.onPresence));
+  }
+  onRoomCleared(handler: Callback<IQRoom>): Subscription {
+    return xs.of(handler)
+      .compose(bufferUntil(() => this.isLogin))
+      .compose(toEventSubscription(this.realtimeAdapter.onRoomCleared));
+  }
+  onReconnect(handler: Callback<void>): Subscription {
+    throw new Error('Not implemented')
+    return null
   }
 }

@@ -1,6 +1,6 @@
 {
-  "name": "qiscus-sdk-core",
-  "version": "2.8.20",
+  "name": "qiscus-sdk-javascript",
+  "version": "3.0.0",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
   "main": "lib/main.js",
@@ -19,6 +19,7 @@
     "clean": "rimraf dist lib",
     "dev": "webpack --env.development --progress --colors --watch",
     "preversion": "npm-run-all clean build",
+    "prepublishOnly": "npm-run-all clean build",
     "test": "mocha --require @babel/register --colors 'test/**/*test.js'",
     "test:watch": "npm run test -- -w",
     "watch": "npm-run-all build:web:watch build:node:watch"
@@ -52,6 +53,8 @@
     "is_js": "^0.9.0",
     "ky": "^0.11.1",
     "ky-universal": "^0.2.2",
+    "lodash.flatten": "^4.4.0",
+    "lodash.map": "^4.6.0",
     "mitt": "^1.1.3",
     "mqtt": "^3.0.0",
     "ow": "^0.13.2",

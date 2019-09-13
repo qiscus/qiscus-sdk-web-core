@@ -1,12 +1,10 @@
+import {atom, Derivable} from 'derivable';
 import {IQHttpAdapter} from './http';
 import getSyncAdapter from './sync';
-import {IQMessage, IQRoom} from '../defs';
+import {Callback, IQMessage, IQRoom, Subscription, IQMessageAdapter, IQRoomAdapter} from '../defs';
 import xs from 'xstream';
 import getMqttAdapter, {IQMqttAdapter} from './mqtt';
-import {subscribeOnNext} from '../utils/stream';
-
-type Callback<T> = (data: T) => void
-type Subscription = () => void
+import {tap, subscribeOnNext} from '../utils/stream';
 
 export interface IQRealtimeAdapter {
   onNewMessage(callback: Callback<IQMessage>): Subscription
@@ -39,26 +37,30 @@ const fromSync = <T>(method: SyncMethod<T>) => {
 };
 
 export default function getRealtimeAdapter(
-  http: IQHttpAdapter,
-  syncInterval: number,
-  brokerUrl: string,
-  shouldSync: boolean,
-  isLogin: boolean,
-  token: string
+  http: Derivable<IQHttpAdapter>,
+  messageAdapter: Derivable<IQMessageAdapter>,
+  roomAdapter: Derivable<IQRoomAdapter>,
+  syncInterval: Derivable<number>,
+  brokerUrl: Derivable<string>,
+  shouldSync: Derivable<boolean>,
+  isLogin: Derivable<boolean>,
+  token: Derivable<string>
 ): IQRealtimeAdapter {
-  let isMqttConnected = false;
-  const sync = getSyncAdapter(http, token);
-  const mqtt = getMqttAdapter(brokerUrl);
+  const isMqttConnected = atom(false);
+  const sync = getSyncAdapter(http, messageAdapter, roomAdapter, token);
+  const mqtt = getMqttAdapter(messageAdapter, brokerUrl);
 
-  xs.periodic(syncInterval)
-    .filter(() => isLogin)
-    .filter(() => isMqttConnected || shouldSync)
+  xs.periodic(syncInterval.get())
+    .filter(() => isLogin.get())
+    .filter(() => !isMqttConnected.get() || shouldSync.get())
     .subscribe({
       next() {
         sync.synchronize();
         sync.synchronizeEvent();
       }
     });
+
+  mqtt.onMqttConnected(() => isMqttConnected.set(true));
 
   return {
     get mqtt() {
@@ -89,7 +91,13 @@ export default function getRealtimeAdapter(
       const subscription = xs.merge(
         fromSync(sync.onNewMessage),
         fromSync(mqtt.onNewMessage)
-      ).compose(subscribeOnNext(callback));
+      )
+        .compose(tap((message) => {
+          messageAdapter.get().markAsDelivered(message.roomId, message.id)
+            .then((message) => console.log('success marking as delivered', message))
+            .catch((err) => console.log('failed marking as delivered', err.message))
+        }))
+        .compose(subscribeOnNext(callback));
       return () => subscription.unsubscribe();
     },
     onPresence(callback: Callback<any>): Subscription {

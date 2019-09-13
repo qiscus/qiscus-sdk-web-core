@@ -1,4 +1,5 @@
 import xs, { Stream, Subscription } from 'xstream'
+import {Subscription as Subs} from '../defs'
 
 type Callback<T> = (value: T, error?: Error | null) => void
 export const toPromise = <T> (stream: Stream<T>): Promise<T> =>
@@ -70,8 +71,54 @@ export const tap = <T> (onNext: (value: T) => void, onError?: (error: Error) => 
   })
 };
 
+const sleep = (time: number) => new Promise((resolve) => setTimeout(resolve, time))
+export const bufferUntil = <T>(fn: () => boolean) => (stream: Stream<T>): Stream<T> => {
+  const buffer = [];
+  let subscription: Subscription;
+  return xs.create({
+    start(listener) {
+      subscription = stream.subscribe({
+        next: data => {
+          buffer.push(data);
+          while (fn() && buffer.length) {
+            const data = buffer.shift();
+            listener.next(data);
+          }
+        },
+        error: err => listener.error(err),
+        complete: async () => {
+          while (buffer.length) {
+            if (fn()) listener.next(buffer.shift());
+            await sleep(300)
+          }
+          listener.complete();
+        }
+      })
+    },
+    stop() {
+      subscription && subscription.unsubscribe()
+    }
+  })
+};
+
 export const subscribeOnNext = <T>(onNext: (value: T) => void) => (stream: Stream<T>) => {
   return stream.subscribe({
     next: onNext
   })
 };
+
+export const toEventSubscription = <T>(eventSubscribe: (handler: Callback<T>) => Subs) =>
+  (stream: Stream<Callback<T>>) => {
+    let subscription: Subscription = null;
+    let subs: Subs = null;
+    subscription = stream.subscribe({
+      next: (handler) => {
+        subs = eventSubscribe(handler)
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      subs();
+    }
+  };

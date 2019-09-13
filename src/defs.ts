@@ -1,12 +1,31 @@
+import {Atom, Derivable, Lens} from 'derivable';
 import { PostCommentResponse } from './adapters/message'
 
 export type IQCallback<T> = (response: T, error?: Error) => void
 
 export type IQProgressListener = (error: Error, progress: ProgressEvent, url: string) => void
 
+export interface Callback<T> {
+  (data: T): void
+}
+export interface Subscription {
+  (): void
+}
+
 export interface IQiscus {
   setup(appId: string, syncInterval: number): void
   setupWithCustomServer(appId: string, baseUrl: string, brokerUrl: string, brokerLbUrl: string, syncInterval: number): void
+
+  // for event handler ------------------------------
+  onNewMessage(handler: (message: IQMessage) => void): Subscription
+  onMessageDeleted(handler: (message: IQMessage) => void): Subscription
+  onMessageDelivered(handler: (message: IQMessage) => void): Subscription
+  onMessageRead(handler: (message: IQMessage) => void): Subscription
+  onUserTyping(handler: (isTyping: boolean) => void): Subscription
+  onUserPresence(handler: (isOnline: boolean) => void): Subscription
+  onRoomCleared(handler: (room: IQRoom) => void): Subscription
+  onReconnect(handler: () => void): Subscription
+  // ------------------------------------------------
 
   // from UserAdapter -------------------------------
   setUser(userId: string, userKey: string, username: string, avatarUrl: string, extras: object, callback: IQCallback<IQUser>): void | Promise<IQUser>
@@ -86,9 +105,8 @@ export interface IQUserAdapter {
   registerDeviceToken(token: string): Promise<boolean>
   unregisterDeviceToken(token: string): Promise<boolean>
 
-  readonly token: string | null
-  readonly currentUser: IQUser | null
-  readonly currentUserId: string | null
+  readonly token: Derivable<string>
+  readonly currentUser: Derivable<IQUser>
 }
 
 export interface IQUser {
@@ -130,18 +148,19 @@ export interface IQRoomAdapter {
   chatUser (userId: string, avatarUrl: any, extras: any): Promise<IQRoom>
   getRoomList (showParticipant?: boolean, showRemoved?: boolean, showEmpty?: boolean, page?: number, limit?: number): Promise<IQRoom[]>
   getRoom (roomId: number): Promise<IQRoom>
-  getChannel (uniqueId: string, name: string, avatarUrl?: string, extras?: string): Promise<IQRoom>
+  getChannel (uniqueId: string, name?: string, avatarUrl?: string, extras?: string): Promise<IQRoom>
   updateRoom (roomId: number, name?: string | null, avatarUrl?: string | null, extras?: string | null): Promise<IQRoom>
   getParticipantList (roomId: number, offset?: number | null, sorting?: 'asc' | 'desc' | null): Promise<IQParticipant[]>
   createGroup (name: string, userIds: string[], avatarUrl?: string, extras?: string): Promise<IQRoom>
-  removeParticipants (roomId: number, participantIds: string[]): Promise<string[]>
+  removeParticipants (roomId: number, participantIds: string[]): Promise<IQParticipant[]>
 
   addParticipants (roomId: number, participantIds: string[]): Promise<IQParticipant[]>
 
   getRoomInfo (roomId?: number[], uniqueId?: string[], page?: number, showRemoved?: boolean, showParticipant?: boolean): Promise<IQRoom[]>
   clearRoom (roomUniqueIds: number[]): Promise<IQRoom[]>
   getUnreadCount (): Promise<number>
-  readonly rooms: Map<number, IQRoom>
+  readonly rooms: Derivable<{ [key: string]: IQRoom }>
+  readonly getRoomDataWithId: (roomId: number) => Lens<IQRoom>
 }
 
 export type IQMessageT = {
@@ -180,7 +199,8 @@ export interface IQMessage {
 }
 
 export interface IQMessageAdapter {
-  readonly messages: Map<string, IQMessage>
+  readonly messages: Atom<{ [key: string]: IQMessage }>
+  readonly getMessageDataWithId: (messageId: number) => Lens<IQMessage>
   sendMessage (roomId: number, message: IQMessageT): Promise<IQMessage>
   getMessages (roomId: number, lastMessageId?: number, limit?: number, after?: boolean): Promise<IQMessage[]>
   deleteMessage (messageUniqueIds: string[]): Promise<IQMessage[]>

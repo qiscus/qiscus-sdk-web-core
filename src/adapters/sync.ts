@@ -1,25 +1,27 @@
+import {Atom, Derivable} from 'derivable'
+import flatten from 'lodash.flatten'
 import QUrlBuilder from '../utils/url-builder'
 import mitt from 'mitt'
-import { IQMessage, IQRoom } from '../defs'
+import {IQMessageAdapter, IQMessage, IQRoom, IQRoomAdapter} from '../defs';
 import { IQHttpAdapter } from './http'
+import { QMessage, JsonMessage } from './message'
 
 export interface IQSyncAdapter {
   synchronize (lastMessageId?: number): void
-
   synchronizeEvent (lastEventId?: number): void
-
   onNewMessage (callback: (message: IQMessage) => void): () => void
-
   onMessageRead (callback: (message: IQMessage) => void): () => void
-
   onMessageDelivered (callback: (message: IQMessage) => void): () => void
-
   onMessageDeleted (callback: (message: IQMessage) => void): () => void
-
   onRoomCleared (callback: (message: IQRoom) => void): () => void
 }
 
-export default function getSyncAdapter (http: IQHttpAdapter, token: string): IQSyncAdapter {
+export default function getSyncAdapter (
+  http: Derivable<IQHttpAdapter>,
+  messageAdapter: Derivable<IQMessageAdapter>,
+  roomAdapter: Derivable<IQRoomAdapter>,
+  token: Derivable<string>,
+): IQSyncAdapter {
   // @ts-ignore
   const emitter: mitt.Emitter = mitt();
   let lastMessageId = 0;
@@ -29,19 +31,20 @@ export default function getSyncAdapter (http: IQHttpAdapter, token: string): IQS
     synchronize (messageId: number): void {
       messageId = messageId || lastMessageId;
       const url = QUrlBuilder('sync')
-        .param('token', token)
+        .param('token', token.get())
         .param('last_received_comment_id', messageId)
         .build();
-      http
+      http.get()
         .get<SyncResponse.RootObject>(url)
         .then((resp) => {
           const results = resp.results;
           const messages = results.comments;
           lastMessageId = results.meta.last_received_comment_id;
           emitter.emit('last-message-id', lastMessageId);
-          for (let message of messages) {
-            emitter.emit('message.new', message)
-          }
+          messages
+            .map(it => ({ ...it, status: 'read', user_id: it.email } as JsonMessage))
+            .map(it => QMessage.fromJson(it))
+            .forEach(it => emitter.emit('message.new', it))
         }, (error) => {
           console.log('SyncAdapter:', 'error when synchronize', error)
         })
@@ -49,11 +52,11 @@ export default function getSyncAdapter (http: IQHttpAdapter, token: string): IQS
     synchronizeEvent (eventId: number): void {
       eventId = eventId || lastEventId;
       const url = QUrlBuilder('sync_event')
-        .param('token', token)
+        .param('token', token.get())
         .param('start_event_id', eventId)
         .build();
 
-      http
+      http.get()
         .get<SyncEventResponse.RootObject>(url)
         .then((resp) => {
           const events = resp.events;
@@ -67,16 +70,16 @@ export default function getSyncAdapter (http: IQHttpAdapter, token: string): IQS
           }
           for (let event of events) {
             if (event.action_topic === 'delivered') {
-              emitter.emit('message.delivered', event.payload.data)
+              emitter.emit('message.delivered', event.payload.data as SyncEventResponse.DataMessageDelivered)
             }
             if (event.action_topic === 'read') {
-              emitter.emit('message.read', event.payload.data)
+              emitter.emit('message.read', event.payload.data as SyncEventResponse.DataMessageDelivered)
             }
-            if (event.action_topic === 'delete_message') {
-              emitter.emit('message.deleted', event.payload.data)
+            if (event.action_topic === 'deleted_message') {
+              emitter.emit('message.deleted', event.payload.data as SyncEventResponse.DataMessageDeleted)
             }
             if (event.action_topic === 'clear_room') {
-              emitter.emit('room.cleared', event.payload.data)
+              emitter.emit('room.cleared', event.payload.data as SyncEventResponse.DataRoomCleared)
             }
           }
         })
@@ -86,20 +89,43 @@ export default function getSyncAdapter (http: IQHttpAdapter, token: string): IQS
       return () => emitter.off('message.new', callback)
     },
     onMessageDelivered (callback: (message: IQMessage) => void): () => void {
-      emitter.on('message.delivered', callback);
-      return () => emitter.off('message.delivered', callback)
+      const handler = (data: SyncEventResponse.DataMessageDelivered) => {
+        const message = messageAdapter.get().messages.get()[data.comment_unique_id];
+        callback(message);
+      };
+      emitter.on('message.delivered', handler);
+      return () => emitter.off('message.delivered', handler)
     },
     onMessageRead (callback: (message: IQMessage) => void): () => void {
-      emitter.on('message.read', callback);
-      return () => emitter.off('message.read', callback)
+      const handler = (data: SyncEventResponse.DataMessageDelivered) => {
+        const message = messageAdapter.get().messages.get()[data.comment_unique_id];
+        callback(message);
+      };
+      emitter.on('message.read', handler);
+      return () => emitter.off('message.read', handler)
     },
     onMessageDeleted (callback: (message: IQMessage) => void): () => void {
-      emitter.on('message.deleted', callback);
-      return () => emitter.off('message.deleted', callback)
+      const adapter = messageAdapter.get();
+      const messages = adapter.messages.get();
+      const handler = (data: SyncEventResponse.DataMessageDeleted) => {
+        let msgs = data.deleted_messages
+          .map(it => it.message_unique_ids.map(id => messages[id]));
+        (flatten(msgs) as IQMessage[])
+          .forEach(message => callback(message));
+      };
+      emitter.on('message.deleted', handler);
+      return () => emitter.off('message.deleted', handler)
     },
     onRoomCleared (callback: (message: IQRoom) => void): () => void {
-      emitter.on('room.cleared', callback);
-      return () => emitter.off('room.cleared', callback)
+      const adapter = roomAdapter.get();
+      const rooms = adapter.rooms.get();
+      const handler = (data: SyncEventResponse.DataRoomCleared) => {
+        data.deleted_rooms
+          .map(room => rooms[room.id])
+          .forEach(room => callback(room));
+      };
+      emitter.on('room.cleared', handler);
+      return () => emitter.off('room.cleared', handler)
     }
   }
 }
@@ -166,21 +192,43 @@ declare module SyncEventResponse {
     message_unique_ids: string[];
     room_id: string;
   }
+  export interface DeletedRoom {
+    avatar_url: string;
+    chat_type: string;
+    id: number;
+    id_str: string;
+    last_comment: any;
+    options: object;
+    raw_room_name: string;
+    room_name: string;
+    unique_id: string;
+    unread_count: number;
+  }
 
-  export interface Data {
+  export interface DataMessageDeleted {
     deleted_messages: DeletedMessage[];
     is_hard_delete: boolean;
+  }
+  export interface DataRoomCleared {
+    deleted_rooms: DeletedRoom[]
+  }
+
+  export interface DataMessageDelivered {
+    comment_id: number;
+    comment_unique_id: string;
+    email: string;
+    room_id: number;
   }
 
   export interface Payload {
     actor: Actor;
-    data: Data;
+    data: DataMessageDeleted | DataMessageDelivered | DataRoomCleared;
   }
 
   export interface Event {
     id: any;
     timestamp: any;
-    action_topic: string;
+    action_topic: 'read' | 'delivered' | 'clear_room' | 'deleted_message';
     payload: Payload;
   }
 

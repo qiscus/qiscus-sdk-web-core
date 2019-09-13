@@ -1,3 +1,4 @@
+import {atom, Atom, lens} from 'derivable';
 import { IQHttpAdapter } from './http'
 import QUrlBuilder from '../utils/url-builder'
 import {
@@ -31,6 +32,21 @@ export class QParticipant implements IQParticipant {
   }
 }
 
+interface QRoomJson {
+  id: number;
+  unique_id: string;
+  room_name: string;
+  avatar_url: string;
+  is_public_channel: boolean;
+  last_comment_message: string;
+  last_comment_id: number;
+  unread_count: number;
+  participants: object[]
+  room_total_participants: number;
+  options: string;
+  chat_type: string;
+}
+
 export class QRoom implements IQRoom {
   avatarUrl: string;
   isChannel: boolean;
@@ -45,7 +61,7 @@ export class QRoom implements IQRoom {
   participants?: IQParticipant[];
   options?: string;
 
-  updateFromJson(json: ChatUserResponse.Room): IQRoom {
+  updateFromJson(json: QRoomJson): IQRoom {
     this.avatarUrl = json.avatar_url;
     this.isChannel = json.is_public_channel;
     this.id = json.id;
@@ -66,98 +82,149 @@ export class QRoom implements IQRoom {
 
     return this
   }
-  static fromJson (json: ChatUserResponse.Room): IQRoom {
+  static fromJson (json: QRoomJson): IQRoom {
     return new QRoom().updateFromJson(json)
   }
 }
 
 export default function getRoomAdapter (
-  http: IQHttpAdapter,
-  user: IQUserAdapter
+  http: Atom<IQHttpAdapter>,
+  user: Atom<IQUserAdapter>
 ): IQRoomAdapter {
-  const roomStorage = new Map<number, IQRoom>();
+  const rooms = atom<{ [key: string]: IQRoom }>({});
+  const getRoomDataWithId = (roomId: number) => lens<IQRoom>({
+    get() { return rooms.get()[roomId] },
+    set(room) {
+      rooms.update((rooms) => {
+        rooms[room.id] = room;
+        return rooms;
+      });
+    }
+  });
   return {
-    get rooms() { return roomStorage },
+    get rooms() { return rooms },
+    get getRoomDataWithId() { return getRoomDataWithId },
     async addParticipants (roomId: number, participantIds: string[]): Promise<IQParticipant[]> {
-      const resp = await http.post<AddParticipantsResponse.RootObject>('add_room_participants', {
-        token: user.token,
+      const resp = await http.get().post<AddParticipantsResponse.RootObject>('add_room_participants', {
+        token: user.get().token,
         room_id: roomId,
         emails: participantIds
       });
-      return resp.results.participants_added.map((it) => QParticipant.fromJson(it));
+      const participants = resp.results.participants_added.map(QParticipant.fromJson);
+
+      getRoomDataWithId(roomId).update((room) => {
+        room.participants = [...room.participants, ...participants];
+        room.totalParticipants = room.participants.length;
+        return room;
+      });
+
+      return participants;
     },
-    async removeParticipants (roomId: number, participantIds: string[]): Promise<string[]> {
-      const resp = await http.post<RemoveParticipantResponse.RootObject>('remove_room_participants', {
-        token: user.token,
+    async removeParticipants (roomId: number, participantIds: string[]): Promise<IQParticipant[]> {
+      const resp = await http.get().post<RemoveParticipantResponse.RootObject>('remove_room_participants', {
+        token: user.get().token,
         room_id: roomId,
         emails: participantIds
       });
-      return resp.results.participants_removed
+      const removedIds = resp.results.participants_removed;
+
+      const roomLens = getRoomDataWithId(roomId);
+      const room = roomLens.get()
+      const participants = removedIds.map((id) => {
+        return room.participants.find(it => it.userId === id);
+      }).filter(it => it != null);
+
+      roomLens.update((room) => {
+        room.participants = room.participants.filter(it => removedIds.includes(it.userId));
+        room.totalParticipants = room.participants.length;
+        return room;
+      });
+
+      return participants;
     },
     async chatUser (userId: string, avatarUrl?: string, extras?: string): Promise<IQRoom> {
-      const resp = await http.post<ChatUserResponse.RootObject>('get_or_create_room_with_target', {
-        token: user.token,
+      const resp = await http.get().post<ChatUserResponse.RootObject>('get_or_create_room_with_target', {
+        token: user.get().token,
         emails: [userId],
         // TODO: Backend did not need an avatar_url for 1-on-1 room
-        // avatar_url: avatarUrl,
+        avatar_url: avatarUrl,
         options: extras
       });
-      return QRoom.fromJson(resp.results.room);
+      const room = QRoom.fromJson(resp.results.room);
+      getRoomDataWithId(room.id).update(it => ({ ...it, ...room }));
+      return room;
     },
     async clearRoom (roomUniqueIds: number[]): Promise<IQRoom[]> {
       const url = QUrlBuilder('clear_room_messages')
-        .param('token', user.token)
+        .param('token', user.get().token)
         .param('room_channel_ids', roomUniqueIds)
         .build();
-      const resp = await http.delete<ClearRoomResponse.RootObject>(url);
+      const resp = await http.get().delete<ClearRoomResponse.RootObject>(url);
+      // TODO: Clear message related to this room unique id
       return resp.results.rooms.map((room: any) => QRoom.fromJson(room));
     },
     async createGroup (name: string, userIds: string[], avatarUrl?: string, extras?: string): Promise<IQRoom> {
-      const resp = await http.post<CreateRoomResponse.RootObject>('create_room', {
-        token: user.token,
+      const resp = await http.get().post<CreateRoomResponse.RootObject>('create_room', {
+        token: user.get().token,
         name: name,
         participants: userIds,
         avatar_url: avatarUrl,
         options: extras
       });
-      return QRoom.fromJson(resp.results.room);
+      const room = QRoom.fromJson(resp.results.room);
+
+      getRoomDataWithId(room.id).set(room);
+
+      return room;
     },
-    async getChannel (uniqueId: string, name: string, avatarUrl?: string, extras?: string): Promise<IQRoom> {
-      const resp = await http.post<GetChannelResponse.RootObject>('get_or_create_room_with_unique_id', {
-        token: user.token,
+    async getChannel (uniqueId: string, name?: string, avatarUrl?: string, extras?: string): Promise<IQRoom> {
+      const resp = await http.get().post<GetChannelResponse.RootObject>('get_or_create_room_with_unique_id', {
+        token: user.get().token,
         unique_id: uniqueId,
         name: name,
         avatar_url: avatarUrl,
         options: extras
       });
-      return QRoom.fromJson(resp.results.room);
+      const room = QRoom.fromJson(resp.results.room);
+      getRoomDataWithId(room.id).set(room);
+      return room;
     },
     async getParticipantList (roomId: number, offset?: number | null, sorting?: 'asc' | 'desc' | null): Promise<IQParticipant[]> {
       const url = QUrlBuilder('room_participants')
-        .param('token', user.token)
+        .param('token', user.get().token)
         .param('offset', offset)
         .param('room_unique_id', roomId)
         .build();
-      const resp = await http.get<GetParticipantResponse.RootObject>(url);
-      return resp.results.participants.map((participant) => QParticipant.fromJson(participant));
+      const resp = await http.get().get<GetParticipantResponse.RootObject>(url);
+      const participants = resp.results.participants.map((participant) => QParticipant.fromJson(participant));
+
+      getRoomDataWithId(roomId).update(room => {
+        room.participants = participants;
+        room.totalParticipants = room.participants.length;
+        return room;
+      })
+
+      return participants;
     },
     async getRoom (roomId: number): Promise<IQRoom> {
       const url = QUrlBuilder('get_room_by_id')
-        .param('token', user.token)
+        .param('token', user.get().token)
         .param('id', roomId)
         .build();
-      const resp = await http.get<GetRoomResponse.RootObject>(url);
-      return QRoom.fromJson(resp.results.room);
+      const resp = await http.get().get<GetRoomResponse.RootObject>(url);
+      const room = QRoom.fromJson(resp.results.room);
+      getRoomDataWithId(roomId).set(room);
+      return room;
     },
     async getRoomInfo (roomIds?: number[], uniqueIds?: string[], page?: number, showRemoved?: boolean, showParticipant?: boolean): Promise<IQRoom[]> {
-      const resp = await http.post<GetRoomInfoResponse.RootObject>('rooms_info', {
-        token: user.token,
+      const resp = await http.get().post<GetRoomInfoResponse.RootObject>('rooms_info', {
+        token: user.get().token,
         room_id: roomIds,
         unique_id: uniqueIds,
         show_participants: showParticipant,
         show_removed: showRemoved
       });
-      return resp.results.rooms_info
+      const _rooms = resp.results.rooms_info
         .map((room) =>  QRoom.fromJson({
           ...room,
           last_comment_id: room.last_comment.id,
@@ -166,38 +233,50 @@ export default function getRoomAdapter (
           last_topic_id_str: room.last_comment.topic_id_str,
           last_comment_message: room.last_comment.message
         } as ChatUserResponse.Room))
+
+      rooms.update((rooms) => {
+        _rooms.forEach(room => rooms[room.id] = room);
+        return rooms;
+      })
+
+      return _rooms;
     },
     async getRoomList (showParticipant?: boolean, showRemoved?: boolean, showEmpty?: boolean, page?: number, limit?: number): Promise<IQRoom[]> {
       const url = QUrlBuilder('user_rooms')
-        .param('token', user.token)
+        .param('token', user.get().token)
         .param('page', page)
         .param('limit', limit)
         .param('show_participants', showParticipant)
         .param('show_removed', showRemoved)
         .param('show_empty', showEmpty)
         .build();
-      const resp = await http.get<GetRoomListResponse.RootObject>(url);
-      return resp.results.rooms_info.map((it: any) => {
-        return QRoom.fromJson(it);
-      });
+      const resp = await http.get().get<GetRoomListResponse.RootObject>(url);
+      const _rooms = resp.results.rooms_info.map(it => QRoom.fromJson({
+        ...it,
+        last_comment_message: it.last_comment.message,
+        last_comment_id: it.last_comment.id,
+      } as QRoomJson));
+      return _rooms;
     },
     async getUnreadCount (): Promise<number> {
       const url = QUrlBuilder('total_unread_count')
-        .param('token', user.token)
+        .param('token', user.get().token)
         .build();
-      const resp = await http.get<GetUnreadResponse.RootObject>(url);
+      const resp = await http.get().get<GetUnreadResponse.RootObject>(url);
       return resp.results.total_unread_count;
     },
     async updateRoom (roomId: number, name?: string | null, avatarUrl?: string | null, extras?: string | null): Promise<IQRoom> {
       const data = {};
-      data['token'] = user.token;
+      data['token'] = user.get().token;
       data['id'] = roomId;
       if (name != null) { data['name'] = name }
       if (avatarUrl != null) { data['avatarUrl'] = avatarUrl }
       if (extras != null) { data['options'] = extras }
 
-      const resp = await http.post<UpdateRoomResponse.RootObject>('update_room', data);
-      return QRoom.fromJson(resp.results.room);
+      const resp = await http.get().post<UpdateRoomResponse.RootObject>('update_room', data);
+      const room = QRoom.fromJson(resp.results.room);
+      getRoomDataWithId(roomId).set(room);
+      return room;
     }
   }
 }
