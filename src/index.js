@@ -106,6 +106,7 @@ class QiscusSDK {
     }
 
     if (config.syncInterval != null) this.syncInterval = config.syncInterval
+    this._customHeader = {};
 
     // set Event Listeners
     this.setEventListeners()
@@ -234,7 +235,8 @@ class QiscusSDK {
         baseURL: self.baseURL,
         AppId: self.AppId,
         userId: self.user_id,
-        version: self.version
+        version: self.version,
+        getCustomHeader: () => this._customHeader
       })
       self.HTTPAdapter.setToken(self.userData.token)
       self.authAdapter = new AuthAdapter(self.HTTPAdapter)
@@ -1377,6 +1379,11 @@ class QiscusSDK {
 
   unsubscribeEvent (...args) {
     this.customEventAdapter.unsubscribeEvent(...args)
+  }
+
+  getCustomHeader(headers) {
+    if (is.not.json(headers)) throw new TypeError('`fn` must have type of function')
+    this._customHeader = headers;
   }
 
   get logger () {

@@ -5,13 +5,15 @@ export default class HttpAdapter {
     baseURL,
     AppId,
     userId,
-    version
+    version,
+    getCustomHeader
   }) {
     this.baseURL = baseURL
     this.token = null
     this.userId = userId
     this.AppId = AppId
     this.version = version
+    this.getCustomHeader = getCustomHeader
   }
 
   setToken (token) {
@@ -103,6 +105,11 @@ export default class HttpAdapter {
     req.set('QISCUS_SDK_USER_ID', `${this.userId}`)
     req.set('QISCUS_SDK_TOKEN', `${this.token}`)
     req.set('QISCUS_SDK_VERSION', `${this.version}`)
+    const customHeaders = this.getCustomHeader()
+    Object.keys(customHeaders)
+      .forEach((key) => {
+        req.set(key, customHeaders[key])
+      })
     // Return the req if no headers attached
     if (Object.keys(headers).length < 1) return req
     // now let's process custom header
