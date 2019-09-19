@@ -6,7 +6,7 @@ export default class AuthAdapter {
   * @return {void}                Returns nothing
   */
   constructor (HTTPAdapter) {
-    this.HTTPAdapter = HTTPAdapter;
+    this.HTTPAdapter = HTTPAdapter
     this.token = HTTPAdapter.token
   }
 
@@ -23,7 +23,7 @@ export default class AuthAdapter {
     return this.HTTPAdapter.post('api/v2/sdk/login_or_register', params)
       .then((response) => {
         return new Promise((resolve, reject) => {
-          if (response.body.status !== 200) return reject(response);
+          if (response.body.status !== 200) return reject(response)
           return resolve(response.body.results)
         })
       }, (error) => {

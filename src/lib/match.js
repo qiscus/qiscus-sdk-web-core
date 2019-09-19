@@ -1,31 +1,31 @@
 // Taken from https://github.com/FGRibreau/match-when/blob/master/match.js
 
-const _catchAllSymbol = String('match.pattern.catchAll');
-const _patternOR = String('match.pattern.OR');
-const _patternORStr = _patternOR.toString(); // dirty hack
-const _patternAND = String('match.pattern.AND');
-const _patternANDStr = _patternAND.toString(); // dirty hack
-const _patternRANGE = String('match.pattern.RANGE');
-const _patternRANGEStr = _patternRANGE.toString(); // dirty hack
+const _catchAllSymbol = String('match.pattern.catchAll')
+const _patternOR = String('match.pattern.OR')
+const _patternORStr = _patternOR.toString() // dirty hack
+const _patternAND = String('match.pattern.AND')
+const _patternANDStr = _patternAND.toString() // dirty hack
+const _patternRANGE = String('match.pattern.RANGE')
+const _patternRANGEStr = _patternRANGE.toString() // dirty hack
 
-const _patternREGEXP = String('match.pattern.REGEXP');
-const _patternREGEXPStr = _patternREGEXP.toString(); // dirty hack
-const EXTRACT_PATTERN_AND_FLAGS = /\/(.*)\/(.*)/;
+const _patternREGEXP = String('match.pattern.REGEXP')
+const _patternREGEXPStr = _patternREGEXP.toString() // dirty hack
+const EXTRACT_PATTERN_AND_FLAGS = /\/(.*)\/(.*)/
 
 function MissingCatchAllPattern () {
-  Error.call(this, 'Missing when() catch-all pattern as last match argument, add [when()]: void 0');
+  Error.call(this, 'Missing when() catch-all pattern as last match argument, add [when()]: void 0')
   if (!('stack' in this)) {
     this.stack = (new Error()).stack
   }
 }
 
-MissingCatchAllPattern.prototype = Object.create(Error.prototype);
+MissingCatchAllPattern.prototype = Object.create(Error.prototype)
 
 export function match (...args) {
-  const obj = args[args.length - 1];
+  const obj = args[args.length - 1]
 
   // pre-compute matchers
-  let matchers = [];
+  let matchers = []
 
   for (let key in obj) {
     matchers.push(when.unserialize(key, obj[key]))
@@ -35,21 +35,21 @@ export function match (...args) {
   // because it depends on the JS engine implementation. See #2
   matchers.sort(function (a, b) {
     return a.position < b.position ? -1 : 1
-  });
+  })
 
   if (Object.getOwnPropertySymbols(obj).indexOf(_catchAllSymbol) !== -1) {
     matchers.push(when.unserialize(_catchAllSymbol, obj[_catchAllSymbol]))
   }
 
   const calculateResult = function (input) {
-    const matched = matchers.find((matcher) => matcher.match(input));
+    const matched = matchers.find((matcher) => matcher.match(input))
 
     if (!matched) {
       throw new MissingCatchAllPattern()
     }
 
     return typeof matched.result === 'function' ? matched.result(input) : matched.result
-  };
+  }
 
   return args.length === 2 ? calculateResult(args[0]) : calculateResult
 }
@@ -66,7 +66,7 @@ export function when (props) {
   return _serialize(props)
 }
 
-when.__uid = 0;
+when.__uid = 0
 
 // Any -> String
 function _serialize (mixed) {
@@ -86,28 +86,28 @@ function _true () {
 function _match (props) {
   if (Array.isArray(props)) {
     if (props[0] === _patternORStr) {
-      props.shift();
+      props.shift()
       return function (input) {
         return props[0].some((prop) => _matching(prop, input))
       }
     }
 
     if (props[0] === _patternANDStr) {
-      props.shift();
+      props.shift()
       return function (input) {
         return props[0].every((prop) => _matching(prop, input))
       }
     }
 
     if (props[0] === _patternRANGEStr) {
-      props.shift();
+      props.shift()
       return function (input) {
         return props[0] <= input && input <= props[1]
       }
     }
 
     if (props[0] === _patternREGEXPStr) {
-      const res = EXTRACT_PATTERN_AND_FLAGS.exec(props[1]);
+      const res = EXTRACT_PATTERN_AND_FLAGS.exec(props[1])
       return _matching.bind(null, new RegExp(res[1], res[2]))
     }
   }
@@ -141,20 +141,19 @@ function _match (props) {
 // mixed -> String
 when.or = function (...args) {
   return _serialize([_patternOR.toString(), args])
-};
+}
 
 // mixed -> String
 // upcoming...
 when.and = function (...args) {
   return _serialize([_patternAND.toString(), args])
-};
+}
 
 when.range = function (start, end) {
   return _serialize([_patternRANGE.toString(), start, end])
-};
+}
 
 when.unserialize = function (serializedKey, value) {
-
   if (serializedKey === _catchAllSymbol) {
     return {
       match: _true,
@@ -164,13 +163,13 @@ when.unserialize = function (serializedKey, value) {
   }
 
   // const {position, matcherConfiguration} = _unserialize(serializedKey);
-  const deserialized = _unserialize(serializedKey);
-  const matcherConfiguration = deserialized[1];
-  const position = deserialized[0];
+  const deserialized = _unserialize(serializedKey)
+  const matcherConfiguration = deserialized[1]
+  const position = deserialized[0]
 
   return {
     match: _match(matcherConfiguration),
     result: value,
     position: position
   }
-};
+}

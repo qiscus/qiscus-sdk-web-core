@@ -1,13 +1,13 @@
-import {atom, Atom, lens} from 'derivable';
-import { IQHttpAdapter } from './http'
-import QUrlBuilder from '../utils/url-builder'
+import { atom, Atom, lens } from 'derivable';
+import { IQHttpAdapter } from './http';
+import QUrlBuilder from '../utils/url-builder';
 import {
   IQParticipant,
   IQRoom,
   IQRoomAdapter,
   IQRoomType,
   IQUserAdapter
-} from '../defs'
+} from '../defs';
 
 export class QParticipant implements IQParticipant {
   id: number;
@@ -24,11 +24,11 @@ export class QParticipant implements IQParticipant {
     this.lastReadMessageId = json.last_comment_read_id;
     this.lastReceivedMessageId = json.last_comment_received_id;
     this.userId = json.email;
-    return this
+    return this;
   }
 
-  static fromJson (json: GetParticipantResponse.Participant): IQParticipant {
-    return new QParticipant().updateFromJson(json)
+  static fromJson(json: GetParticipantResponse.Participant): IQParticipant {
+    return new QParticipant().updateFromJson(json);
   }
 }
 
@@ -41,7 +41,7 @@ interface QRoomJson {
   last_comment_message: string;
   last_comment_id: number;
   unread_count: number;
-  participants: object[]
+  participants: object[];
   room_total_participants: number;
   options: string;
   chat_type: string;
@@ -71,48 +71,64 @@ export class QRoom implements IQRoom {
     this.uniqueId = json.unique_id;
     this.unreadCount = json.unread_count;
     if (json.participants != null) {
-      this.participants = json.participants.map((it: any) => QParticipant.fromJson(it))
+      this.participants = json.participants.map((it: any) =>
+        QParticipant.fromJson(it)
+      );
     }
     if (json.room_total_participants != null) {
-      this.totalParticipants = json.room_total_participants
+      this.totalParticipants = json.room_total_participants;
     }
     if (json.options != null) this.options = json.options;
     if (json.chat_type === 'single') this.type = IQRoomType.Single;
     if (json.chat_type === 'group') this.type = IQRoomType.Group;
 
-    return this
+    return this;
   }
-  static fromJson (json: QRoomJson): IQRoom {
-    return new QRoom().updateFromJson(json)
+  static fromJson(json: QRoomJson): IQRoom {
+    return new QRoom().updateFromJson(json);
   }
 }
 
-export default function getRoomAdapter (
+export default function getRoomAdapter(
   http: Atom<IQHttpAdapter>,
   user: Atom<IQUserAdapter>
 ): IQRoomAdapter {
   const rooms = atom<{ [key: string]: IQRoom }>({});
-  const getRoomDataWithId = (roomId: number) => lens<IQRoom>({
-    get() { return rooms.get()[roomId] },
-    set(room) {
-      rooms.update((rooms) => {
-        rooms[room.id] = room;
-        return rooms;
-      });
-    }
-  });
+  const getRoomDataWithId = (roomId: number) =>
+    lens<IQRoom>({
+      get() {
+        return rooms.get()[roomId];
+      },
+      set(room) {
+        rooms.update(rooms => {
+          rooms[room.id] = room;
+          return rooms;
+        });
+      }
+    });
   return {
-    get rooms() { return rooms },
-    get getRoomDataWithId() { return getRoomDataWithId },
-    async addParticipants (roomId: number, participantIds: string[]): Promise<IQParticipant[]> {
-      const resp = await http.get().post<AddParticipantsResponse.RootObject>('add_room_participants', {
-        token: user.get().token,
-        room_id: roomId,
-        emails: participantIds
-      });
-      const participants = resp.results.participants_added.map(QParticipant.fromJson);
+    get rooms() {
+      return rooms;
+    },
+    get getRoomDataWithId() {
+      return getRoomDataWithId;
+    },
+    async addParticipants(
+      roomId: number,
+      participantIds: string[]
+    ): Promise<IQParticipant[]> {
+      const resp = await http
+        .get()
+        .post<AddParticipantsResponse.RootObject>('add_room_participants', {
+          token: user.get().token.get(),
+          room_id: roomId,
+          emails: participantIds
+        });
+      const participants = resp.results.participants_added.map(
+        QParticipant.fromJson
+      );
 
-      getRoomDataWithId(roomId).update((room) => {
+      getRoomDataWithId(roomId).update(room => {
         room.participants = [...room.participants, ...participants];
         room.totalParticipants = room.participants.length;
         return room;
@@ -120,95 +136,136 @@ export default function getRoomAdapter (
 
       return participants;
     },
-    async removeParticipants (roomId: number, participantIds: string[]): Promise<IQParticipant[]> {
-      const resp = await http.get().post<RemoveParticipantResponse.RootObject>('remove_room_participants', {
-        token: user.get().token,
-        room_id: roomId,
-        emails: participantIds
-      });
+    async removeParticipants(
+      roomId: number,
+      participantIds: string[]
+    ): Promise<IQParticipant[]> {
+      const resp = await http
+        .get()
+        .post<RemoveParticipantResponse.RootObject>(
+          'remove_room_participants',
+          {
+            token: user.get().token.get(),
+            room_id: roomId,
+            emails: participantIds
+          }
+        );
       const removedIds = resp.results.participants_removed;
 
       const roomLens = getRoomDataWithId(roomId);
-      const room = roomLens.get()
-      const participants = removedIds.map((id) => {
-        return room.participants.find(it => it.userId === id);
-      }).filter(it => it != null);
+      const room = roomLens.get();
+      const participants = removedIds
+        .map(id => {
+          return room.participants.find(it => it.userId === id);
+        })
+        .filter(it => it != null);
 
-      roomLens.update((room) => {
-        room.participants = room.participants.filter(it => removedIds.includes(it.userId));
+      roomLens.update(room => {
+        room.participants = room.participants.filter(it =>
+          removedIds.includes(it.userId)
+        );
         room.totalParticipants = room.participants.length;
         return room;
       });
 
       return participants;
     },
-    async chatUser (userId: string, avatarUrl?: string, extras?: string): Promise<IQRoom> {
-      const resp = await http.get().post<ChatUserResponse.RootObject>('get_or_create_room_with_target', {
-        token: user.get().token,
-        emails: [userId],
-        // TODO: Backend did not need an avatar_url for 1-on-1 room
-        avatar_url: avatarUrl,
-        options: extras
-      });
+    async chatUser(
+      userId: string,
+      avatarUrl?: string,
+      extras?: string
+    ): Promise<IQRoom> {
+      const resp = await http
+        .get()
+        .post<ChatUserResponse.RootObject>('get_or_create_room_with_target', {
+          token: user.get().token.get(),
+          emails: [userId],
+          // TODO: Backend did not need an avatar_url for 1-on-1 room
+          avatar_url: avatarUrl,
+          options: extras
+        });
       const room = QRoom.fromJson(resp.results.room);
       getRoomDataWithId(room.id).update(it => ({ ...it, ...room }));
       return room;
     },
-    async clearRoom (roomUniqueIds: number[]): Promise<IQRoom[]> {
+    async clearRoom(roomUniqueIds: number[]): Promise<IQRoom[]> {
       const url = QUrlBuilder('clear_room_messages')
-        .param('token', user.get().token)
+        .param('token', user.get().token.get())
         .param('room_channel_ids', roomUniqueIds)
         .build();
       const resp = await http.get().delete<ClearRoomResponse.RootObject>(url);
       // TODO: Clear message related to this room unique id
       return resp.results.rooms.map((room: any) => QRoom.fromJson(room));
     },
-    async createGroup (name: string, userIds: string[], avatarUrl?: string, extras?: string): Promise<IQRoom> {
-      const resp = await http.get().post<CreateRoomResponse.RootObject>('create_room', {
-        token: user.get().token,
-        name: name,
-        participants: userIds,
-        avatar_url: avatarUrl,
-        options: extras
-      });
+    async createGroup(
+      name: string,
+      userIds: string[],
+      avatarUrl?: string,
+      extras?: string
+    ): Promise<IQRoom> {
+      const resp = await http
+        .get()
+        .post<CreateRoomResponse.RootObject>('create_room', {
+          token: user.get().token.get(),
+          name: name,
+          participants: userIds,
+          avatar_url: avatarUrl,
+          options: extras
+        });
       const room = QRoom.fromJson(resp.results.room);
 
       getRoomDataWithId(room.id).set(room);
 
       return room;
     },
-    async getChannel (uniqueId: string, name?: string, avatarUrl?: string, extras?: string): Promise<IQRoom> {
-      const resp = await http.get().post<GetChannelResponse.RootObject>('get_or_create_room_with_unique_id', {
-        token: user.get().token,
-        unique_id: uniqueId,
-        name: name,
-        avatar_url: avatarUrl,
-        options: extras
-      });
+    async getChannel(
+      uniqueId: string,
+      name?: string,
+      avatarUrl?: string,
+      extras?: string
+    ): Promise<IQRoom> {
+      const resp = await http
+        .get()
+        .post<GetChannelResponse.RootObject>(
+          'get_or_create_room_with_unique_id',
+          {
+            token: user.get().token.get(),
+            unique_id: uniqueId,
+            name: name,
+            avatar_url: avatarUrl,
+            options: extras
+          }
+        );
       const room = QRoom.fromJson(resp.results.room);
       getRoomDataWithId(room.id).set(room);
       return room;
     },
-    async getParticipantList (roomId: number, offset?: number | null, sorting?: 'asc' | 'desc' | null): Promise<IQParticipant[]> {
+    async getParticipantList(
+      roomId: number,
+      offset?: number | null,
+      sorting?: 'asc' | 'desc' | null
+    ): Promise<IQParticipant[]> {
       const url = QUrlBuilder('room_participants')
-        .param('token', user.get().token)
+        .param('token', user.get().token.get())
         .param('offset', offset)
         .param('room_unique_id', roomId)
         .build();
       const resp = await http.get().get<GetParticipantResponse.RootObject>(url);
-      const participants = resp.results.participants.map((participant) => QParticipant.fromJson(participant));
+      const participants = resp.results.participants.map(participant =>
+        QParticipant.fromJson(participant)
+      );
 
       getRoomDataWithId(roomId).update(room => {
         room.participants = participants;
         room.totalParticipants = room.participants.length;
         return room;
-      })
+      });
 
       return participants;
     },
-    async getRoom (roomId: number): Promise<IQRoom> {
+    async getRoom(roomId: number): Promise<IQRoom> {
       const url = QUrlBuilder('get_room_by_id')
-        .param('token', user.get().token)
+        .param('token', user.get().token.get())
         .param('id', roomId)
         .build();
       const resp = await http.get().get<GetRoomResponse.RootObject>(url);
@@ -216,34 +273,49 @@ export default function getRoomAdapter (
       getRoomDataWithId(roomId).set(room);
       return room;
     },
-    async getRoomInfo (roomIds?: number[], uniqueIds?: string[], page?: number, showRemoved?: boolean, showParticipant?: boolean): Promise<IQRoom[]> {
-      const resp = await http.get().post<GetRoomInfoResponse.RootObject>('rooms_info', {
-        token: user.get().token,
-        room_id: roomIds,
-        unique_id: uniqueIds,
-        show_participants: showParticipant,
-        show_removed: showRemoved
-      });
-      const _rooms = resp.results.rooms_info
-        .map((room) =>  QRoom.fromJson({
+    async getRoomInfo(
+      roomIds?: number[],
+      uniqueIds?: string[],
+      page?: number,
+      showRemoved?: boolean,
+      showParticipant?: boolean
+    ): Promise<IQRoom[]> {
+      const resp = await http
+        .get()
+        .post<GetRoomInfoResponse.RootObject>('rooms_info', {
+          token: user.get().token.get(),
+          room_id: roomIds,
+          unique_id: uniqueIds,
+          show_participants: showParticipant,
+          show_removed: showRemoved
+        });
+      const _rooms = resp.results.rooms_info.map(room =>
+        QRoom.fromJson({
           ...room,
           last_comment_id: room.last_comment.id,
           last_comment_id_str: room.last_comment.id_str,
           last_topic_id: room.last_comment.topic_id,
           last_topic_id_str: room.last_comment.topic_id_str,
           last_comment_message: room.last_comment.message
-        } as ChatUserResponse.Room))
+        } as ChatUserResponse.Room)
+      );
 
-      rooms.update((rooms) => {
-        _rooms.forEach(room => rooms[room.id] = room);
+      rooms.update(rooms => {
+        _rooms.forEach(room => (rooms[room.id] = room));
         return rooms;
-      })
+      });
 
       return _rooms;
     },
-    async getRoomList (showParticipant?: boolean, showRemoved?: boolean, showEmpty?: boolean, page?: number, limit?: number): Promise<IQRoom[]> {
+    async getRoomList(
+      showParticipant?: boolean,
+      showRemoved?: boolean,
+      showEmpty?: boolean,
+      page?: number,
+      limit?: number
+    ): Promise<IQRoom[]> {
       const url = QUrlBuilder('user_rooms')
-        .param('token', user.get().token)
+        .param('token', user.get().token.get())
         .param('page', page)
         .param('limit', limit)
         .param('show_participants', showParticipant)
@@ -251,41 +323,54 @@ export default function getRoomAdapter (
         .param('show_empty', showEmpty)
         .build();
       const resp = await http.get().get<GetRoomListResponse.RootObject>(url);
-      const _rooms = resp.results.rooms_info.map(it => QRoom.fromJson({
-        ...it,
-        last_comment_message: it.last_comment.message,
-        last_comment_id: it.last_comment.id,
-      } as QRoomJson));
+      const _rooms = resp.results.rooms_info.map(it =>
+        QRoom.fromJson({
+          ...it,
+          last_comment_message: it.last_comment.message,
+          last_comment_id: it.last_comment.id
+        } as QRoomJson)
+      );
       return _rooms;
     },
-    async getUnreadCount (): Promise<number> {
+    async getUnreadCount(): Promise<number> {
       const url = QUrlBuilder('total_unread_count')
-        .param('token', user.get().token)
+        .param('token', user.get().token.get())
         .build();
       const resp = await http.get().get<GetUnreadResponse.RootObject>(url);
       return resp.results.total_unread_count;
     },
-    async updateRoom (roomId: number, name?: string | null, avatarUrl?: string | null, extras?: string | null): Promise<IQRoom> {
+    async updateRoom(
+      roomId: number,
+      name?: string | null,
+      avatarUrl?: string | null,
+      extras?: string | null
+    ): Promise<IQRoom> {
       const data = {};
-      data['token'] = user.get().token;
+      data['token'] = user.get().token.get();
       data['id'] = roomId;
-      if (name != null) { data['name'] = name }
-      if (avatarUrl != null) { data['avatarUrl'] = avatarUrl }
-      if (extras != null) { data['options'] = extras }
+      if (name != null) {
+        data['name'] = name;
+      }
+      if (avatarUrl != null) {
+        data['avatarUrl'] = avatarUrl;
+      }
+      if (extras != null) {
+        data['options'] = extras;
+      }
 
-      const resp = await http.get().post<UpdateRoomResponse.RootObject>('update_room', data);
+      const resp = await http
+        .get()
+        .post<UpdateRoomResponse.RootObject>('update_room', data);
       const room = QRoom.fromJson(resp.results.room);
       getRoomDataWithId(roomId).set(room);
       return room;
     }
-  }
+  };
 }
 
 //region Response Type
 declare module AddParticipantsResponse {
-
-  export interface Extras {
-  }
+  export interface Extras {}
 
   export interface ParticipantsAdded {
     avatar_url: string;
@@ -308,10 +393,8 @@ declare module AddParticipantsResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module ChatUserResponse {
-
   export interface Participant {
     avatar_url: string;
     email: string;
@@ -354,10 +437,8 @@ declare module ChatUserResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module ClearRoomResponse {
-
   export interface Room {
     avatar_url: string;
     chat_type: string;
@@ -378,10 +459,8 @@ declare module ClearRoomResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module CreateRoomResponse {
-
   export interface Extras {
     role: string;
   }
@@ -428,10 +507,8 @@ declare module CreateRoomResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module GetChannelResponse {
-
   export interface Room {
     avatar_url: string;
     chat_type: string;
@@ -462,18 +539,15 @@ declare module GetChannelResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module GetParticipantResponse {
-
   export interface Meta {
     current_offset: number;
     per_page: number;
     total: number;
   }
 
-  export interface Extras {
-  }
+  export interface Extras {}
 
   export interface Participant {
     avatar_url: string;
@@ -497,12 +571,9 @@ declare module GetParticipantResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module GetRoomResponse {
-
-  export interface Payload {
-  }
+  export interface Payload {}
 
   export interface Avatar {
     url: string;
@@ -590,20 +661,16 @@ declare module GetRoomResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module GetRoomInfoResponse {
-
   export interface Meta {
     request_rooms_total: number;
     response_rooms_total: number;
   }
 
-  export interface Extras {
-  }
+  export interface Extras {}
 
-  export interface Payload {
-  }
+  export interface Payload {}
 
   export interface Avatar {
     url: string;
@@ -684,20 +751,16 @@ declare module GetRoomInfoResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module GetRoomListResponse {
-
   export interface Meta {
     current_page: number;
     total_room: number;
   }
 
-  export interface Extras {
-  }
+  export interface Extras {}
 
-  export interface Payload {
-  }
+  export interface Payload {}
 
   export interface Avatar {
     url: string;
@@ -752,8 +815,8 @@ declare module GetRoomListResponse {
     room_name: string;
     unique_id: string;
     unread_count: number;
-    participants?: GetRoomInfoResponse.Participant[]
-    room_total_participants?: number
+    participants?: GetRoomInfoResponse.Participant[];
+    room_total_participants?: number;
   }
 
   export interface Results {
@@ -765,10 +828,8 @@ declare module GetRoomListResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module GetUnreadResponse {
-
   export interface Results {
     total_unread_count: number;
   }
@@ -777,10 +838,8 @@ declare module GetUnreadResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module RemoveParticipantResponse {
-
   export interface Results {
     participants_removed: string[];
   }
@@ -789,10 +848,8 @@ declare module RemoveParticipantResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module UpdateRoomResponse {
-
   export interface Extras {
     role: string;
   }
@@ -840,6 +897,5 @@ declare module UpdateRoomResponse {
     results: Results;
     status: number;
   }
-
 }
 //endregion

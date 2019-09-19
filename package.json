@@ -24,9 +24,6 @@
     "test:watch": "npm run test -- -w",
     "watch": "npm-run-all build:web:watch build:node:watch"
   },
-  "xo": {
-    "space": 2
-  },
   "babel": {
     "plugins": [
       "@babel/plugin-transform-runtime",
@@ -38,7 +35,8 @@
       [
         "@babel/preset-env",
         {
-          "modules": "auto"
+          "modules": "auto",
+          "useBuiltIns": "usage"
         }
       ],
       "@babel/preset-typescript"
@@ -59,6 +57,7 @@
     "mqtt": "^3.0.0",
     "ow": "^0.13.2",
     "ow-lite": "0.0.2",
+    "pietile-eventemitter": "^1.0.0",
     "shades": "^2.1.0",
     "superagent": "^3.6.3",
     "xstream": "^11.11.0"

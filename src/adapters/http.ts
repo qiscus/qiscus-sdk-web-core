@@ -1,21 +1,28 @@
-import ky from 'ky-universal'
+import ky from 'ky-universal';
 
 export interface IQHttpAdapter {
-  get<T> (path: string): Promise<T>
-  post<T> (path: string, data?: object): Promise<T>
-  patch<T> (path: string, data?: object): Promise<T>
-  put<T> (path: string, data?: object): Promise<T>
-  delete<T> (path: string, data?: object): Promise<T>
+  get<T>(path: string): Promise<T>;
+  post<T>(path: string, data?: object): Promise<T>;
+  postFormData<T>(path: string, form: FormData): Promise<T>;
+  patch<T>(path: string, data?: object): Promise<T>;
+  put<T>(path: string, data?: object): Promise<T>;
+  delete<T>(path: string, data?: object): Promise<T>;
 }
 
-export default function getHttpAdapter ({ baseUrl, getAppId, getUserId, getToken, getSdkVersion }): IQHttpAdapter {
+export default function getHttpAdapter({
+  baseUrl,
+  getAppId,
+  getUserId,
+  getToken,
+  getSdkVersion
+}): IQHttpAdapter {
   const api = ky.create({
     prefixUrl: baseUrl,
     hooks: {
       beforeRequest: [
-        (options) => {
+        options => {
           // @ts-ignore
-          options.headers.set('qiscus-sdk-app-id',  getAppId());
+          options.headers.set('qiscus-sdk-app-id', getAppId());
           // @ts-ignore
           options.headers.set('qiscus-sdk-user-id', getUserId());
           // @ts-ignore
@@ -23,28 +30,30 @@ export default function getHttpAdapter ({ baseUrl, getAppId, getUserId, getToken
           // @ts-ignore
           options.headers.set('qiscus-sdk-version', getSdkVersion());
           // @ts-ignore
-          options.headers.set('qiscus-sdk-platform', 'JavaScript')
+          options.headers.set('qiscus-sdk-platform', 'JavaScript');
         }
       ]
     }
   });
 
   return {
-    delete<T> (path: string, data?: object): Promise<T> {
-      return api.delete(path, { json: data }).json<T>()
+    delete<T>(path: string, data?: object): Promise<T> {
+      return api.delete(path, { json: data }).json<T>();
     },
-    get<T> (path: string): Promise<T> {
-      return api.get(path).json<T>()
+    get<T>(path: string): Promise<T> {
+      return api.get(path).json<T>();
     },
-    patch<T> (path: string, data?: object): Promise<T> {
-      return api.patch(path, { json: data }).json<T>()
+    patch<T>(path: string, data?: object): Promise<T> {
+      return api.patch(path, { json: data }).json<T>();
     },
-    post<T> (path: string, data?: object): Promise<T> {
-      return api.post(path, { json: data }).json<T>()
+    post<T>(path: string, data?: object): Promise<T> {
+      return api.post(path, { json: data }).json<T>();
     },
-    put<T> (path: string, data?: object): Promise<T> {
-      return api.post(path, { json: data }).json<T>()
+    postFormData<T>(path: string, form: FormData): Promise<T> {
+      return api.post(path, { body: form }).json<T>();
+    },
+    put<T>(path: string, data?: object): Promise<T> {
+      return api.post(path, { json: data }).json<T>();
     }
-  }
+  };
 }
-

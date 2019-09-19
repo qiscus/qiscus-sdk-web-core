@@ -1,8 +1,8 @@
-import {Atom, atom} from 'derivable'
-import { IQHttpAdapter } from './http'
-import QUrlBuilder from '../utils/url-builder'
-import { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from '../defs'
-import {UrlBuilder} from "../utils/utils";
+import { Atom, atom } from 'derivable';
+import { IQHttpAdapter } from './http';
+import QUrlBuilder from '../utils/url-builder';
+import { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from '../defs';
+import { UrlBuilder } from '../utils/utils';
 
 export class QUser implements IQUser {
   id: number;
@@ -10,36 +10,38 @@ export class QUser implements IQUser {
   displayName: string;
   avatarUrl?: string;
 
-  static fromJson (json: { id: number, email: string, username: string, avatar_url: string }): IQUser {
+  static fromJson(json: {
+    id: number;
+    email: string;
+    username: string;
+    avatar_url: string;
+  }): IQUser {
     const user = new QUser();
     user.id = json.id;
     user.userId = json.email;
     user.displayName = json.username;
     user.avatarUrl = json.avatar_url;
-    return user
+    return user;
   }
 }
 
 type NonceResponse = {
-  status: number,
-  results: { expired_at: number, nonce: string }
-}
+  status: number;
+  results: { expired_at: number; nonce: string };
+};
 
-/**
- * const user = getUserAdapter()
- * user.login(userId, userKey): Promise
- * user.clear(): Promise
- * get user.token
- * get user.currentUser
- *
- */
-export default function getUserAdapter (http: Atom<IQHttpAdapter>): IQUserAdapter {
+export default function getUserAdapter(
+  http: Atom<IQHttpAdapter>
+): IQUserAdapter {
   const currentUser = atom<IQUser>(null);
   const token = atom<string>(null);
 
-
   return {
-    async login (userId: string, userKey: string, { avatarUrl, extras, name }: IQUserExtraProps): Promise<IQUser> {
+    async login(
+      userId: string,
+      userKey: string,
+      { avatarUrl, extras, name }: IQUserExtraProps
+    ): Promise<IQUser> {
       const data = {
         email: userId,
         password: userKey,
@@ -47,7 +49,9 @@ export default function getUserAdapter (http: Atom<IQHttpAdapter>): IQUserAdapte
         username: name,
         extras: extras
       };
-      const resp = await http.get().post<UserResponse.RootObject>('login_or_register', data);
+      const resp = await http
+        .get()
+        .post<UserResponse.RootObject>('login_or_register', data);
       const user = QUser.fromJson(resp.results.user);
 
       currentUser.set(user);
@@ -55,28 +59,38 @@ export default function getUserAdapter (http: Atom<IQHttpAdapter>): IQUserAdapte
 
       return user;
     },
-    clear () {
+    clear() {
       currentUser.set(null);
       token.set(null);
     },
-    async blockUser (userId: string): Promise<IQUser> {
-      const resp = await http.get().post<BlockUserResponse.RootObject>('block_user', {
-        token: this.token,
-        user_email: userId
-      });
+    async blockUser(userId: string): Promise<IQUser> {
+      const resp = await http
+        .get()
+        .post<BlockUserResponse.RootObject>('block_user', {
+          token: this.token.get(),
+          user_email: userId
+        });
       return QUser.fromJson(resp.results.user);
     },
-    async getBlockedUser (page: number = 1, limit: number = 20): Promise<IQUser[]> {
+    async getBlockedUser(
+      page: number = 1,
+      limit: number = 20
+    ): Promise<IQUser[]> {
       const url = QUrlBuilder('get_user_list')
-        .param('token', this.token)
+        .param('token', this.token.get())
         .param('page', page)
         .param('limit', limit)
         .build();
-      const resp = await http.get().get<BlockedUserListResponse.RootObject>(url);
-      return resp.results.blocked_users
-        .map((user) => QUser.fromJson(user));
+      const resp = await http
+        .get()
+        .get<BlockedUserListResponse.RootObject>(url);
+      return resp.results.blocked_users.map(user => QUser.fromJson(user));
     },
-    async getUserList (query: string = '', page: number = 1, limit: number = 20): Promise<IQUser[]> {
+    async getUserList(
+      query: string = '',
+      page: number = 1,
+      limit: number = 20
+    ): Promise<IQUser[]> {
       const url = QUrlBuilder('get_user_list')
         .param('token', token)
         .param('query', query)
@@ -84,74 +98,94 @@ export default function getUserAdapter (http: Atom<IQHttpAdapter>): IQUserAdapte
         .param('limit', limit)
         .build();
       const resp = await http.get().get<UserListResponse.RootObject>(url);
-      return resp.results.users
-        .map((user: any) => QUser.fromJson(user));
+      return resp.results.users.map((user: any) => QUser.fromJson(user));
     },
-    async unblockUser (userId: string): Promise<IQUser> {
-      const resp = await http.get().post<BlockUserResponse.RootObject>('unblock_user', {
-        token: this.token,
-        user_email: userId
-      });
+    async unblockUser(userId: string): Promise<IQUser> {
+      const resp = await http
+        .get()
+        .post<BlockUserResponse.RootObject>('unblock_user', {
+          token: this.token.get(),
+          user_email: userId
+        });
       return QUser.fromJson(resp.results.user);
     },
-    async setUserFromIdentityToken (identityToken: string): Promise<IQUser> {
-      const resp = await http.get().post<UserResponse.RootObject>('auth/verify_identity_token', {
-        identity_token: identityToken
-      });
+    async setUserFromIdentityToken(identityToken: string): Promise<IQUser> {
+      const resp = await http
+        .get()
+        .post<UserResponse.RootObject>('auth/verify_identity_token', {
+          identity_token: identityToken
+        });
       const user = QUser.fromJson(resp.results.user);
       currentUser.set(user);
       token.set(resp.results.user.token);
       return user;
     },
-    async updateUser (name?: string, avatarUrl?: string, extras?: string): Promise<IQUser> {
+    async updateUser(
+      name?: string,
+      avatarUrl?: string,
+      extras?: string
+    ): Promise<IQUser> {
       const data = {
-        token: this.token,
+        token: this.token.get(),
         name,
         avatar_url: avatarUrl,
         extras: extras
       };
-      const resp = await http.get().patch<UserResponse.RootObject>('my_profile', data);
+      const resp = await http
+        .get()
+        .patch<UserResponse.RootObject>('my_profile', data);
       const user = QUser.fromJson(resp.results.user);
       currentUser.set(user);
       return user;
     },
-    async getNonce (): Promise<QNonce> {
+    async getNonce(): Promise<QNonce> {
       const resp = await http.get().get<NonceResponse>('auth/nonce');
       return { expired: resp.results.expired_at, nonce: resp.results.nonce };
     },
-    async getUserData (): Promise<IQUser> {
-      const url = new UrlBuilder('my_profile')
-        .param('token', token)
-        .build();
+    async getUserData(): Promise<IQUser> {
+      const url = new UrlBuilder('my_profile').param('token', token).build();
       const resp = await http.get().get<UserResponse.RootObject>(url);
       const user = QUser.fromJson(resp.results.user);
       currentUser.set(user);
       return user;
     },
-    async registerDeviceToken(deviceToken: string, platform: string = 'rn'): Promise<boolean> {
-      const resp = await http.get().post<DeviceTokenResponse.RootObject>('set_user_device_token', {
-        token: token,
-        device_platform: platform,
-        device_token: deviceToken
-      });
+    async registerDeviceToken(
+      deviceToken: string,
+      platform: string = 'rn'
+    ): Promise<boolean> {
+      const resp = await http
+        .get()
+        .post<DeviceTokenResponse.RootObject>('set_user_device_token', {
+          token: token,
+          device_platform: platform,
+          device_token: deviceToken
+        });
       return resp.results.changed;
     },
-    async unregisterDeviceToken(deviceToken: string, platform: string = 'rn'): Promise<boolean> {
-      const resp = await http.get().post<DeviceTokenResponse.RootObject>('remove_user_device_token', {
-        token: token,
-        device_platform: platform,
-        device_token: deviceToken
-      });
+    async unregisterDeviceToken(
+      deviceToken: string,
+      platform: string = 'rn'
+    ): Promise<boolean> {
+      const resp = await http
+        .get()
+        .post<DeviceTokenResponse.RootObject>('remove_user_device_token', {
+          token: token,
+          device_platform: platform,
+          device_token: deviceToken
+        });
       return resp.results.changed;
     },
-    get token () { return token },
-    get currentUser () { return currentUser }
-  }
+    get token() {
+      return token;
+    },
+    get currentUser() {
+      return currentUser;
+    }
+  };
 }
 
 // Response type
 declare module UserResponse {
-
   export interface App {
     code: string;
     id: number;
@@ -197,10 +231,8 @@ declare module UserResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module BlockUserResponse {
-
   export interface Avatar2 {
     url: string;
   }
@@ -209,8 +241,7 @@ declare module BlockUserResponse {
     avatar: Avatar2;
   }
 
-  export interface Extras {
-  }
+  export interface Extras {}
 
   export interface User {
     avatar: Avatar;
@@ -230,17 +261,14 @@ declare module BlockUserResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module UserListResponse {
-
   export interface Meta {
     total_data: number;
     total_page: number;
   }
 
-  export interface Extras {
-  }
+  export interface Extras {}
 
   export interface User {
     avatar_url: string;
@@ -262,10 +290,8 @@ declare module UserListResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module BlockedUserListResponse {
-
   export interface Avatar2 {
     url: string;
   }
@@ -274,8 +300,7 @@ declare module BlockedUserListResponse {
     avatar: Avatar2;
   }
 
-  export interface Extras {
-  }
+  export interface Extras {}
 
   export interface BlockedUser {
     avatar: Avatar;
@@ -296,10 +321,8 @@ declare module BlockedUserListResponse {
     results: Results;
     status: number;
   }
-
 }
 declare module DeviceTokenResponse {
-
   export interface Results {
     changed: boolean;
     pn_android_configured: boolean;
@@ -310,5 +333,4 @@ declare module DeviceTokenResponse {
     results: Results;
     status: number;
   }
-
 }

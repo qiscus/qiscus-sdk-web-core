@@ -1,6 +1,6 @@
-import cuid from 'cuid'
-import {atom, Atom, lens} from 'derivable'
-import {mod, findBy, matching} from 'shades'
+import cuid from 'cuid';
+import { atom, Atom, lens } from 'derivable';
+import { mod, findBy, matching } from 'shades';
 import {
   IQMessage,
   IQMessageAdapter,
@@ -10,11 +10,11 @@ import {
   IQRoomAdapter,
   IQUserAdapter,
   IQParticipant
-} from '../defs'
-import QUrlBuilder from '../utils/url-builder'
-import { IQHttpAdapter } from './http'
+} from '../defs';
+import QUrlBuilder from '../utils/url-builder';
+import { IQHttpAdapter } from './http';
 
-const lessThanEq = (a: number) => (b: number) => a <= b
+const lessThanEq = (a: number) => (b: number) => a <= b;
 
 export const getMessageType = (type: string) => {
   switch (type) {
@@ -22,7 +22,7 @@ export const getMessageType = (type: string) => {
       return IQMessageType.Custom;
     case 'text':
     default:
-      return IQMessageType.Text
+      return IQMessageType.Text;
   }
 };
 
@@ -40,7 +40,7 @@ export type JsonMessage = {
   payload: object;
   username: string;
   email: string;
-}
+};
 
 export class QMessage implements IQMessage {
   id: number;
@@ -55,7 +55,7 @@ export class QMessage implements IQMessage {
   extras: object;
   payload: object;
 
-  updateFromJson (json: JsonMessage): IQMessage {
+  updateFromJson(json: JsonMessage): IQMessage {
     this.id = json.id;
     this.content = json.message;
     this.previousMessageId = json.comment_before_id;
@@ -69,14 +69,21 @@ export class QMessage implements IQMessage {
     if (json.type === 'custom') this.type = IQMessageType.Custom;
     if (json.status === 'delivered') this.status = IQMessageStatus.Delivered;
     if (json.status === 'read') this.status = IQMessageStatus.Read;
-    return this
+    return this;
   }
 
-  static fromJson (json: JsonMessage): IQMessage {
-    return new QMessage().updateFromJson(json)
+  static fromJson(json: JsonMessage): IQMessage {
+    return new QMessage().updateFromJson(json);
   }
 
-  static prepareNew (userId: string, roomId: number, content: string, type = IQMessageType.Text, extras: object = {}, payload: object = {}): IQMessage {
+  static prepareNew(
+    userId: string,
+    roomId: number,
+    content: string,
+    type = IQMessageType.Text,
+    extras: object = {},
+    payload: object = {}
+  ): IQMessage {
     const timestamp = new Date();
     const message = new QMessage();
     message.content = content;
@@ -88,148 +95,187 @@ export class QMessage implements IQMessage {
     message.uniqueId = `js-${cuid()}`;
     message.extras = extras;
     message.payload = payload;
-    return message
+    return message;
   }
 }
 
-export default function getMessageAdapter (
+export default function getMessageAdapter(
   http: Atom<IQHttpAdapter>,
   user: Atom<IQUserAdapter>,
   roomAdapter: Atom<IQRoomAdapter>
 ): IQMessageAdapter {
   const messages = atom<{ [key: string]: IQMessage }>({});
-  const getMessageDataWithId = (messageId: number) => lens<IQMessage>({
-    get() { return Object.values(messages.get()).find(it => it.id === messageId) },
-    set(message) {
-      messages.update(msgs => ({
-        ...msgs,
-        [message.uniqueId]: message
-      }))
-    }
-  });
+  const getMessageDataWithId = (messageId: number) =>
+    lens<IQMessage>({
+      get() {
+        return Object.values(messages.get()).find(it => it.id === messageId);
+      },
+      set(message) {
+        messages.update(msgs => ({
+          ...msgs,
+          [message.uniqueId]: message
+        }));
+      }
+    });
   return {
-    get messages () { return messages },
-    get getMessageDataWithId () { return getMessageDataWithId },
-    sendMessage (roomId: number, messageT: IQMessageT): Promise<IQMessage> {
-      const userId = user.get().currentUser.get().userId
+    get messages() {
+      return messages;
+    },
+    get getMessageDataWithId() {
+      return getMessageDataWithId;
+    },
+    sendMessage(roomId: number, messageT: IQMessageT): Promise<IQMessage> {
+      const userId = user.get().currentUser.get().userId;
       const message = QMessage.prepareNew(userId, roomId, messageT.message);
-      messages.update((messages) => ({
+      messages.update(messages => ({
         ...messages,
         [message.uniqueId]: message
       }));
-      const url = QUrlBuilder('post_comment')
-        .param('token', user.get().token)
-        .param('topic_id', message.roomId)
-        .param('message', message.content)
-        .param('extras', message.extras)
-        .build();
-      return http.get().get<PostCommentResponse.RootObject>(url)
+      const url = 'post_comment';
+
+      const data = new FormData();
+      data.append('token', user.get().token.get());
+      data.append('topic_id', String(message.roomId));
+      data.append('comment', message.content);
+      data.append('payload', JSON.stringify(message.payload));
+      data.append('extras', JSON.stringify(message.extras));
+
+      return http
+        .get()
+        .postFormData<PostCommentResponse.RootObject>(url, data)
         .then(resp => resp.results.comment)
-        .then<IQMessage>((comment) => {
+        .then<IQMessage>(comment => {
           message.updateFromJson(comment);
-          messages.update((messages) => ({
+          messages.update(messages => ({
             ...messages,
             [message.uniqueId]: message
           }));
-          return message
-        })
+          return message;
+        });
     },
-    getMessages (roomId: number, lastMessageId: number = 0, limit: number = 20, after: boolean = false): Promise<IQMessage[]> {
+    getMessages(
+      roomId: number,
+      lastMessageId: number = 0,
+      limit: number = 20,
+      after: boolean = false
+    ): Promise<IQMessage[]> {
       const url = QUrlBuilder('load_comments')
-        .param('token', user.get().token)
+        .param('token', user.get().token.get())
         .param('topic_id', roomId)
         .param('last_comment_id', lastMessageId)
         .param('limit', limit)
         .param('after', after)
         .build();
-      return http.get().get<GetCommentsResponse.RootObject>(url)
+      return http
+        .get()
+        .get<GetCommentsResponse.RootObject>(url)
         .then(res => res.results.comments)
-        .then((comments) => {
+        .then(comments => {
           const _messages = comments.map(it => QMessage.fromJson(it));
           // _messages.forEach(it => messages.update(msgs => ({ ...msgs, [it.uniqueId]: it })));
-          messages.update((msgs) => {
-            _messages.forEach(msg => msgs[msg.uniqueId] = msg)
-            return msgs
-          })
-          return _messages
-        })
+          messages.update(msgs => {
+            _messages.forEach(msg => (msgs[msg.uniqueId] = msg));
+            return msgs;
+          });
+          return _messages;
+        });
     },
-    deleteMessage (messageIds: string[]): Promise<IQMessage[]> {
+    deleteMessage(messageIds: string[]): Promise<IQMessage[]> {
       const url = QUrlBuilder('delete_messages')
-        .param('token', user.get().token)
+        .param('token', user.get().token.get())
         .param('unique_ids[]', messageIds)
         .build();
-      return http.get().delete<DeleteCommentsResponse.RootObject>(url)
-        .then<IQMessage[]>((resp) => {
-          return resp.results.comments
-            .map<IQMessage>((comment) => {
-              const message = messages.get()[comment.unique_temp_id];
-              if (message == null) return QMessage.fromJson(comment);
-              messages.update((messages) => {
-                messages[comment.unique_temp_id] = undefined;
-                return messages;
-              });
-            })
-        })
+      return http
+        .get()
+        .delete<DeleteCommentsResponse.RootObject>(url)
+        .then<IQMessage[]>(resp => {
+          return resp.results.comments.map<IQMessage>(comment => {
+            const message = messages.get()[comment.unique_temp_id];
+            if (message == null) return QMessage.fromJson(comment);
+            messages.update(messages => {
+              messages[comment.unique_temp_id] = undefined;
+              return messages;
+            });
+          });
+        });
     },
-    markAsRead (roomId: number, messageId: number): Promise<IQMessage> {
+    markAsRead(roomId: number, messageId: number): Promise<IQMessage> {
       const adapter = roomAdapter.get();
       const url = QUrlBuilder('update_comment_status')
-        .param('token', user.get().token)
+        .param('token', user.get().token.get())
         .param('last_comment_read_id', messageId)
         .param('room_id', roomId)
         .build();
-      return http.get().post<UpdateCommentStatusResponse.RootObject>(url)
+      return http
+        .get()
+        .post<UpdateCommentStatusResponse.RootObject>(url)
         .then(resp => resp.results)
-        .then((result) => {
+        .then(result => {
           // Update participant last read comment id
-          const selector = mod('participants', findBy.of<IQParticipant>({ id: result.user_id }));
-          const transformer = selector(it => ({ ...it, lastReadMessageId: result.last_comment_read_id }));
+          const selector = mod(
+            'participants',
+            findBy.of<IQParticipant>({ id: result.user_id })
+          );
+          const transformer = selector(it => ({
+            ...it,
+            lastReadMessageId: result.last_comment_read_id
+          }));
           adapter.getRoomDataWithId(roomId).update(transformer);
           const room = adapter.getRoomDataWithId(roomId).get();
 
           // update comment status as read
           // only if all participants has read it
           // Find the lowest read id or the ID which all participants has read
-          const lowestMessageId = room.participants.map(it => it.lastReadMessageId)
+          const lowestMessageId = room.participants
+            .map(it => it.lastReadMessageId)
             .sort()
-            .reduce((res, it) => res > it ? it : res);
+            .reduce((res, it) => (res > it ? it : res));
           const _selector = mod(matching({ id: lessThanEq(lowestMessageId) }));
           const _transformer = _selector<IQMessage>(message => {
             message.status = IQMessageStatus.Read;
             return message;
-          })
+          });
           messages.update(_transformer);
           return getMessageDataWithId(messageId).get();
-        })
+        });
     },
-    markAsDelivered (roomId: number, messageId: number): Promise<IQMessage> {
+    markAsDelivered(roomId: number, messageId: number): Promise<IQMessage> {
       const adapter = roomAdapter.get();
       const url = QUrlBuilder('update_comment_status')
-        .param('token', user.get().token)
+        .param('token', user.get().token.get())
         .param('last_comment_received_id', messageId)
         .param('room_id', roomId)
         .build();
-      return http.get().post<UpdateCommentStatusResponse.RootObject>(url)
+      return http
+        .get()
+        .post<UpdateCommentStatusResponse.RootObject>(url)
         .then(resp => resp.results)
-        .then((result) => {
+        .then(result => {
           adapter.getRoomDataWithId(roomId).update(
-            mod('participants', findBy.of<IQParticipant>({ id: result.user_id }))
-              (it => ({ ...it, lastReceivedMessageId: result.last_comment_received_id }))
+            mod(
+              'participants',
+              findBy.of<IQParticipant>({ id: result.user_id })
+            )(it => ({
+              ...it,
+              lastReceivedMessageId: result.last_comment_received_id
+            }))
           );
 
           const room = adapter.getRoomDataWithId(roomId).get();
-          const lowestMessageId = room.participants.map(it => it.lastReceivedMessageId)
+          const lowestMessageId = room.participants
+            .map(it => it.lastReceivedMessageId)
             .sort()
-            .reduce((res, it) => res > it ? it : res);
+            .reduce((res, it) => (res > it ? it : res));
           messages.update(
-            mod(matching({ id: lessThanEq(lowestMessageId) }))
-              (it => ({ ...it, status: IQMessageStatus.Delivered }))
+            mod(matching({ id: lessThanEq(lowestMessageId) }))(it => ({
+              ...it,
+              status: IQMessageStatus.Delivered
+            }))
           );
           return getMessageDataWithId(messageId).get();
-        })
+        });
     }
-  }
+  };
 }
 
 // Response type
@@ -284,12 +330,9 @@ export declare module PostCommentResponse {
   }
 }
 export declare module GetCommentsResponse {
+  export interface Extras {}
 
-  export interface Extras {
-  }
-
-  export interface Payload {
-  }
+  export interface Payload {}
 
   export interface Avatar {
     url: string;
@@ -339,15 +382,11 @@ export declare module GetCommentsResponse {
     results: Results;
     status: number;
   }
-
 }
 export declare module DeleteCommentsResponse {
+  export interface Extras {}
 
-  export interface Extras {
-  }
-
-  export interface Payload {
-  }
+  export interface Payload {}
 
   export interface Avatar {
     url: string;
@@ -397,10 +436,8 @@ export declare module DeleteCommentsResponse {
     results: Results;
     status: number;
   }
-
 }
 export declare module UpdateCommentStatusResponse {
-
   export interface Results {
     changed: boolean;
     last_comment_read_id: number;
@@ -415,5 +452,4 @@ export declare module UpdateCommentStatusResponse {
     results: Results;
     status: number;
   }
-
 }

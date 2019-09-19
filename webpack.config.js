@@ -1,10 +1,10 @@
-const path = require('path');
-const webpack = require('webpack');
+const path = require('path')
+const webpack = require('webpack')
 
 module.exports = env => {
-  const filename = env.production ?
-    'qiscus-sdk-core.min.js' :
-    'qiscus-sdk-core.js';
+  const filename = env.production
+    ? 'qiscus-sdk-core.min.js'
+    : 'qiscus-sdk-core.js'
   return {
     // Entry: ['@babel/polyfill', path.join(__dirname, 'src', 'index.js')],
     entry: [path.join(__dirname, 'src', 'main.ts')],
@@ -34,11 +34,11 @@ module.exports = env => {
       extensions: ['.tsx', '.ts', '.js']
     },
     plugins: [
-      new webpack.DefinePlugin({'global.GENTLY': false})
+      new webpack.DefinePlugin({ 'global.GENTLY': false })
     ],
     performance: {
       maxEntrypointSize: 512000,
       maxAssetSize: 512000
     }
-  };
-};
+  }
+}

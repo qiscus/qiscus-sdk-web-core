@@ -3,9 +3,9 @@ export function searchAndReplace (str, find, replace) {
 }
 
 export function escapeHTML (text) {
-  let comment;
-  comment = searchAndReplace(text, '<', '&lt;');
-  comment = searchAndReplace(comment, '>', '&gt;');
+  let comment
+  comment = searchAndReplace(text, '<', '&lt;')
+  comment = searchAndReplace(comment, '>', '&gt;')
   return comment
 }
 
@@ -17,9 +17,9 @@ export class GroupChatBuilder {
    *  API.
    */
   constructor (roomAdapter) {
-    this.roomAdapter = roomAdapter;
-    this.name = null;
-    this.emails = [];
+    this.roomAdapter = roomAdapter
+    this.name = null
+    this.emails = []
     this.options = {}
   }
 
@@ -29,7 +29,7 @@ export class GroupChatBuilder {
    * @returns {GroupChatBuilder}
    */
   withName (name) {
-    this.name = name;
+    this.name = name
     return this
   }
 
@@ -39,7 +39,7 @@ export class GroupChatBuilder {
    * @returns {GroupChatBuilder}
    */
   withOptions (options) {
-    this.options = options;
+    this.options = options
     return this
   }
 
@@ -53,7 +53,7 @@ export class GroupChatBuilder {
   addParticipants (...emails) {
     this.emails = this.emails
       .filter(email => emails.indexOf(email) === -1)
-      .concat(...emails);
+      .concat(...emails)
     return this
   }
 
@@ -62,9 +62,9 @@ export class GroupChatBuilder {
    * @returns {Promise.<Room, Error>}
    */
   create () {
-    const name = this.name;
-    const emails = this.emails;
-    const options = this.options;
+    const name = this.name
+    const emails = this.emails
+    const options = this.options
     return this.roomAdapter
       .createRoom(name, emails, { avatarURL: options.avatarURL }, options)
   }
@@ -73,8 +73,8 @@ export class GroupChatBuilder {
 export function scrollToBottom (latestCommentId) {
   requestAnimationFrame(function () {
     if (latestCommentId > 0) {
-      const elementToScroll = document.getElementById(latestCommentId);
-      if (!elementToScroll) return false;
+      const elementToScroll = document.getElementById(latestCommentId)
+      if (!elementToScroll) return false
       elementToScroll.scrollIntoView({ block: 'end', behavior: 'smooth' })
     }
     // on entering the room, wait for data processed then focus on comment form
