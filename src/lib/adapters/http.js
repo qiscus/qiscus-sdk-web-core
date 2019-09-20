@@ -1,7 +1,7 @@
 import request from 'superagent'
 
 export default class HttpAdapter {
-  constructor ({
+  constructor({
     baseURL,
     AppId,
     userId,
@@ -16,11 +16,11 @@ export default class HttpAdapter {
     this.getCustomHeader = getCustomHeader
   }
 
-  setToken (token) {
+  setToken(token) {
     this.token = token
   }
 
-  get (path, headers = {}, options) {
+  get(path, headers = {}, options) {
     return new Promise((resolve, reject) => {
       var req = request.get(`${this.baseURL}/${path}`)
       if (options && options.baseURL) req = request.get(`${options.baseURL}/${path}`)
@@ -32,13 +32,13 @@ export default class HttpAdapter {
     })
   }
   // eslint-disable-next-line
-  get_request (path) {
+  get_request(path) {
     let req = request.get(`${this.baseURL}/${path}`)
     req = this.setupHeaders(req, {})
     return req
   }
 
-  post (path, body = {}, headers = {}) {
+  post(path, body = {}, headers = {}) {
     return new Promise((resolve, reject) => {
       let req = request.post(`${this.baseURL}/${path}`)
       req = this.setupHeaders(req, headers)
@@ -51,7 +51,7 @@ export default class HttpAdapter {
   }
 
   // eslint-disable-next-line
-  post_json (path, body = {}, headers = {}) {
+  post_json(path, body = {}, headers = {}) {
     return new Promise((resolve, reject) => {
       let req = request.post(`${this.baseURL}/${path}`)
       req = this.setupHeaders(req, headers)
@@ -63,7 +63,7 @@ export default class HttpAdapter {
     })
   }
 
-  put (path, body = {}, headers = {}) {
+  put(path, body = {}, headers = {}) {
     return new Promise((resolve, reject) => {
       let req = request.put(`${this.baseURL}/${path}`)
       req = this.setupHeaders(req, headers)
@@ -75,7 +75,7 @@ export default class HttpAdapter {
     })
   }
 
-  patch (path, body = {}, headers = {}) {
+  patch(path, body = {}, headers = {}) {
     return new Promise((resolve, reject) => {
       let req = request.patch(`${this.baseURL}/${path}`)
       req = this.setupHeaders(req, headers)
@@ -87,7 +87,7 @@ export default class HttpAdapter {
     })
   }
 
-  del (path, body = {}, headers = {}) {
+  del(path, body = {}, headers = {}) {
     return new Promise((resolve, reject) => {
       let req = request.del(`${this.baseURL}/${path}`)
       req = this.setupHeaders(req, headers)
@@ -99,17 +99,19 @@ export default class HttpAdapter {
     })
   }
 
-  setupHeaders (req, headers) {
+  setupHeaders(req, headers) {
     // let's give this default Authorization Header
     req.set('QISCUS_SDK_APP_ID', `${this.AppId}`)
     req.set('QISCUS_SDK_USER_ID', `${this.userId}`)
     req.set('QISCUS_SDK_TOKEN', `${this.token}`)
     req.set('QISCUS_SDK_VERSION', `${this.version}`)
-    const customHeaders = this.getCustomHeader()
-    Object.keys(customHeaders)
-      .forEach((key) => {
-        req.set(key, customHeaders[key])
-      })
+    if (this.getCustomHeader != null) {
+      const customHeaders = this.getCustomHeader()
+      Object.keys(customHeaders)
+        .forEach((key) => {
+          req.set(key, customHeaders[key])
+        })
+    }
     // Return the req if no headers attached
     if (Object.keys(headers).length < 1) return req
     // now let's process custom header
