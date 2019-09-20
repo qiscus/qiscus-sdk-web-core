@@ -307,7 +307,7 @@ class QiscusSDK {
       if (
         lastReceivedMessageNotEmpty &&
         this.lastReceiveMessages[0].unique_temp_id ===
-          comments[0].unique_temp_id
+        comments[0].unique_temp_id
       ) {
         this.logging("lastReceiveMessages double", comments);
         return;
@@ -405,13 +405,13 @@ class QiscusSDK {
     /**
      * Called when there's something wrong when connecting to qiscus SDK
      */
-    self.events.on("login-error", function(error) {
+    self.events.on("login-error", function (error) {
       if (self.options.loginErrorCallback) {
         self.options.loginErrorCallback(error);
       }
     });
 
-    self.events.on("room-cleared", function(room) {
+    self.events.on("room-cleared", function (room) {
       // find room
       if (self.selected) {
         const currentRoom = self.selected;
@@ -424,7 +424,7 @@ class QiscusSDK {
         self.options.roomClearedCallback(room);
     });
 
-    self.events.on("comment-deleted", function(data) {
+    self.events.on("comment-deleted", function (data) {
       // get to the room id and delete the comment
       const {
         roomId,
@@ -457,7 +457,7 @@ class QiscusSDK {
     /**
      * Called when the comment has been delivered
      */
-    self.events.on("comment-delivered", function(response) {
+    self.events.on("comment-delivered", function (response) {
       self.logging("comment-delivered", response);
       if (!response) return false;
       if (self.options.commentDeliveredCallback) {
@@ -471,7 +471,7 @@ class QiscusSDK {
     /**
      * Called when new chatroom has been created
      */
-    self.events.on("chat-room-created", function(response) {
+    self.events.on("chat-room-created", function (response) {
       self.isLoading = false;
       if (self.options.chatRoomCreatedCallback) {
         self.options.chatRoomCreatedCallback(response);
@@ -481,7 +481,7 @@ class QiscusSDK {
     /**
      * Called when a new room with type of group has been created
      */
-    self.events.on("group-room-created", function(response) {
+    self.events.on("group-room-created", function (response) {
       self.isLoading = false;
       if (self.options.groupRoomCreatedCallback) {
         self.options.groupRoomCreatedCallback(response);
@@ -491,7 +491,7 @@ class QiscusSDK {
     /**
      * Called when user clicked on Chat SDK Header
      */
-    self.events.on("header-clicked", function(response) {
+    self.events.on("header-clicked", function (response) {
       if (self.options.headerClickedCallback) {
         self.options.headerClickedCallback(response);
       }
@@ -500,7 +500,7 @@ class QiscusSDK {
     /**
      * Called when a comment has been read
      */
-    self.events.on("comment-read", function(response) {
+    self.events.on("comment-read", function (response) {
       self.logging("comment-read", response);
       if (self.options.commentReadCallback) {
         self.options.commentReadCallback(response);
@@ -511,27 +511,27 @@ class QiscusSDK {
      * Called when there's new presence data of currently subscribed target user (last seen timestamp)
      * @param {string} data MQTT Payload with format of "x:xxxxxxxxxxxxx"
      */
-    self.events.on("presence", function(data) {
+    self.events.on("presence", function (data) {
       const payload = data.split(":");
       if (self.chatmateStatus !== payload[0]) {
         self.chatmateStatus =
           payload[0] === 1
             ? "Online"
             : `Last seen ${distanceInWordsToNow(
-                Number(payload[1].substring(0, 13))
-              )}`;
+              Number(payload[1].substring(0, 13))
+            )}`;
       }
       if (self.options.presenceCallback) self.options.presenceCallback(data);
     });
 
-    self.events.on("typing", function(data) {
+    self.events.on("typing", function (data) {
       if (self.options.typingCallback) self.options.typingCallback(data);
     });
 
     /**
      * Called when user clicked on Message Info
      */
-    self.events.on("message-info", function(response) {
+    self.events.on("message-info", function (response) {
       if (self.options.messageInfoCallback) {
         self.options.messageInfoCallback(response);
       }
@@ -559,7 +559,7 @@ class QiscusSDK {
     /**
      * Called when user was added to blocked list
      */
-    self.events.on("block-user", function(response) {
+    self.events.on("block-user", function (response) {
       if (self.options.blockUserCallback) {
         self.options.blockUserCallback(response);
       }
@@ -568,7 +568,7 @@ class QiscusSDK {
     /**
      * Called when user was removed from blocked list
      */
-    self.events.on("unblock-user", function(response) {
+    self.events.on("unblock-user", function (response) {
       if (self.options.unblockUserCallback) {
         self.options.unblockUserCallback(response);
       }
@@ -887,7 +887,7 @@ class QiscusSDK {
 
   sortComments() {
     this.selected &&
-      this.selected.comments.sort(function(leftSideComment, rightSideComment) {
+      this.selected.comments.sort(function (leftSideComment, rightSideComment) {
         return leftSideComment.unix_timestamp - rightSideComment.unix_timestamp;
       });
   }
@@ -1349,7 +1349,7 @@ class QiscusSDK {
     xhr.setRequestHeader("qiscus_sdk_app_id", `${self.AppId}`);
     xhr.setRequestHeader("qiscus_sdk_user_id", `${self.user_id}`);
     xhr.setRequestHeader("qiscus_sdk_token", `${self.userData.token}`);
-    xhr.onload = function() {
+    xhr.onload = function () {
       if (xhr.status === 200) {
         // file(s) uploaded), let's post to comment
         var url = JSON.parse(xhr.response).results.file.url;
@@ -1481,12 +1481,16 @@ class QiscusSDK {
     this._customHeader = headers;
   }
 
+  getUserProfile() {
+    return this.userAdapter.getProfile()
+  }
+
   get logger() {
     if (this.debugMode) return console.log.bind(console, "Qiscus ->");
     return this.noop;
   }
 
-  noop() {}
+  noop() { }
 }
 
 class FileUploaded {

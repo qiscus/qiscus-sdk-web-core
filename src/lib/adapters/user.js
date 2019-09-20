@@ -7,12 +7,12 @@ export default class User {
   * @param  {Object}    HTTPAdapter [Qiscus HTTP adapter]
   * @return {void}                Returns nothing
   */
-  constructor (HTTPAdapter) {
+  constructor(HTTPAdapter) {
     this.HTTPAdapter = HTTPAdapter
     this.token = HTTPAdapter.token
   }
 
-  postComment (topicId, commentMessage, uniqueId, type, payload, extras) {
+  postComment(topicId, commentMessage, uniqueId, type, payload, extras) {
     return this.HTTPAdapter.post(`api/v2/sdk/post_comment`, {
       token: this.token,
       comment: commentMessage,
@@ -33,7 +33,7 @@ export default class User {
       })
   }
 
-  sync (id = 0) {
+  sync(id = 0) {
     return this.HTTPAdapter.get(`api/v2/sdk/sync?token=${this.token}&last_received_comment_id=${id}`)
       .then((res, err) => {
         if (err) return Promise.reject(err)
@@ -46,7 +46,7 @@ export default class User {
       .catch(error => console.log(error))
   }
 
-  syncEvent (id = 0) {
+  syncEvent(id = 0) {
     return this.HTTPAdapter.get(`api/v2/sdk/sync_event?token=${this.token}&start_event_id=${id}`)
       .then((res, err) => {
         if (err) return Promise.reject(err)
@@ -73,7 +73,7 @@ export default class User {
       .catch((error) => console.log(error))
   }, 300)
 
-  loadRoomList (params = {}) {
+  loadRoomList(params = {}) {
     let body = `?token=${this.token}`
 
     if (params.page) body += `&page=${params.page}`
@@ -93,7 +93,7 @@ export default class User {
       })
   }
 
-  searchMessages (params) {
+  searchMessages(params) {
     const body = {
       token: this.token,
       query: params.query || null,
@@ -106,7 +106,7 @@ export default class User {
       .catch((error) => Promise.reject(error))
   }
 
-  updateProfile (params) {
+  updateProfile(params) {
     const body = {
       token: this.token,
       name: params.name || null,
@@ -119,7 +119,7 @@ export default class User {
       .catch((error) => Promise.reject(error))
   }
 
-  uploadFile (file) {
+  uploadFile(file) {
     const body = {
       token: this.token,
       file: file
@@ -130,7 +130,7 @@ export default class User {
       .catch(error => Promise.reject(error))
   }
 
-  getRoomsInfo (opts) {
+  getRoomsInfo(opts) {
     const body = {
       token: this.token,
       show_participants: true,
@@ -145,7 +145,7 @@ export default class User {
       .catch(error => Promise.reject(error))
   }
 
-  loadComments (topicId, options) {
+  loadComments(topicId, options) {
     let params = `token=${this.token}&topic_id=${topicId}`
     if (options.last_comment_id) params += `&last_comment_id=${options.last_comment_id}`
     if (options.timestamp) params += `&timestamp=${options.timestamp}`
@@ -159,14 +159,14 @@ export default class User {
           return resolve(data)
         })
       }, (error) => {
-      // console.info('failed loading comments', error);
+        // console.info('failed loading comments', error);
         return new Promise((resolve, reject) => {
           return reject(error)
         })
       })
   }
 
-  deleteComment (roomId, commentUniqueIds, isForEveryone = true, isHard = true) {
+  deleteComment(roomId, commentUniqueIds, isForEveryone = true, isHard = true) {
     if (isForEveryone === false) console.warn('Deprecated: delete comment for me will be removed on next release')
     if (isHard === false) console.warn('Deprecated: soft delete will be removed on next release')
     const body = {
@@ -181,7 +181,7 @@ export default class User {
       .catch(error => Promise.reject(error))
   }
 
-  clearRoomMessages (roomIds) {
+  clearRoomMessages(roomIds) {
     const body = {
       token: this.token,
       room_channel_ids: roomIds
@@ -191,13 +191,13 @@ export default class User {
       .catch(error => Promise.reject(error))
   }
 
-  getCommentReceiptStatus (id) {
+  getCommentReceiptStatus(id) {
     return this.HTTPAdapter.get(`api/v2/sdk/comment_receipt?token=${this.token}&comment_id=${id}`)
       .then(res => Promise.resolve(res.body))
       .catch(error => Promise.reject(error))
   }
 
-  getBlockedUser (page = 1, limit = 20) {
+  getBlockedUser(page = 1, limit = 20) {
     const url = `api/v2/mobile/get_blocked_users?token=${this.token}&page=${page}&limit=${limit}`
     return this.HTTPAdapter.get(url)
       .then((res) => {
@@ -208,7 +208,7 @@ export default class User {
       })
   }
 
-  blockUser (email) {
+  blockUser(email) {
     if (!email) throw new Error('email is required')
     let params = {
       token: this.token,
@@ -224,7 +224,7 @@ export default class User {
       })
   }
 
-  unblockUser (email) {
+  unblockUser(email) {
     if (!email) throw new Error('email is required')
     let params = {
       token: this.token,
@@ -238,5 +238,10 @@ export default class User {
       }, (err) => {
         return Promise.reject(err)
       })
+  }
+
+  getProfile() {
+    return this.HTTPAdapter.get(`api/v2/sdk/my_profile?token=${this.token}`)
+      .then(res => res.body.results.user)
   }
 }
