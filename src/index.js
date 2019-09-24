@@ -381,7 +381,8 @@ class QiscusSDK {
         baseURL: this.baseURL,
         AppId: this.AppId,
         userId: this.user_id,
-        version: this.version
+        version: this.version,
+        getCustomHeader: () => this._customHeader
       });
       this.HTTPAdapter.setToken(this.userData.token);
 
