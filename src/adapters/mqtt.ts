@@ -1,5 +1,5 @@
+import flatten from 'lodash.flatten';
 import { match, when } from '../utils/match';
-import mitt from 'mitt';
 import { EventEmitter } from 'pietile-eventemitter';
 import connect from 'mqtt/lib/connect';
 import { atom, Atom, Derivable } from 'derivable';
@@ -99,6 +99,19 @@ export type MqttNotification = {
         }
       ];
       is_hard_delete: boolean;
+      deleted_rooms: [
+        {
+          avatar_url: string;
+          chat_type: string;
+          id: number;
+          id_str: string;
+          options: object;
+          raw_room_name: string;
+          room_name: string;
+          unique_id: string;
+          last_comment: object;
+        }
+      ];
     };
   };
 };
@@ -126,7 +139,7 @@ interface Events {
   'message::received': (message: MqttMessageReceived) => void;
   'message::delivered': (message: MqttMessageDelivery) => void;
   'message::read': (message: MqttMessageDelivery) => void;
-  'message::deleted': (uniqueId: string) => void;
+  'message::deleted': (data: { roomId: number; uniqueId: string }) => void;
   'room::cleared': (roomId: number) => void;
   'user::typing': (data: MqttUserTyping) => void;
   'user::presence': (data: MqttUserPresence) => void;
@@ -166,9 +179,25 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
       const payload = JSON.parse(data);
       emitter.emit('custom-event', { roomId, payload });
     },
-    notificationHandler: _ => data => {
-      const payload = JSON.parse(data);
-      if (payload.action_type) console.log('on:notification', payload);
+    notificationHandler: _ => (data: string) => {
+      const payload = JSON.parse(data) as MqttNotification;
+      if (payload.action_topic === 'delete_message') {
+        const deletedMessagesData = payload.payload.data.deleted_messages;
+        deletedMessagesData.forEach(data => {
+          const roomId = parseInt(data.room_id, 10);
+          data.message_unique_ids.forEach(uniqueId => {
+            emitter.emit('message::deleted', { roomId, uniqueId });
+          });
+        });
+      }
+      if (payload.action_topic === 'clear_room') {
+        console.log('got another notification', data);
+        const clearedRooms = payload.payload.data.deleted_rooms;
+        clearedRooms.forEach(room => {
+          const roomId = room.id;
+          emitter.emit('room::cleared', roomId);
+        });
+      }
     },
     onlineHandler: topic => data => {
       const topicData = reOnlineStatus.exec(topic);
@@ -226,7 +255,7 @@ export default function getMqttAdapter(
 ): IQMqttAdapter {
   const emitter = new EventEmitter<Events>();
   const handler = getMqttHandler(emitter);
-  const subscribedCustomEventTopics = new Map<number, Function>();
+  const subscribedCustomEventTopics = new Map<number, any>();
   const getTopic = (roomId: number) => `r/${roomId}/${roomId}/e`;
   const logger = (...args: any[]) => console.log('MqttAdapter:', ...args);
   const matcher = match({

@@ -71,6 +71,7 @@
     "@babel/preset-env": "^7.5.5",
     "@babel/preset-typescript": "^7.3.3",
     "@babel/register": "^7.4.4",
+    "@types/lodash.flatten": "^4.4.6",
     "ava": "^2.3.0",
     "babel-eslint": "^8.0.0",
     "babel-loader": "^8.0.4",
