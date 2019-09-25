@@ -1,6 +1,6 @@
 import chai, { expect } from 'chai'
 import spy from 'chai-spies'
-import CustomEvent from '../lib/adapters/custom-event'
+import CustomEvent from '../src/lib/adapters/custom-event'
 
 chai.use(spy)
 
