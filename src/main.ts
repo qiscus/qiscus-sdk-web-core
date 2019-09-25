@@ -1,14 +1,14 @@
-import Symbol from 'es6-symbol';
-import { Atom, atom, Derivable, lens } from 'derivable';
-import { mod, findBy } from 'shades';
-import getUserAdapter from './adapters/user';
+import Symbol from "es6-symbol";
+import { Atom, atom, Derivable, lens } from "derivable";
+import { mod, findBy } from "shades";
+import getUserAdapter from "./adapters/user";
 import getMessageAdapter, {
   getMessageType,
   QMessage
-} from './adapters/message';
-import getRoomAdapter from './adapters/room';
-import getRealtimeAdapter, { IQRealtimeAdapter } from './adapters/realtime';
-import getHttpAdapter, { IQHttpAdapter } from './adapters/http';
+} from "./adapters/message";
+import getRoomAdapter from "./adapters/room";
+import getRealtimeAdapter, { IQRealtimeAdapter } from "./adapters/realtime";
+import getHttpAdapter, { IQHttpAdapter } from "./adapters/http";
 import {
   IQCallback,
   IQiscus,
@@ -24,7 +24,7 @@ import {
   IQUserAdapter,
   Subscription,
   Callback
-} from './defs';
+} from "./defs";
 import {
   isArrayOfNumber,
   isArrayOfString,
@@ -39,7 +39,7 @@ import {
   isReqJson,
   isReqNumber,
   isReqString
-} from './utils/param-utils';
+} from "./utils/param-utils";
 import {
   bufferUntil,
   process,
@@ -47,18 +47,18 @@ import {
   toCallbackOrPromise,
   toEventSubscription,
   subscribeOnNext
-} from './utils/stream';
-import xs, { Stream } from 'xstream';
+} from "./utils/stream";
+import xs, { Stream } from "xstream";
 
-const __secret = Symbol('secret');
-export type QSyncMode = 'socket' | 'http' | 'both';
+const __secret = Symbol("secret");
+export type QSyncMode = "socket" | "http" | "both";
 
 const updateRoomParticipantLastRead = (
   participantUserId: string,
   messageId: number
 ) => (room: IQRoom): IQRoom => {
   const selector = mod(
-    'participants',
+    "participants",
     findBy.of<IQParticipant>({ id: participantUserId })
   );
   const transformer = selector(it => ({ ...it, lastReadMessageId: messageId }));
@@ -69,7 +69,7 @@ const updateRoomParticipantLastReceived = (
   messageId: number
 ) => (room: IQRoom): IQRoom => {
   const selector = mod(
-    'participants',
+    "participants",
     findBy.of<IQParticipant>({ id: participantUserId })
   );
   const transformer = selector(it => ({
@@ -83,7 +83,7 @@ export default class Qiscus implements IQiscus {
   private static _instance: Qiscus = null;
 
   //<editor-fold desc="Property">
-  private readonly _syncMode: Atom<QSyncMode> = atom('socket');
+  private readonly _syncMode: Atom<QSyncMode> = atom("socket");
   private readonly _currentUser: Atom<IQUser | null> = atom(null);
   private readonly _rooms: Atom<{ [key: number]: IQRoom }> = atom({});
   private readonly _messages: Atom<{ [key: string]: IQMessage }> = atom({});
@@ -219,8 +219,8 @@ export default class Qiscus implements IQiscus {
   setup(appId: string, syncInterval: number = 5000): void {
     this.setupWithCustomServer(
       appId,
-      'https://api.qiscus.com/api/v2/sdk/',
-      'wss://mqtt.qiscus.com:1886/mqtt',
+      "https://api.qiscus.com/api/v2/sdk/",
+      "wss://mqtt.qiscus.com:1886/mqtt",
       null,
       syncInterval
     );
@@ -236,7 +236,7 @@ export default class Qiscus implements IQiscus {
     this._appId.set(appId);
     this._baseUrl.set(baseUrl);
     this._brokerUrl.set(brokerUrl);
-    this._syncMode.set('socket');
+    this._syncMode.set("socket");
     this._syncInterval.set(syncInterval);
     this._httpAdapter.set(
       getHttpAdapter({
@@ -244,7 +244,7 @@ export default class Qiscus implements IQiscus {
         getAppId: () => this.appId,
         getToken: () => this.token,
         getUserId: () => (this.currentUser ? this.currentUser.userId : null),
-        getSdkVersion: () => '3-beta'
+        getSdkVersion: () => "3-beta"
       })
     );
     this._userAdapter.set(getUserAdapter(this._httpAdapter));
@@ -318,7 +318,7 @@ export default class Qiscus implements IQiscus {
     return xs
       .combine(
         process(userId, isReqString({ userId })),
-        process(callback, isReqString({ callback }))
+        process(callback, isOptCallback({ callback }))
       )
       .compose(bufferUntil(() => this.isLogin))
       .map(([userId]) => xs.fromPromise(this.userAdapter.blockUser(userId)))
@@ -528,7 +528,7 @@ export default class Qiscus implements IQiscus {
     uniqueId: string,
     callback?: IQCallback<IQRoom>
   ): void | Promise<IQRoom> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
     return xs
       .combine(
         process(uniqueId, isReqString({ uniqueId })),
@@ -590,14 +590,6 @@ export default class Qiscus implements IQiscus {
         xs.fromPromise(this.roomAdapter.addParticipants(roomId, userIds))
       )
       .flatten()
-      .compose<Stream<IQParticipant[]>>(
-        tap(participants => {
-          this._getParticipantsOfRoomById(roomId).update(it => [
-            ...it,
-            ...participants
-          ]);
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -622,12 +614,12 @@ export default class Qiscus implements IQiscus {
   }
 
   clearMessagesByChatRoomId(
-    roomIds: number[],
+    roomUniqueIds: string[],
     callback?: IQCallback<IQRoom[]>
   ): void | Promise<IQRoom[]> {
     return xs
       .combine(
-        process(roomIds, isReqArrayNumber({ roomIds })),
+        process(roomUniqueIds, isReqArrayString({ roomIds: roomUniqueIds })),
         process(callback, isOptCallback({ callback }))
       )
       .compose(bufferUntil(() => this.isLogin))
@@ -722,14 +714,14 @@ export default class Qiscus implements IQiscus {
   }
 
   getParticipants(
-    roomId: number,
+    roomUniqueId: string,
     offset?: number,
-    sorting?: 'asc' | 'desc' | null,
+    sorting?: "asc" | "desc" | null,
     callback?: IQCallback<IQParticipant[]>
   ): void | Promise<IQParticipant[]> {
     return xs
       .combine(
-        process(roomId, isReqNumber({ roomId })),
+        process(roomUniqueId, isReqString({ roomUniqueId })),
         process(offset, isOptNumber({ offset })),
         process(sorting, isOptString({ sorting })),
         process(callback, isOptCallback({ callback }))
@@ -939,6 +931,7 @@ export default class Qiscus implements IQiscus {
       .flatten()
       .compose(
         tap(message => {
+          if (message == null) return;
           this._getRoomById(roomId).update(
             updateRoomParticipantLastReceived(
               this.currentUser.userId,
@@ -983,19 +976,6 @@ export default class Qiscus implements IQiscus {
         xs.fromPromise(this.messageAdapter.deleteMessage(messageUniqueIds))
       )
       .flatten()
-      .compose(
-        tap(messages => {
-          this._messages.update(_messages => {
-            const mIds = messages.map(it => it.uniqueId);
-            return Object.values(_messages)
-              .filter(it => !mIds.includes(it.uniqueId))
-              .reduce((res, it) => {
-                res[it.uniqueId] = it;
-                return res;
-              }, {});
-          });
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -1069,24 +1049,27 @@ export default class Qiscus implements IQiscus {
   // -------------------------------------------------------
 
   // Misc --------------------------------------------------
-  publishEvent(roomId: number, data: any): void {
+  publishCustomEvent(roomId: number, data: any): void {
     const userId = this.currentUser.userId;
     this.realtimeAdapter.mqtt.publishCustomEvent(roomId, userId, data);
   }
 
-  setTyping(isTyping?: boolean): void {
+  publishOnlinePresence(isOnline: boolean): void {
+    this.realtimeAdapter.sendPresence(this.currentUser.userId, isOnline);
+  }
+  publishTyping(roomId: number, isTyping?: boolean): void {
     this.realtimeAdapter.sendTyping(
-      this._currentRoomId.get(),
+      roomId,
       this.currentUser.userId,
       isTyping || true
     );
   }
 
-  subscribeEvent(roomId: number, callback: IQCallback<any>): void {
+  subscribeCustomEvent(roomId: number, callback: IQCallback<any>): void {
     this.realtimeAdapter.mqtt.subscribeCustomEvent(roomId, callback);
   }
 
-  unsubscribeEvent(roomId: number): void {
+  unsubscribeCustomEvent(roomId: number): void {
     this.realtimeAdapter.mqtt.unsubscribeCustomEvent(roomId);
   }
 

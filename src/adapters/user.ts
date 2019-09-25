@@ -1,8 +1,8 @@
-import { Atom, atom } from 'derivable';
-import { IQHttpAdapter } from './http';
-import QUrlBuilder from '../utils/url-builder';
-import { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from '../defs';
-import { UrlBuilder } from '../utils/utils';
+import { Atom, atom } from "derivable";
+import { IQHttpAdapter } from "./http";
+import QUrlBuilder from "../utils/url-builder";
+import { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from "../defs";
+import { UrlBuilder } from "../utils/utils";
 
 export class QUser implements IQUser {
   id: number;
@@ -51,7 +51,7 @@ export default function getUserAdapter(
       };
       const resp = await http
         .get()
-        .post<UserResponse.RootObject>('login_or_register', data);
+        .post<UserResponse.RootObject>("login_or_register", data);
       const user = QUser.fromJson(resp.results.user);
 
       currentUser.set(user);
@@ -66,7 +66,7 @@ export default function getUserAdapter(
     async blockUser(userId: string): Promise<IQUser> {
       const resp = await http
         .get()
-        .post<BlockUserResponse.RootObject>('block_user', {
+        .post<BlockUserResponse.RootObject>("block_user", {
           token: this.token.get(),
           user_email: userId
         });
@@ -76,26 +76,26 @@ export default function getUserAdapter(
       page: number = 1,
       limit: number = 20
     ): Promise<IQUser[]> {
-      const url = QUrlBuilder('get_user_list')
-        .param('token', this.token.get())
-        .param('page', page)
-        .param('limit', limit)
+      const url = QUrlBuilder("get_user_list")
+        .param("token", this.token.get())
+        .param("page", page)
+        .param("limit", limit)
         .build();
       const resp = await http
         .get()
         .get<BlockedUserListResponse.RootObject>(url);
-      return resp.results.blocked_users.map(user => QUser.fromJson(user));
+      return resp.results.users.map(user => QUser.fromJson(user));
     },
     async getUserList(
-      query: string = '',
+      query: string = "",
       page: number = 1,
       limit: number = 20
     ): Promise<IQUser[]> {
-      const url = QUrlBuilder('get_user_list')
-        .param('token', token)
-        .param('query', query)
-        .param('page', page)
-        .param('limit', limit)
+      const url = QUrlBuilder("get_user_list")
+        .param("token", token.get())
+        .param("query", query)
+        .param("page", page)
+        .param("limit", limit)
         .build();
       const resp = await http.get().get<UserListResponse.RootObject>(url);
       return resp.results.users.map((user: any) => QUser.fromJson(user));
@@ -103,7 +103,7 @@ export default function getUserAdapter(
     async unblockUser(userId: string): Promise<IQUser> {
       const resp = await http
         .get()
-        .post<BlockUserResponse.RootObject>('unblock_user', {
+        .post<BlockUserResponse.RootObject>("unblock_user", {
           token: this.token.get(),
           user_email: userId
         });
@@ -112,7 +112,7 @@ export default function getUserAdapter(
     async setUserFromIdentityToken(identityToken: string): Promise<IQUser> {
       const resp = await http
         .get()
-        .post<UserResponse.RootObject>('auth/verify_identity_token', {
+        .post<UserResponse.RootObject>("auth/verify_identity_token", {
           identity_token: identityToken
         });
       const user = QUser.fromJson(resp.results.user);
@@ -133,17 +133,19 @@ export default function getUserAdapter(
       };
       const resp = await http
         .get()
-        .patch<UserResponse.RootObject>('my_profile', data);
+        .patch<UserResponse.RootObject>("my_profile", data);
       const user = QUser.fromJson(resp.results.user);
       currentUser.set(user);
       return user;
     },
     async getNonce(): Promise<QNonce> {
-      const resp = await http.get().get<NonceResponse>('auth/nonce');
+      const resp = await http.get().post<NonceResponse>("auth/nonce");
       return { expired: resp.results.expired_at, nonce: resp.results.nonce };
     },
     async getUserData(): Promise<IQUser> {
-      const url = new UrlBuilder('my_profile').param('token', token).build();
+      const url = new UrlBuilder("my_profile")
+        .param("token", token.get())
+        .build();
       const resp = await http.get().get<UserResponse.RootObject>(url);
       const user = QUser.fromJson(resp.results.user);
       currentUser.set(user);
@@ -151,12 +153,12 @@ export default function getUserAdapter(
     },
     async registerDeviceToken(
       deviceToken: string,
-      platform: string = 'rn'
+      platform: string = "rn"
     ): Promise<boolean> {
       const resp = await http
         .get()
-        .post<DeviceTokenResponse.RootObject>('set_user_device_token', {
-          token: token,
+        .post<DeviceTokenResponse.RootObject>("set_user_device_token", {
+          token: token.get(),
           device_platform: platform,
           device_token: deviceToken
         });
@@ -164,12 +166,12 @@ export default function getUserAdapter(
     },
     async unregisterDeviceToken(
       deviceToken: string,
-      platform: string = 'rn'
+      platform: string = "rn"
     ): Promise<boolean> {
       const resp = await http
         .get()
-        .post<DeviceTokenResponse.RootObject>('remove_user_device_token', {
-          token: token,
+        .post<DeviceTokenResponse.RootObject>("remove_user_device_token", {
+          token: token.get(),
           device_platform: platform,
           device_token: deviceToken
         });
@@ -313,7 +315,7 @@ declare module BlockedUserListResponse {
   }
 
   export interface Results {
-    blocked_users: BlockedUser[];
+    users: BlockedUser[];
     total: number;
   }
 

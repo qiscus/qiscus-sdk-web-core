@@ -1,6 +1,6 @@
-import { atom, Derivable } from 'derivable';
-import { IQHttpAdapter } from './http';
-import getSyncAdapter from './sync';
+import { atom, Derivable } from "derivable";
+import { IQHttpAdapter } from "./http";
+import getSyncAdapter from "./sync";
 import {
   Callback,
   IQMessage,
@@ -9,11 +9,11 @@ import {
   IQMessageAdapter,
   IQRoomAdapter,
   IQMessageType
-} from '../defs';
-import xs from 'xstream';
-import getMqttAdapter, { IQMqttAdapter } from './mqtt';
-import { tap, subscribeOnNext } from '../utils/stream';
-import { QMessage } from './message';
+} from "../defs";
+import xs from "xstream";
+import getMqttAdapter, { IQMqttAdapter } from "./mqtt";
+import { tap, subscribeOnNext } from "../utils/stream";
+import { QMessage } from "./message";
 
 export interface IQRealtimeAdapter {
   onNewMessage(callback: Callback<IQMessage>): Subscription;
@@ -28,7 +28,7 @@ export interface IQRealtimeAdapter {
   synchronize(lastMessageId: number): void;
   synchronizeEvent(lastEventId: number): void;
   sendTyping(roomId: number, userId: string, isTyping: boolean): void;
-  sendPresence(userId: string): void;
+  sendPresence(userId: string, isOnline: boolean): void;
   readonly mqtt: IQMqttAdapter;
 }
 
@@ -168,8 +168,8 @@ export default function getRealtimeAdapter(
       );
       return () => subscription.unsubscribe();
     },
-    sendPresence(userId: string): void {
-      mqtt.sendPresence(userId);
+    sendPresence(userId: string, isOnline: boolean): void {
+      mqtt.sendPresence(userId, isOnline);
     },
     sendTyping(roomId: number, userId: string, isTyping: boolean): void {
       mqtt.sendTyping(roomId, userId, isTyping);

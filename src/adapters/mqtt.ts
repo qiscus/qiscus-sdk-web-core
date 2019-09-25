@@ -1,11 +1,11 @@
-import flatten from 'lodash.flatten';
-import { match, when } from '../utils/match';
-import { EventEmitter } from 'pietile-eventemitter';
-import connect from 'mqtt/lib/connect';
-import { atom, Atom, Derivable } from 'derivable';
-import { IClientPublishOptions, MqttClient } from 'mqtt';
-import { IQMessageAdapter, Subscription, Callback, IQMessage } from '../defs';
-import { QMessage } from './message';
+import flatten from "lodash.flatten";
+import { match, when } from "../utils/match";
+import { EventEmitter } from "pietile-eventemitter";
+import connect from "mqtt/lib/connect";
+import { atom, Atom, Derivable } from "derivable";
+import { IClientPublishOptions, MqttClient } from "mqtt";
+import { IQMessageAdapter, Subscription, Callback, IQMessage } from "../defs";
+import { QMessage } from "./message";
 
 const reNewMessage = /^([\w]+)\/c/i;
 const reNotification = /^([\w]+)\/n/i;
@@ -33,7 +33,7 @@ export interface IQMqttAdapter {
   onNewChannelMessage(callback: Callback<any>): Subscription;
   onMessageDeleted(callback: Callback<any>): Subscription;
   onRoomDeleted(callback: Callback<any>): Subscription;
-  sendPresence(userId: string): void;
+  sendPresence(userId: string, isOnline: boolean): void;
   sendTyping(roomId: number, userId: string, isTyping: boolean): void;
   publishCustomEvent(roomId: number, userId: string, data: any): void;
   subscribeCustomEvent(roomId: number, callback: Callback<any>): void;
@@ -136,20 +136,20 @@ export type MqttUserTyping = {
 };
 export type MqttCustomEvent = { roomId: number; payload: any };
 interface Events {
-  'message::received': (message: MqttMessageReceived) => void;
-  'message::delivered': (message: MqttMessageDelivery) => void;
-  'message::read': (message: MqttMessageDelivery) => void;
-  'message::deleted': (data: { roomId: number; uniqueId: string }) => void;
-  'room::cleared': (roomId: number) => void;
-  'user::typing': (data: MqttUserTyping) => void;
-  'user::presence': (data: MqttUserPresence) => void;
-  'channel-message::new': (
+  "message::received": (message: MqttMessageReceived) => void;
+  "message::delivered": (message: MqttMessageDelivery) => void;
+  "message::read": (message: MqttMessageDelivery) => void;
+  "message::deleted": (data: { roomId: number; uniqueId: string }) => void;
+  "room::cleared": (roomId: number) => void;
+  "user::typing": (data: MqttUserTyping) => void;
+  "user::presence": (data: MqttUserPresence) => void;
+  "channel-message::new": (
     message: MqttMessageReceived & { channelUniqueId: string }
   ) => void;
-  'custom-event': (payload: any) => void;
-  'mqtt::connected': () => void;
-  'mqtt::disconnected': () => void;
-  'mqtt::reconnecting': () => void;
+  "custom-event": (payload: any) => void;
+  "mqtt::connected": () => void;
+  "mqtt::disconnected": () => void;
+  "mqtt::reconnecting": () => void;
 }
 interface MQTTHandler {
   (topic: string): (data: any) => void;
@@ -171,50 +171,50 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
       const topicData = reChannelMessage.exec(topic);
       const channelUniqueId = topicData[2];
       const message = JSON.parse(data);
-      emitter.emit('channel-message::new', { channelUniqueId, message });
+      emitter.emit("channel-message::new", { channelUniqueId, message });
     },
     customEventHandler: topic => data => {
       const topicData = reCustomEvent.exec(topic);
       const roomId = topicData[1];
       const payload = JSON.parse(data);
-      emitter.emit('custom-event', { roomId, payload });
+      emitter.emit("custom-event", { roomId, payload });
     },
     notificationHandler: _ => (data: string) => {
       const payload = JSON.parse(data) as MqttNotification;
-      if (payload.action_topic === 'delete_message') {
+      if (payload.action_topic === "delete_message") {
         const deletedMessagesData = payload.payload.data.deleted_messages;
         deletedMessagesData.forEach(data => {
           const roomId = parseInt(data.room_id, 10);
           data.message_unique_ids.forEach(uniqueId => {
-            emitter.emit('message::deleted', { roomId, uniqueId });
+            emitter.emit("message::deleted", { roomId, uniqueId });
           });
         });
       }
-      if (payload.action_topic === 'clear_room') {
-        console.log('got another notification', data);
+      if (payload.action_topic === "clear_room") {
+        console.log("got another notification", data);
         const clearedRooms = payload.payload.data.deleted_rooms;
         clearedRooms.forEach(room => {
           const roomId = room.id;
-          emitter.emit('room::cleared', roomId);
+          emitter.emit("room::cleared", roomId);
         });
       }
     },
     onlineHandler: topic => data => {
       const topicData = reOnlineStatus.exec(topic);
-      const payload = data.split(':');
+      const payload = data.split(":");
       const userId = topicData[1];
       const isOnline = Number(payload[0]) === 1;
       const lastSeen = new Date(Number(payload[1]));
-      emitter.emit('user::presence', { userId, isOnline, lastSeen });
+      emitter.emit("user::presence", { userId, isOnline, lastSeen });
     },
     deliveredHandler: topic => data => {
       const topicData = reDelivery.exec(topic);
-      const payload = data.split(':');
+      const payload = data.split(":");
       const roomId = parseInt(topicData[1], 10);
       const userId = topicData[3];
       const messageId = payload[0];
       const messageUniqueId = payload[1];
-      emitter.emit('message::delivered', {
+      emitter.emit("message::delivered", {
         roomId,
         userId,
         messageId,
@@ -223,16 +223,16 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
     },
     newMessage: _ => data => {
       const message: MqttMessage = JSON.parse(data);
-      emitter.emit('message::received', { message });
+      emitter.emit("message::received", { message });
     },
     readHandler: topic => data => {
       const topicData = reRead.exec(topic);
       const roomId = parseInt(topicData[1], 10);
       const userId = topicData[3];
-      const payload = data.split(':');
+      const payload = data.split(":");
       const messageId = payload[0];
       const messageUniqueId = payload[1];
-      emitter.emit('message::read', {
+      emitter.emit("message::read", {
         roomId,
         userId,
         messageId,
@@ -244,7 +244,7 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
       const roomId = parseInt(topicData[1], 10);
       const userId = topicData[3];
       const isTyping = Number(data) === 1;
-      emitter.emit('user::typing', { roomId, userId, isTyping });
+      emitter.emit("user::typing", { roomId, userId, isTyping });
     }
   };
 };
@@ -257,7 +257,7 @@ export default function getMqttAdapter(
   const handler = getMqttHandler(emitter);
   const subscribedCustomEventTopics = new Map<number, any>();
   const getTopic = (roomId: number) => `r/${roomId}/${roomId}/e`;
-  const logger = (...args: any[]) => console.log('MqttAdapter:', ...args);
+  const logger = (...args: any[]) => console.log("MqttAdapter:", ...args);
   const matcher = match({
     [when(reNewMessage)]: (topic: string) => handler.newMessage(topic),
     [when(reNotification)]: (topic: string) =>
@@ -270,11 +270,11 @@ export default function getMqttAdapter(
       handler.channelMessageHandler(topic),
     [when(reCustomEvent)]: (topic: string) => handler.customEventHandler(topic),
     [when()]: (topic: string) => (message: any) =>
-      logger('topic not handled', topic, message)
+      logger("topic not handled", topic, message)
   });
   const mqtt: Atom<MqttClient | null> = atom(null);
 
-  emitter.on('custom-event', (data: any) => {
+  emitter.on("custom-event", (data: any) => {
     const roomId = data.roomId;
     if (subscribedCustomEventTopics.has(roomId)) {
       const callback = subscribedCustomEventTopics.get(roomId);
@@ -299,40 +299,40 @@ export default function getMqttAdapter(
       );
       mqtt.set(_mqtt);
 
-      _mqtt.on('message', (topic: string, message: any) => {
+      _mqtt.on("message", (topic: string, message: any) => {
         message = message.toString();
         const func = matcher(topic);
         if (func != null) func(message);
       });
-      _mqtt.on('connect', () => {
-        emitter.emit('mqtt::connected');
+      _mqtt.on("connect", () => {
+        emitter.emit("mqtt::connected");
       });
-      _mqtt.on('reconnect', () => {
-        emitter.emit('mqtt::reconnecting');
+      _mqtt.on("reconnect", () => {
+        emitter.emit("mqtt::reconnecting");
       });
-      _mqtt.on('close', () => {
-        emitter.emit('mqtt::disconnected');
+      _mqtt.on("close", () => {
+        emitter.emit("mqtt::disconnected");
       });
     },
     onMqttConnected(callback: () => void): () => void {
-      emitter.on('mqtt::connected', callback);
-      return () => emitter.off('mqtt::connected', callback);
+      emitter.on("mqtt::connected", callback);
+      return () => emitter.off("mqtt::connected", callback);
     },
     onMqttReconnecting(callback: () => void): Subscription {
-      emitter.on('mqtt::reconnecting', callback);
-      return () => emitter.off('mqtt::reconnecting', callback);
+      emitter.on("mqtt::reconnecting", callback);
+      return () => emitter.off("mqtt::reconnecting", callback);
     },
     onMqttDisconnected(callback: () => void): Subscription {
-      emitter.on('mqtt::disconnected', callback);
-      return () => emitter.off('mqtt::disconnected', callback);
+      emitter.on("mqtt::disconnected", callback);
+      return () => emitter.off("mqtt::disconnected", callback);
     },
     onMessageDeleted(callback: (data: any) => void): () => void {
-      emitter.on('message::deleted', callback);
-      return () => emitter.off('message::deleted', callback);
+      emitter.on("message::deleted", callback);
+      return () => emitter.off("message::deleted", callback);
     },
     onMessageDelivered(callback: (data: any) => void): () => void {
-      emitter.on('message::delivered', callback);
-      return () => emitter.off('message::delivered', callback);
+      emitter.on("message::delivered", callback);
+      return () => emitter.off("message::delivered", callback);
     },
     onMessageRead(
       callback: (
@@ -350,23 +350,23 @@ export default function getMqttAdapter(
           data.messageUniqueId
         );
       };
-      emitter.on('message::read', handler);
-      return () => emitter.off('message::read', handler);
+      emitter.on("message::read", handler);
+      return () => emitter.off("message::read", handler);
     },
     onNewChannelMessage(callback: (data: any) => void): () => void {
-      emitter.on('channel-message::new', callback);
-      return () => emitter.off('channel-message::new', callback);
+      emitter.on("channel-message::new", callback);
+      return () => emitter.off("channel-message::new", callback);
     },
     onNewMessage(callback: (data: IQMessage) => void): () => void {
       const handler = (data: MqttMessageReceived) => {
         callback(QMessage.fromJson(data.message));
       };
-      emitter.on('message::received', handler);
-      return () => emitter.off('message::received', handler);
+      emitter.on("message::received", handler);
+      return () => emitter.off("message::received", handler);
     },
     onRoomDeleted(callback: (data: number) => void): () => void {
-      emitter.on('room::cleared', callback);
-      return () => emitter.off('room::cleared', callback);
+      emitter.on("room::cleared", callback);
+      return () => emitter.off("room::cleared", callback);
     },
     onUserPresence(
       callback: (userId: string, isOnline: boolean, lastSeen: Date) => void
@@ -374,8 +374,8 @@ export default function getMqttAdapter(
       const handler = (data: MqttUserPresence) => {
         callback(data.userId, data.isOnline, data.lastSeen);
       };
-      emitter.on('user::presence', handler);
-      return () => emitter.off('user::presence', handler);
+      emitter.on("user::presence", handler);
+      return () => emitter.off("user::presence", handler);
     },
     onUserTyping(
       callback: (userId: string, roomId: number, isTyping: boolean) => void
@@ -383,8 +383,8 @@ export default function getMqttAdapter(
       const handler = (data: MqttUserTyping) => {
         callback(data.userId, data.roomId, data.isTyping);
       };
-      emitter.on('user::typing', handler);
-      return () => emitter.off('user::typing', handler);
+      emitter.on("user::typing", handler);
+      return () => emitter.off("user::typing", handler);
     },
     publishCustomEvent(roomId: number, userId: string, data: any): void {
       const payload = JSON.stringify({
@@ -407,13 +407,14 @@ export default function getMqttAdapter(
       mqtt.get().unsubscribe(topic);
       subscribedCustomEventTopics.delete(roomId);
     },
-    sendPresence(userId: string): void {
-      mqtt.get().publish(`u/${userId}/s`, '1', {
+    sendPresence(userId: string, isOnline: boolean): void {
+      const status = isOnline ? "1" : "0";
+      mqtt.get().publish(`u/${userId}/s`, status, {
         retain: true
       } as IClientPublishOptions);
     },
     sendTyping(roomId: number, userId: string, isTyping: boolean): void {
-      const payload = isTyping ? '1' : '0';
+      const payload = isTyping ? "1" : "0";
       mqtt.get().publish(`r/${roomId}/${roomId}/${userId}/t`, payload);
     },
     subscribeUser(userToken: string): Subscription {

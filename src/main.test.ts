@@ -1,8 +1,7 @@
+import test from "ava";
+import Qiscus from "./main";
 
-import test from 'ava'
-import Qiscus from './main'
-
-test('QiscusSDK should have all the required method', t => {
+test("QiscusSDK should have all the required method", t => {
   t.truthy(Qiscus.instance);
   t.truthy(Qiscus.instance.setup);
   t.truthy(Qiscus.instance.setupWithCustomServer);
@@ -39,6 +38,6 @@ test('QiscusSDK should have all the required method', t => {
   t.truthy(Qiscus.instance.clearMessagesByChatRoomId);
   t.truthy(Qiscus.instance.getUsers);
   t.truthy(Qiscus.instance.setSyncInterval);
-  t.truthy(Qiscus.instance.subscribeEvent);
-  t.truthy(Qiscus.instance.publishEvent)
+  t.truthy(Qiscus.instance.subscribeCustomEvent);
+  t.truthy(Qiscus.instance.publishCustomEvent);
 });

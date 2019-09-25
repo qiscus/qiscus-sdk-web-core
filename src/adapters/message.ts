@@ -1,6 +1,6 @@
-import cuid from 'cuid';
-import { atom, Atom, lens } from 'derivable';
-import { mod, findBy, matching } from 'shades';
+import cuid from "cuid";
+import { atom, Atom, lens } from "derivable";
+import { mod, findBy, matching } from "shades";
 import {
   IQMessage,
   IQMessageAdapter,
@@ -10,17 +10,17 @@ import {
   IQRoomAdapter,
   IQUserAdapter,
   IQParticipant
-} from '../defs';
-import QUrlBuilder from '../utils/url-builder';
-import { IQHttpAdapter } from './http';
+} from "../defs";
+import QUrlBuilder from "../utils/url-builder";
+import { IQHttpAdapter } from "./http";
 
 const lessThanEq = (a: number) => (b: number) => a <= b;
 
 export const getMessageType = (type: string) => {
   switch (type) {
-    case 'custom':
+    case "custom":
       return IQMessageType.Custom;
-    case 'text':
+    case "text":
     default:
       return IQMessageType.Text;
   }
@@ -65,10 +65,10 @@ export class QMessage implements IQMessage {
     this.uniqueId = json.unique_temp_id;
     this.extras = json.extras;
     this.payload = json.payload;
-    if (json.type === 'text') this.type = IQMessageType.Text;
-    if (json.type === 'custom') this.type = IQMessageType.Custom;
-    if (json.status === 'delivered') this.status = IQMessageStatus.Delivered;
-    if (json.status === 'read') this.status = IQMessageStatus.Read;
+    if (json.type === "text") this.type = IQMessageType.Text;
+    if (json.type === "custom") this.type = IQMessageType.Custom;
+    if (json.status === "delivered") this.status = IQMessageStatus.Delivered;
+    if (json.status === "read") this.status = IQMessageStatus.Read;
     return this;
   }
 
@@ -111,10 +111,10 @@ export default function getMessageAdapter(
         return Object.values(messages.get()).find(it => it.id === messageId);
       },
       set(message) {
-        messages.update(msgs => ({
-          ...msgs,
-          [message.uniqueId]: message
-        }));
+        messages.update(msgs => {
+          if (message != null) msgs[message.uniqueId] = message;
+          return msgs;
+        });
       }
     });
   return {
@@ -131,14 +131,14 @@ export default function getMessageAdapter(
         ...messages,
         [message.uniqueId]: message
       }));
-      const url = 'post_comment';
+      const url = "post_comment";
 
       const data = new FormData();
-      data.append('token', user.get().token.get());
-      data.append('topic_id', String(message.roomId));
-      data.append('comment', message.content);
-      data.append('payload', JSON.stringify(message.payload));
-      data.append('extras', JSON.stringify(message.extras));
+      data.append("token", user.get().token.get());
+      data.append("topic_id", String(message.roomId));
+      data.append("comment", message.content);
+      data.append("payload", JSON.stringify(message.payload));
+      data.append("extras", JSON.stringify(message.extras));
 
       return http
         .get()
@@ -159,12 +159,12 @@ export default function getMessageAdapter(
       limit: number = 20,
       after: boolean = false
     ): Promise<IQMessage[]> {
-      const url = QUrlBuilder('load_comments')
-        .param('token', user.get().token.get())
-        .param('topic_id', roomId)
-        .param('last_comment_id', lastMessageId)
-        .param('limit', limit)
-        .param('after', after)
+      const url = QUrlBuilder("load_comments")
+        .param("token", user.get().token.get())
+        .param("topic_id", roomId)
+        .param("last_comment_id", lastMessageId)
+        .param("limit", limit)
+        .param("after", after)
         .build();
       return http
         .get()
@@ -181,9 +181,9 @@ export default function getMessageAdapter(
         });
     },
     deleteMessage(messageIds: string[]): Promise<IQMessage[]> {
-      const url = QUrlBuilder('delete_messages')
-        .param('token', user.get().token.get())
-        .param('unique_ids[]', messageIds)
+      const url = QUrlBuilder("delete_messages")
+        .param("token", user.get().token.get())
+        .param("unique_ids", messageIds)
         .build();
       return http
         .get()
@@ -196,15 +196,16 @@ export default function getMessageAdapter(
               messages[comment.unique_temp_id] = undefined;
               return messages;
             });
+            return message;
           });
         });
     },
     markAsRead(roomId: number, messageId: number): Promise<IQMessage> {
       const adapter = roomAdapter.get();
-      const url = QUrlBuilder('update_comment_status')
-        .param('token', user.get().token.get())
-        .param('last_comment_read_id', messageId)
-        .param('room_id', roomId)
+      const url = QUrlBuilder("update_comment_status")
+        .param("token", user.get().token.get())
+        .param("last_comment_read_id", messageId)
+        .param("room_id", roomId)
         .build();
       return http
         .get()
@@ -213,7 +214,7 @@ export default function getMessageAdapter(
         .then(result => {
           // Update participant last read comment id
           const selector = mod(
-            'participants',
+            "participants",
             findBy.of<IQParticipant>({ id: result.user_id })
           );
           const transformer = selector(it => ({
@@ -241,37 +242,47 @@ export default function getMessageAdapter(
     },
     markAsDelivered(roomId: number, messageId: number): Promise<IQMessage> {
       const adapter = roomAdapter.get();
-      const url = QUrlBuilder('update_comment_status')
-        .param('token', user.get().token.get())
-        .param('last_comment_received_id', messageId)
-        .param('room_id', roomId)
+      const url = QUrlBuilder("update_comment_status")
+        .param("token", user.get().token.get())
+        .param("last_comment_received_id", messageId)
+        .param("room_id", roomId)
         .build();
       return http
         .get()
         .post<UpdateCommentStatusResponse.RootObject>(url)
         .then(resp => resp.results)
         .then(result => {
-          adapter.getRoomDataWithId(roomId).update(
-            mod(
-              'participants',
+          adapter.getRoomDataWithId(roomId).update(room => {
+            if (room == null) return room;
+            const selector = mod(
+              "participants",
               findBy.of<IQParticipant>({ id: result.user_id })
-            )(it => ({
+            );
+            const transformer = selector(it => ({
               ...it,
               lastReceivedMessageId: result.last_comment_received_id
-            }))
-          );
+            }));
+            return transformer(room);
+          });
 
           const room = adapter.getRoomDataWithId(roomId).get();
+
+          if (room == null) return null;
+
           const lowestMessageId = room.participants
             .map(it => it.lastReceivedMessageId)
             .sort()
             .reduce((res, it) => (res > it ? it : res));
-          messages.update(
-            mod(matching({ id: lessThanEq(lowestMessageId) }))(it => ({
+          messages.update(msgs => {
+            const selector = mod(matching({ id: lessThanEq(lowestMessageId) }));
+            const changer = (it: IQMessage) => ({
               ...it,
               status: IQMessageStatus.Delivered
-            }))
-          );
+            });
+            const transformer = selector(changer);
+            const result = transformer(msgs);
+            return result;
+          });
           return getMessageDataWithId(messageId).get();
         });
     }

@@ -160,7 +160,7 @@ export interface IQiscus {
     callback?: IQCallback<IQRoom[]>
   ): void | Promise<IQRoom[]>;
   getParticipants(
-    roomId: number,
+    roomUniqueId: string,
     offset?: number,
     sorting?: "asc" | "desc" | null,
     callback?: IQCallback<IQParticipant[]>
@@ -200,7 +200,7 @@ export interface IQiscus {
     callback?: IQCallback<IQMessage[]>
   ): void | Promise<IQMessage[]>;
   clearMessagesByChatRoomId(
-    roomIds: number[],
+    roomUniqueIds: string[],
     callback?: IQCallback<IQRoom[]>
   ): void | Promise<IQRoom[]>;
   // -------------------------------------------------------
@@ -222,12 +222,12 @@ export interface IQiscus {
   setSyncInterval(interval: number): void;
 
   // ------------------------------------------
-  setTyping(isTyping?: boolean): void;
+  publishTyping(roomId: number, isTyping?: boolean): void;
 
   // from CustomEventAdapter
-  publishEvent(roomId: number, data: any): void;
-  subscribeEvent(roomId: number, callback: IQCallback<any>): void;
-  unsubscribeEvent(roomId: number): void;
+  publishCustomEvent(roomId: number, data: any): void;
+  subscribeCustomEvent(roomId: number, callback: IQCallback<any>): void;
+  unsubscribeCustomEvent(roomId: number): void;
 }
 
 export interface IQUserExtraProps {
@@ -316,7 +316,7 @@ export interface IQRoomAdapter {
     extras?: string | null
   ): Promise<IQRoom>;
   getParticipantList(
-    roomId: number,
+    roomId: string,
     offset?: number | null,
     sorting?: "asc" | "desc" | null
   ): Promise<IQParticipant[]>;
@@ -343,7 +343,7 @@ export interface IQRoomAdapter {
     showRemoved?: boolean,
     showParticipant?: boolean
   ): Promise<IQRoom[]>;
-  clearRoom(roomUniqueIds: number[]): Promise<IQRoom[]>;
+  clearRoom(roomUniqueIds: string[]): Promise<IQRoom[]>;
   getUnreadCount(): Promise<number>;
   readonly rooms: Derivable<{ [key: string]: IQRoom }>;
   readonly getRoomDataWithId: (roomId: number) => Lens<IQRoom>;
@@ -356,11 +356,11 @@ export type IQMessageT = {
   message: string;
 };
 export enum IQMessageStatus {
-  Sending,
-  Sent,
-  Delivered,
-  Read,
-  Failed
+  Sending = "sending",
+  Sent = "sent",
+  Delivered = "delivered",
+  Read = "read",
+  Failed = "failed"
 }
 
 export enum IQMessageType {
