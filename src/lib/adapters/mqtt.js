@@ -105,13 +105,13 @@ export default class MqttAdapter {
   }
 
   // #region regexp
-  get reNewMessage () { return /^([\w]+)\/c/i }
-  get reNotification () { return /^([\w]+)\/n/i }
+  get reNewMessage () { return /^([\w]+)\/c$/i }
+  get reNotification () { return /^([\w]+)\/n$/i }
   get reTyping () { return /^r\/([\d]+)\/([\d]+)\/([\S]+)\/t$/i }
   get reDelivery () { return /^r\/([\d]+)\/([\d]+)\/([\S]+)\/d$/i }
   get reRead () { return /^r\/([\d]+)\/([\d]+)\/([\S]+)\/r$/i }
   get reOnlineStatus () { return /^u\/([\S]+)\/s$/i }
-  get reChannelMessage () { return /^([\S]+)\/([\S]+)\/c/i }
+  get reChannelMessage () { return /^([\S]+)\/([\S]+)\/c$/i }
   // #endregion
 
   noop () { }
