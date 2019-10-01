@@ -4,9 +4,9 @@ import { PostCommentResponse } from "./adapters/message";
 export type IQCallback<T> = (response: T, error?: Error) => void;
 
 export type IQProgressListener = (
-  error: Error,
-  progress: ProgressEvent,
-  url: string
+  error?: Error,
+  progress?: ProgressEvent,
+  url?: string
 ) => void;
 
 export interface Callback<T1> {
@@ -220,6 +220,14 @@ export interface IQiscus {
   synchronizeEvent(lastEventId: number): void;
   getTotalUnreadCount(callback?: IQCallback<number>): void | Promise<number>;
   setSyncInterval(interval: number): void;
+  hasSetupUser(callback?: (isSetup: boolean) => void): void | Promise<boolean>;
+  getThumbnailURL(url: string): string;
+  sendFileMessage(
+    roomId: number,
+    message: string,
+    file: File,
+    callback: (error: Error, progress: number, message: IQMessage) => void
+  ): void;
 
   // ------------------------------------------
   publishTyping(roomId: number, isTyping?: boolean): void;
@@ -347,6 +355,7 @@ export interface IQRoomAdapter {
   getUnreadCount(): Promise<number>;
   readonly rooms: Derivable<{ [key: string]: IQRoom }>;
   readonly getRoomDataWithId: (roomId: number) => Lens<IQRoom>;
+  readonly getRoomDataWithUniqueId: (roomUniqueId: string) => Lens<IQRoom>;
 }
 
 export type IQMessageT = {
@@ -365,7 +374,8 @@ export enum IQMessageStatus {
 
 export enum IQMessageType {
   Text = "text",
-  Custom = "custom"
+  Custom = "custom",
+  Attachment = "file_attachment"
 }
 
 export interface IQMessage {
@@ -398,3 +408,15 @@ export interface IQMessageAdapter {
   markAsRead(roomId: number, messageId: number): Promise<IQMessage>;
   markAsDelivered(roomId: number, messageId: number): Promise<IQMessage>;
 }
+
+export type UploadResult = {
+  results: {
+    file: {
+      name: string;
+      pages: number;
+      size: number;
+      url: string;
+    };
+  };
+  status: number;
+};

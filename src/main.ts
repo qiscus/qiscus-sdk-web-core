@@ -1,21 +1,23 @@
-import Symbol from "es6-symbol";
-import { Atom, atom, Derivable, lens } from "derivable";
-import { mod, findBy } from "shades";
-import getUserAdapter from "./adapters/user";
+import { Atom, atom } from "derivable";
+import xs from "xstream";
+import getHttpAdapter, { IQHttpAdapter } from "./adapters/http";
+import { getLogger, ILogger } from "./adapters/logger";
 import getMessageAdapter, {
   getMessageType,
   QMessage
 } from "./adapters/message";
-import getRoomAdapter from "./adapters/room";
 import getRealtimeAdapter, { IQRealtimeAdapter } from "./adapters/realtime";
-import getHttpAdapter, { IQHttpAdapter } from "./adapters/http";
+import getRoomAdapter from "./adapters/room";
+import getUserAdapter from "./adapters/user";
 import {
+  Callback,
   IQCallback,
   IQiscus,
   IQMessage,
   IQMessageAdapter,
   IQMessageStatus,
   IQMessageT,
+  IQMessageType,
   IQParticipant,
   IQProgressListener,
   IQRoom,
@@ -23,7 +25,7 @@ import {
   IQUser,
   IQUserAdapter,
   Subscription,
-  Callback
+  UploadResult
 } from "./defs";
 import {
   isArrayOfNumber,
@@ -33,7 +35,6 @@ import {
   isOptJson,
   isOptNumber,
   isOptString,
-  isReqArrayNumber,
   isReqArrayOfStringOrNumber,
   isReqArrayString,
   isReqJson,
@@ -43,55 +44,24 @@ import {
 import {
   bufferUntil,
   process,
+  subscribeOnNext,
   tap,
   toCallbackOrPromise,
-  toEventSubscription,
-  subscribeOnNext
+  toEventSubscription
 } from "./utils/stream";
-import xs, { Stream } from "xstream";
 
-const __secret = Symbol("secret");
 export type QSyncMode = "socket" | "http" | "both";
-
-const updateRoomParticipantLastRead = (
-  participantUserId: string,
-  messageId: number
-) => (room: IQRoom): IQRoom => {
-  const selector = mod(
-    "participants",
-    findBy.of<IQParticipant>({ id: participantUserId })
-  );
-  const transformer = selector(it => ({ ...it, lastReadMessageId: messageId }));
-  return transformer(room);
-};
-const updateRoomParticipantLastReceived = (
-  participantUserId: string,
-  messageId: number
-) => (room: IQRoom): IQRoom => {
-  const selector = mod(
-    "participants",
-    findBy.of<IQParticipant>({ id: participantUserId })
-  );
-  const transformer = selector(it => ({
-    ...it,
-    lastReceivedMessageId: messageId
-  }));
-  return transformer(room);
-};
 
 export default class Qiscus implements IQiscus {
   private static _instance: Qiscus = null;
 
   //<editor-fold desc="Property">
   private readonly _syncMode: Atom<QSyncMode> = atom("socket");
-  private readonly _currentUser: Atom<IQUser | null> = atom(null);
-  private readonly _rooms: Atom<{ [key: number]: IQRoom }> = atom({});
-  private readonly _messages: Atom<{ [key: string]: IQMessage }> = atom({});
 
-  private readonly _token: Atom<string | null> = atom(null);
   private readonly _realtimeAdapter: Atom<IQRealtimeAdapter | null> = atom(
     null
   );
+  private readonly _loggerAdapter: Atom<ILogger> = atom(null);
   private readonly _httpAdapter: Atom<IQHttpAdapter | null> = atom(null);
   private readonly _userAdapter: Atom<IQUserAdapter | null> = atom(null);
   private readonly _roomAdapter: Atom<IQRoomAdapter | null> = atom(null);
@@ -101,40 +71,7 @@ export default class Qiscus implements IQiscus {
   private readonly _brokerUrl: Atom<string | null> = atom(null);
   private readonly _appId: Atom<string> = atom(null);
   private readonly _shouldSync = atom(false);
-
-  private readonly _currentRoomId: Atom<number | null> = atom(null);
-  private readonly _currentRoom: Derivable<IQRoom | null> = this._rooms.derive(
-    rooms => {
-      const r = rooms[this._currentRoomId.get()];
-      r.messages = Object.values(this._messages.get())
-        .filter(it => it.roomId === r.id)
-        .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-
-      return r;
-    }
-  );
-
-  private readonly _lastReadMessageId: Derivable<
-    number
-  > = this._currentRoom.derive(room => {
-    if (room == null) return 0;
-    const user = room.participants.find(
-      it => it.userId === this.currentUser.userId
-    );
-    if (user == null) return 0;
-    return user.lastReadMessageId;
-  });
-  private readonly _lastReceivedMessageId: Derivable<
-    number
-  > = this._currentRoom.derive(room => {
-    if (room == null) return 0;
-    const user = room.participants.find(
-      it => it.userId === this.currentUser.userId
-    );
-    if (user == null) return 0;
-    return user.lastReceivedMessageId;
-  });
-
+  private readonly _customHeaders = atom<{ [key: string]: string }>(null);
   //</editor-fold>
 
   public static get instance(): Qiscus {
@@ -178,10 +115,6 @@ export default class Qiscus implements IQiscus {
         return adapter.currentUser.get();
       })
       .get();
-    return this._currentUser.get();
-  }
-  public get currentRoom() {
-    return this._currentRoom.get();
   }
   private get syncInterval() {
     return this._syncInterval.get();
@@ -189,32 +122,6 @@ export default class Qiscus implements IQiscus {
   private get shouldSync() {
     return this._shouldSync.get();
   }
-
-  private _getRoomById = roomId =>
-    lens({
-      get: () => {
-        return this._rooms.get()[roomId];
-      },
-      set: room => {
-        this._rooms.update(rooms => ({
-          ...rooms,
-          [roomId]: room
-        }));
-      }
-    });
-  private _getParticipantsOfRoomById = roomId =>
-    lens({
-      get: () => {
-        return this._getRoomById(roomId).get().participants;
-      },
-      set: participants => {
-        this._getRoomById(roomId).update(room => ({
-          ...room,
-          participants: participants,
-          totalParticipants: participants.length
-        }));
-      }
-    });
 
   setup(appId: string, syncInterval: number = 5000): void {
     this.setupWithCustomServer(
@@ -238,13 +145,15 @@ export default class Qiscus implements IQiscus {
     this._brokerUrl.set(brokerUrl);
     this._syncMode.set("socket");
     this._syncInterval.set(syncInterval);
+    this._loggerAdapter.set(getLogger());
     this._httpAdapter.set(
       getHttpAdapter({
         baseUrl: this.baseUrl,
+        httpHeader: this._customHeaders,
         getAppId: () => this.appId,
         getToken: () => this.token,
         getUserId: () => (this.currentUser ? this.currentUser.userId : null),
-        getSdkVersion: () => "3-beta"
+        getSdkVersion: () => "3-alpha"
       })
     );
     this._userAdapter.set(getUserAdapter(this._httpAdapter));
@@ -264,6 +173,10 @@ export default class Qiscus implements IQiscus {
         this.userAdapter.token
       )
     );
+  }
+
+  setCustomHeader(headers: { [key: string]: string }): void {
+    this._customHeaders.set(headers);
   }
 
   // User Adapter ------------------------------------------
@@ -332,12 +245,6 @@ export default class Qiscus implements IQiscus {
       .combine(process(callback, isOptCallback({ callback })))
       .map(() => xs.fromPromise(Promise.resolve(this.userAdapter.clear())))
       .flatten()
-      .compose(
-        tap(() => {
-          this._currentUser.set(null);
-          this._token.set(null);
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -380,7 +287,6 @@ export default class Qiscus implements IQiscus {
         xs.fromPromise(this.userAdapter.updateUser(username, avatarUrl, extras))
       )
       .flatten()
-      .compose(tap(user => this._currentUser.set(user)))
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -442,7 +348,6 @@ export default class Qiscus implements IQiscus {
       .compose(bufferUntil(() => this.isLogin))
       .map(() => xs.fromPromise(this.userAdapter.getUserData()))
       .flatten()
-      .compose(tap(user => this._currentUser.set(user)))
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -566,11 +471,6 @@ export default class Qiscus implements IQiscus {
         xs.fromPromise(this.roomAdapter.chatUser(userId, avatarUrl, extras))
       )
       .flatten()
-      .compose(
-        tap(room => {
-          this._getRoomById(room.id).set(room);
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -625,19 +525,6 @@ export default class Qiscus implements IQiscus {
       .compose(bufferUntil(() => this.isLogin))
       .map(([roomIds]) => xs.fromPromise(this.roomAdapter.clearRoom(roomIds)))
       .flatten()
-      .compose(
-        tap(rooms => {
-          this._messages.update(messages => {
-            const rIds = rooms.map(it => it.id);
-            return Object.values(messages)
-              .filter(it => !rIds.includes(it.roomId))
-              .reduce((res, it) => {
-                res[it.uniqueId] = it;
-                return res;
-              }, {});
-          });
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -669,11 +556,6 @@ export default class Qiscus implements IQiscus {
         )
       )
       .flatten()
-      .compose(
-        tap(room => {
-          this._getRoomById(room.id).set(room);
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -705,11 +587,6 @@ export default class Qiscus implements IQiscus {
         )
       )
       .flatten()
-      .compose(
-        tap(room => {
-          this._getRoomById(room.id).set(room);
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -821,19 +698,6 @@ export default class Qiscus implements IQiscus {
         )
       )
       .flatten()
-      .compose(
-        tap(rooms => {
-          this._rooms.update(_rooms => {
-            return {
-              ..._rooms,
-              ...rooms.reduce((res, it) => {
-                res[it.id] = it;
-                return res;
-              }, {})
-            };
-          });
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -849,12 +713,6 @@ export default class Qiscus implements IQiscus {
       .compose(bufferUntil(() => this.isLogin))
       .map(([roomId]) => xs.fromPromise(this.roomAdapter.getRoom(roomId)))
       .flatten()
-      .compose(tap((room: IQRoom) => this._currentRoomId.set(room.id)))
-      .compose(
-        tap((room: IQRoom) => {
-          this._getRoomById(room.id).update(it => ({ ...it, ...room }));
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -892,24 +750,12 @@ export default class Qiscus implements IQiscus {
             message.payload
           );
           m.status = IQMessageStatus.Sending;
-          this._messages.update(messages => ({
-            ...messages,
-            [m.uniqueId]: m
-          }));
         })
       )
       .map(([roomId, message]) =>
         xs.fromPromise(this.messageAdapter.sendMessage(roomId, message))
       )
       .flatten()
-      .compose(
-        tap(message => {
-          this._messages.update(messages => ({
-            ...messages,
-            [message.uniqueId]: message
-          }));
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -929,17 +775,6 @@ export default class Qiscus implements IQiscus {
         xs.fromPromise(this.messageAdapter.markAsDelivered(roomId, messageId))
       )
       .flatten()
-      .compose(
-        tap(message => {
-          if (message == null) return;
-          this._getRoomById(roomId).update(
-            updateRoomParticipantLastReceived(
-              this.currentUser.userId,
-              message.id
-            )
-          );
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -999,17 +834,6 @@ export default class Qiscus implements IQiscus {
         )
       )
       .flatten()
-      .compose(
-        tap(messages => {
-          this._messages.update(_messages => {
-            const m = messages.reduce((res, it) => {
-              res[it.uniqueId] = it;
-              return res;
-            }, {});
-            return { ..._messages, ...m };
-          });
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
 
@@ -1033,17 +857,6 @@ export default class Qiscus implements IQiscus {
         )
       )
       .flatten()
-      .compose(
-        tap(messages => {
-          this._messages.update(_messages => {
-            const m = messages.reduce((res, it) => {
-              res[it.uniqueId] = it;
-              return res;
-            }, {});
-            return { ..._messages, ...m };
-          });
-        })
-      )
       .compose(toCallbackOrPromise(callback));
   }
   // -------------------------------------------------------
@@ -1073,7 +886,58 @@ export default class Qiscus implements IQiscus {
     this.realtimeAdapter.mqtt.unsubscribeCustomEvent(roomId);
   }
 
-  upload(file: File, callback?: IQProgressListener): void {}
+  upload(file: File, callback?: IQProgressListener): void {
+    const data = new FormData();
+    data.append("file", file);
+    data.append("token", this.token);
+    this.httpAdapter
+      .postFormData<UploadResult>("upload", data)
+      .then(res => {
+        const fileUrl = res.results.file.url;
+        callback(null, null, fileUrl);
+      })
+      .catch(error => callback(error));
+  }
+
+  hasSetupUser(callback: (isSetup: boolean) => void): void | Promise<boolean> {
+    return xs
+      .of(this.currentUser)
+      .map(user => user != null)
+      .compose(toCallbackOrPromise(callback));
+  }
+
+  sendFileMessage(
+    roomId: number,
+    message: string,
+    file: File,
+    callback?: (error: Error, progress?: number, message?: IQMessage) => void
+  ): void {
+    this.upload(file, (error, progress, url) => {
+      if (error) return callback(error);
+      if (progress) callback(null, progress.loaded);
+      if (url) {
+        const _message = {
+          payload: {
+            url,
+            file_name: file.name,
+            size: file.size,
+            caption: message
+          },
+          extras: {},
+          type: IQMessageType.Attachment,
+          message: `[file] ${url} [/file]`
+        };
+        this.sendMessage(roomId, _message, msg => {
+          callback(null, null, msg);
+        });
+      }
+    });
+  }
+
+  getThumbnailURL(url: string) {
+    return url.replace("/upload/", "/upload/w_30,c_scale/");
+  }
+
   setSyncInterval(interval: number): void {
     this._syncInterval.set(interval);
   }
@@ -1084,6 +948,10 @@ export default class Qiscus implements IQiscus {
 
   synchronizeEvent(lastEventId: number): void {
     this.realtimeAdapter.synchronizeEvent(lastEventId);
+  }
+
+  enableDebugMode(enable: boolean) {
+    this._loggerAdapter.get().setEnable(enable);
   }
 
   onMessageReceived(handler: (message: IQMessage) => void): Subscription {

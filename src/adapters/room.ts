@@ -123,12 +123,29 @@ export default function getRoomAdapter(
         });
       }
     });
+  const getRoomDataWithUniqueId = (roomUniqueId: string) =>
+    lens<IQRoom>({
+      get() {
+        return Object.values(rooms.get()).find(
+          it => it.uniqueId === roomUniqueId
+        );
+      },
+      set(room) {
+        rooms.update(rooms => {
+          if (room != null) rooms[room.id] = room;
+          return rooms;
+        });
+      }
+    });
   return {
     get rooms() {
       return rooms;
     },
     get getRoomDataWithId() {
       return getRoomDataWithId;
+    },
+    get getRoomDataWithUniqueId() {
+      return getRoomDataWithUniqueId;
     },
     async addParticipants(
       roomId: number,
@@ -362,6 +379,16 @@ export default function getRoomAdapter(
           last_comment_id: it.last_comment.id
         } as QRoomJson)
       );
+      rooms.update(rooms => {
+        const rs = _rooms.reduce<{ [key: string]: IQRoom }>((res, room) => {
+          res[room.id] = room;
+          return res;
+        }, {});
+        return {
+          ...rooms,
+          ...rs
+        };
+      });
       return _rooms;
     },
     async getUnreadCount(): Promise<number> {
