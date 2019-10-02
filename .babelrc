@@ -3,8 +3,7 @@
     "@babel/plugin-transform-runtime",
     "@babel/plugin-proposal-class-properties",
     "babel-plugin-add-module-exports",
-    "babel-plugin-macros",
-    "date-fns"
+    "babel-plugin-macros"
   ],
   "presets": [
     [
