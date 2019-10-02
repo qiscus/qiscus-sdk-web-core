@@ -1,10 +1,10 @@
-import { Atom, Derivable } from 'derivable';
-import flatten from 'lodash.flatten';
-import QUrlBuilder from '../utils/url-builder';
-import mitt from 'mitt';
-import { IQMessageAdapter, IQMessage, IQRoom, IQRoomAdapter } from '../defs';
-import { IQHttpAdapter } from './http';
-import { QMessage, JsonMessage } from './message';
+import { Derivable } from 'derivable'
+import flatten from 'lodash.flatten'
+import QUrlBuilder from '../utils/url-builder'
+import { EventEmitter } from 'pietile-eventemitter'
+import { IQMessage, IQMessageAdapter, IQRoom, IQRoomAdapter } from '../defs'
+import { IQHttpAdapter } from './http'
+import { JsonMessage, QMessage } from './message'
 
 type CallbackMessageDelivery = (
   roomId: number,
@@ -22,14 +22,23 @@ export interface IQSyncAdapter {
   onRoomCleared(callback: (message: IQRoom) => void): () => void;
 }
 
+export interface IQSyncEvent {
+  'room.cleared': (room: SyncEventResponse.DataRoomCleared) => void
+  'message.new': (message: IQMessage) => void
+  'message.delivered': (data: SyncEventResponse.DataMessageDelivered) => void
+  'message.deleted': (message: SyncEventResponse.DataMessageDeleted) => void
+  'message.read': (message: SyncEventResponse.DataMessageDelivered) => void
+  'last-message-id': (id: number) => void
+  'last-event-id': (id: number) => void
+}
+
 export default function getSyncAdapter(
   http: Derivable<IQHttpAdapter>,
   messageAdapter: Derivable<IQMessageAdapter>,
   roomAdapter: Derivable<IQRoomAdapter>,
   token: Derivable<string>
 ): IQSyncAdapter {
-  // @ts-ignore
-  const emitter: mitt.Emitter = mitt();
+  const emitter = new EventEmitter<IQSyncEvent>();
   let lastMessageId = 0;
   let lastEventId = 0;
 

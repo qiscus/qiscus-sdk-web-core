@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "checkJs": false,
-    "allowJs": true,
     "module": "commonjs",
     "target": "esnext",
     "outDir": "lib",
@@ -10,14 +9,13 @@
     "downlevelIteration": true,
     "esModuleInterop": true,
     "incremental": true,
+    "noEmit": true,
     "lib": [
       "dom",
       "es2015",
       "es2016",
       "es2017"
-    ]
-  },
-  "include": [
-    "./src"
-  ]
+    ],
+    "baseUrl": "src"
+  }
 }
