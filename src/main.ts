@@ -450,25 +450,22 @@ export default class Qiscus implements IQiscus {
   // Room Adapter ------------------------------------------
   chatUser(
     userId: string,
-    avatarUrl: string,
     extras: object,
     callback?: IQCallback<IQRoom>
   ): void | Promise<IQRoom> {
     return xs
       .combine(
         process(userId, isReqString({ userId })),
-        process(avatarUrl, isOptString({ avatarUrl })),
         process(extras, isOptJson({ extras })),
         process(callback, isOptCallback({ callback }))
       )
-      .map(([userId, avatarUrl, extras]) => [
+      .map(([userId, extras]) => [
         userId,
-        avatarUrl,
         JSON.stringify(extras)
       ])
       .compose(bufferUntil(() => this.isLogin))
-      .map(([userId, avatarUrl, extras]) =>
-        xs.fromPromise(this.roomAdapter.chatUser(userId, avatarUrl, extras))
+      .map(([userId, extras]) =>
+        xs.fromPromise(this.roomAdapter.chatUser(userId, extras))
       )
       .flatten()
       .compose(toCallbackOrPromise(callback));

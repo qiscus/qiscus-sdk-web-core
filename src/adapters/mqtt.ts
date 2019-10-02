@@ -1,11 +1,10 @@
-import flatten from "lodash.flatten";
-import { match, when } from "../utils/match";
-import { EventEmitter } from "pietile-eventemitter";
-import connect from "mqtt/lib/connect";
-import { atom, Atom, Derivable } from "derivable";
-import { IClientPublishOptions, MqttClient } from "mqtt";
-import { IQMessageAdapter, Subscription, Callback, IQMessage } from "../defs";
-import { QMessage } from "./message";
+import { match, when } from '../utils/match'
+import { EventEmitter } from 'pietile-eventemitter'
+import connect from 'mqtt/lib/connect'
+import { atom, Atom, Derivable } from 'derivable'
+import { IClientPublishOptions, MqttClient } from 'mqtt'
+import { Callback, IQMessage, IQMessageAdapter, Subscription } from '../defs'
+import { QMessage } from './message'
 
 const reNewMessage = /^([\w]+)\/c/i;
 const reNotification = /^([\w]+)\/n/i;

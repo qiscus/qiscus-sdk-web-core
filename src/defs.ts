@@ -94,7 +94,6 @@ export interface IQiscus {
   // from RoomAdapter ----------
   chatUser(
     userId: string,
-    avatarUrl: string,
     extras: object,
     callback?: IQCallback<IQRoom>
   ): void | Promise<IQRoom>;
@@ -302,7 +301,7 @@ export interface IQParticipant extends IQUser {
 }
 
 export interface IQRoomAdapter {
-  chatUser(userId: string, avatarUrl: any, extras: any): Promise<IQRoom>;
+  chatUser(userId: string, extras: any): Promise<IQRoom>;
   getRoomList(
     showParticipant?: boolean,
     showRemoved?: boolean,

@@ -1,13 +1,13 @@
-import { atom, Atom, lens } from "derivable";
-import { IQHttpAdapter } from "./http";
-import QUrlBuilder from "../utils/url-builder";
+import { atom, Atom, lens } from 'derivable'
+import { IQHttpAdapter } from './http'
+import QUrlBuilder from '../utils/url-builder'
 import {
   IQParticipant,
   IQRoom,
   IQRoomAdapter,
   IQRoomType,
   IQUserAdapter
-} from "../defs";
+} from '../defs'
 
 export class QParticipant implements IQParticipant {
   id: number;
@@ -208,17 +208,15 @@ export default function getRoomAdapter(
         });
         return participants;
       } else {
-        const participants = removedIds.map(id => {
+        return removedIds.map(id => {
           const p = new QParticipant();
           p.userId = id;
           return p;
         });
-        return participants;
       }
     },
     async chatUser(
       userId: string,
-      avatarUrl?: string,
       extras?: string
     ): Promise<IQRoom> {
       const resp = await http
@@ -226,8 +224,6 @@ export default function getRoomAdapter(
         .post<ChatUserResponse.RootObject>("get_or_create_room_with_target", {
           token: user.get().token.get(),
           emails: [userId],
-          // TODO: Backend did not need an avatar_url for 1-on-1 room
-          avatar_url: avatarUrl,
           options: extras
         });
       const room = QRoom.fromJson(resp.results.room);
@@ -295,6 +291,7 @@ export default function getRoomAdapter(
         .param("token", user.get().token.get())
         .param("offset", offset)
         .param("room_unique_id", roomUniqueId)
+        .param('sorting', sorting)
         .build();
       const resp = await http.get().get<GetParticipantResponse.RootObject>(url);
       const participants = resp.results.participants.map(participant =>
