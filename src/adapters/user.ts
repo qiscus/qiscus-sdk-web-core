@@ -2,7 +2,6 @@ import { Atom, atom } from "derivable";
 import { IQHttpAdapter } from "./http";
 import QUrlBuilder from "../utils/url-builder";
 import { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from "../defs";
-import { UrlBuilder } from "../utils/utils";
 
 export class QUser implements IQUser {
   id: number;
@@ -143,7 +142,7 @@ export default function getUserAdapter(
       return { expired: resp.results.expired_at, nonce: resp.results.nonce };
     },
     async getUserData(): Promise<IQUser> {
-      const url = new UrlBuilder("my_profile")
+      const url = QUrlBuilder("my_profile")
         .param("token", token.get())
         .build();
       const resp = await http.get().get<UserResponse.RootObject>(url);

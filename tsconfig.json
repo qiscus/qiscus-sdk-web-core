@@ -8,7 +8,6 @@
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
     "esModuleInterop": true,
-    "incremental": true,
     "noEmit": true,
     "lib": [
       "dom",

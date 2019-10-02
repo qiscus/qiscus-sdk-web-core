@@ -5,7 +5,7 @@ export type IQCallback<T> = (response: T, error?: Error) => void;
 
 export type IQProgressListener = (
   error?: Error,
-  progress?: ProgressEvent,
+  progress?: number,
   url?: string
 ) => void;
 

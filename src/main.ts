@@ -459,10 +459,7 @@ export default class Qiscus implements IQiscus {
         process(extras, isOptJson({ extras })),
         process(callback, isOptCallback({ callback }))
       )
-      .map(([userId, extras]) => [
-        userId,
-        JSON.stringify(extras)
-      ])
+      .map(([userId, extras]) => [userId, JSON.stringify(extras)])
       .compose(bufferUntil(() => this.isLogin))
       .map(([userId, extras]) =>
         xs.fromPromise(this.roomAdapter.chatUser(userId, extras))
@@ -888,7 +885,9 @@ export default class Qiscus implements IQiscus {
     data.append("file", file);
     data.append("token", this.token);
     this.httpAdapter
-      .postFormData<UploadResult>("upload", data)
+      .upload<UploadResult>("upload", data, progress =>
+        callback(null, progress)
+      )
       .then(res => {
         const fileUrl = res.results.file.url;
         callback(null, null, fileUrl);
@@ -911,7 +910,7 @@ export default class Qiscus implements IQiscus {
   ): void {
     this.upload(file, (error, progress, url) => {
       if (error) return callback(error);
-      if (progress) callback(null, progress.loaded);
+      if (progress) callback(null, progress);
       if (url) {
         const _message = {
           payload: {

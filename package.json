@@ -3,57 +3,40 @@
   "version": "3.0.0",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
-  "main": "lib/main.js",
+  "main": "dist/qiscus-sdk-javascript.cjs.js",
+  "browser": "dist/qiscus-sdk-javascript.umd.js",
   "files": [
-    "lib",
     "dist"
   ],
   "scripts": {
     "build": "npm-run-all --parallel build:node build:web",
     "build:dev": "npm-run-all --parallel build:node build:web:dev",
-    "build:node": "tsc",
-    "build:node:watch": "tsc --watch",
+    "build:node": "babel --extensions \".ts\" -d lib src",
+    "build:node:watch": "babel --watch --extensions \".ts\" -d lib src",
     "build:web": "webpack --env.production --env.target=web",
     "build:web:dev": "webpack --env.development --env.target=web",
     "build:web:watch": "webpack --env.development --env.target=web",
     "clean": "rimraf dist lib",
-    "dev": "webpack --env.development --progress --colors --watch",
     "preversion": "npm-run-all clean build",
     "prepublishOnly": "npm-run-all clean build",
     "test": "mocha --require @babel/register --colors 'test/**/*test.js'",
-    "test:watch": "npm run test -- -w",
-    "watch": "npm-run-all build:web:watch build:node:watch"
-  },
-  "babel": {
-    "plugins": [
-      "@babel/plugin-transform-runtime",
-      "@babel/plugin-proposal-class-properties",
-      "babel-plugin-add-module-exports",
-      "date-fns"
-    ],
-    "presets": [
-      [
-        "@babel/preset-env",
-        {
-          "modules": false,
-          "useBuiltIns": "usage"
-        }
-      ],
-      "@babel/preset-typescript"
-    ]
+    "test:watch": "npm run test -- -w"
   },
   "dependencies": {
     "@babel/runtime": "^7.4.3",
+    "axios": "^0.19.0",
+    "core-js": "^3.2.1",
     "cuid": "^2.1.6",
     "date-fns": "^1.28.5",
     "derivable": "^2.0.0-beta.3",
     "es6-symbol": "^3.1.1",
     "is_js": "^0.9.0",
-    "ky": "^0.11.1",
-    "ky-universal": "^0.2.2",
     "lodash.flatten": "^4.4.0",
     "mqtt": "^3.0.0",
+    "param.macro": "^3.2.1",
     "pietile-eventemitter": "^1.0.0",
+    "prettier": "^1.18.2",
+    "rollup-plugin-typescript": "^1.0.1",
     "shades": "^2.1.0",
     "xstream": "^11.11.0"
   },
@@ -73,6 +56,8 @@
     "babel-minify-webpack-plugin": "^0.2.0",
     "babel-plugin-add-module-exports": "^1.0.0",
     "babel-plugin-date-fns": "^0.1.0",
+    "babel-plugin-macros": "^2.6.1",
+    "builtin-modules": "^3.1.0",
     "chai": "^4.1.2",
     "chai-spies": "^1.0.0",
     "eslint": "^4.19.1",
@@ -85,6 +70,16 @@
     "mocha": "^5.2.0",
     "npm-run-all": "^4.1.5",
     "rimraf": "^2.6.3",
+    "rollup": "^1.22.0",
+    "rollup-plugin-babel": "^4.3.3",
+    "rollup-plugin-babel-minify": "^9.1.0",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-json": "^4.0.0",
+    "rollup-plugin-node-builtins": "^2.1.2",
+    "rollup-plugin-node-globals": "^1.4.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-replace": "^2.2.0",
+    "rollup-plugin-uglify": "^6.0.3",
     "ts-loader": "^6.0.4",
     "ts-node": "^8.3.0",
     "typescript": "^3.5.3",

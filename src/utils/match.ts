@@ -1,5 +1,6 @@
 // Taken from https://github.com/FGRibreau/match-when/blob/master/match.js
-import Symbol from "es6-symbol";
+// @ts-ignore
+// import Symbol from "es6-symbol";
 const _catchAllSymbol = Symbol("match.pattern.catchAll");
 const _patternOR = Symbol("match.pattern.OR");
 const _patternORStr = _patternOR.toString(); // Dirty hack

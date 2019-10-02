@@ -1,4 +1,5 @@
-import ky from "ky-universal";
+import axios from "axios";
+import it from "param.macro";
 import { Derivable } from "derivable";
 
 export interface IQHttpAdapter {
@@ -8,6 +9,11 @@ export interface IQHttpAdapter {
   patch<T>(path: string, data?: object): Promise<T>;
   put<T>(path: string, data?: object): Promise<T>;
   delete<T>(path: string, data?: object): Promise<T>;
+  upload<T>(
+    path: string,
+    data: object,
+    progressCallback: (progress: number) => void
+  ): Promise<T>;
 }
 
 export type Params = {
@@ -26,61 +32,68 @@ export default function getHttpAdapter({
   getToken,
   getSdkVersion
 }: Params): IQHttpAdapter {
-  const api = ky.create({
-    prefixUrl: baseUrl,
-    onDownloadProgress(progress, chunk) {
-      console.log(
-        "on:progress",
-        progress.percent,
-        progress.transferredBytes,
-        progress.totalBytes
-      );
-    },
-    hooks: {
-      beforeRequest: [
-        options => {
-          const headers = options.headers as Headers;
-          // @ts-ignore
-          // headers.set("qiscus-sdk-app-id", getAppId());
-          headers.set("qiscus_sdk_app_id", getAppId());
-          // headers.set("qiscus-sdk-user-id", getUserId());
-          headers.set("qiscus_sdk_user_id", getUserId());
-          // headers.set("qiscus-sdk-token", getToken());
-          headers.set("qiscus_sdk_token", getToken());
-          // headers.set("qiscus-sdk-version", getSdkVersion());
-          headers.set("qiscus_sdk_version", getSdkVersion());
-          // headers.set("qiscus-sdk-platform", "JavaScript");
-          headers.set("qiscus_sdk_platform", "JavaScript");
-
-          // For custom header
-          const customHeader = httpHeader.get();
-          if (customHeader == null) return;
-          Object.keys(customHeader).forEach(key => {
-            headers.set(key, customHeader[key]);
-          });
-        }
-      ]
+  const api = axios.create({
+    baseURL: baseUrl
+  });
+  api.interceptors.request.use(req => {
+    const headers = {
+      // "qiscus-sdk-app-id": getAppId(),
+      // "qiscus-sdk-user-id": getUserId(),
+      // "qiscus-sdk-token": getToken(),
+      // "qiscus-sdk-version": getSdkVersion(),
+      // "qiscus-sdk-platform": "JavaScript",
+      qiscus_sdk_app_id: getAppId(),
+      qiscus_sdk_user_id: getUserId(),
+      qiscus_sdk_token: getToken(),
+      qiscus_sdk_version: getSdkVersion(),
+      qiscus_sdk_platform: "JavaScript"
+    };
+    const additionalHeaders = httpHeader.get();
+    if (additionalHeaders != null) {
+      Object.keys(additionalHeaders).forEach(key => {
+        headers[key] = additionalHeaders[key];
+      });
     }
+    Object.assign(req.headers, headers);
+    return req;
   });
 
   return {
     delete<T>(path: string, data?: object): Promise<T> {
-      return api.delete(path, { json: data }).json<T>();
+      return api
+        .delete(path, {
+          data
+        })
+        .then(it.data);
     },
     get<T>(path: string): Promise<T> {
-      return api.get(path).json<T>();
+      return api.get<T>(path).then(it.data);
     },
     patch<T>(path: string, data?: object): Promise<T> {
-      return api.patch(path, { json: data }).json<T>();
+      return api.patch<T>(path, data).then(it.data);
     },
     post<T>(path: string, data?: object): Promise<T> {
-      return api.post(path, { json: data }).json<T>();
+      return api.post<T>(path, data).then(it.data);
     },
     postFormData<T>(path: string, form: FormData): Promise<T> {
-      return api.post(path, { body: form }).json<T>();
+      return api.post<T>(path, form).then(it.data);
     },
     put<T>(path: string, data?: object): Promise<T> {
-      return api.post(path, { json: data }).json<T>();
+      return api.put<T>(path, data).then(it.data);
+    },
+    upload<T>(
+      path: string,
+      data: object,
+      progressCallback: (progress: number) => void
+    ): Promise<T> {
+      return api
+        .post<T>(path, data, {
+          onUploadProgress(progress: ProgressEvent) {
+            const percentage = (progress.loaded / progress.total) * 100;
+            progressCallback(percentage);
+          }
+        })
+        .then(it.data);
     }
   };
 }
