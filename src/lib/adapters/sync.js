@@ -33,6 +33,8 @@ export default function SyncAdapter(
   return {
     events: emitter,
     synchronize: throttle(messageId => {
+      if (getHttpAdapter() == null) return
+
       messageId = messageId || lastMessageId
       const url = new UrlBuilder('api/v2/sdk/sync')
         .param('token', getToken())
@@ -55,6 +57,8 @@ export default function SyncAdapter(
         )
     }, interval),
     synchronizeEvent: throttle(eventId => {
+      if (getHttpAdapter() == null) return
+
       eventId = eventId || lastEventId
       const url = new UrlBuilder('api/v2/sdk/sync_event')
         .param('token', getToken())
