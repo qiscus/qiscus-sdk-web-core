@@ -655,10 +655,10 @@ class QiscusSDK {
     this.isSynced = true
 
     this.httpsync = setInterval(() => {
-      if (!this.realtimeAdapter.connected) this.synchronize()
+      if (!this.realtimeAdapter.connected && this.isLogin) this.synchronize()
     }, this.syncInterval)
     this.eventsync = setInterval(() => {
-      if (!this.realtimeAdapter.connected) this.synchronizeEvent()
+      if (!this.realtimeAdapter.connected && this.isLogin) this.synchronizeEvent()
     }, this.syncInterval)
   }
 
