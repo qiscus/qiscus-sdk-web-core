@@ -163,6 +163,12 @@ class QiscusSDK {
     })
 
     this.realtimeAdapter = new MqttAdapter(this.mqttURL, this)
+    this.realtimeAdapter.on("reconnect", () => {
+      if (this.__isLogin) {
+        this.synchronize()
+        this.synchronizeEvent()
+      }
+    })
     this.realtimeAdapter.on(
       'message-delivered',
       ({ commentId, commentUniqueId, userId }) =>
@@ -650,15 +656,18 @@ class QiscusSDK {
   }
 
   // Activate Sync Feature if `http` or `both` is chosen as sync value when init
+  get __isLogin() {
+    return this.isLogin
+  }
   activateSync() {
     if (this.isSynced) return
     this.isSynced = true
 
     this.httpsync = setInterval(() => {
-      if (!this.realtimeAdapter.connected && this.isLogin) this.synchronize()
+      if (!this.realtimeAdapter.connected && this.__isLogin) this.synchronize()
     }, this.syncInterval)
     this.eventsync = setInterval(() => {
-      if (!this.realtimeAdapter.connected && this.isLogin) this.synchronizeEvent()
+      if (!this.realtimeAdapter.connected && this.__isLogin) this.synchronizeEvent()
     }, this.syncInterval)
   }
 
