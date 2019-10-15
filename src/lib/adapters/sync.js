@@ -2,7 +2,7 @@ import mitt from 'mitt'
 import throttle from 'lodash.throttle'
 
 class UrlBuilder {
-  constructor (baseUrl) {
+  constructor(baseUrl) {
     this.baseUrl = baseUrl
     this.params = {}
   }
@@ -21,19 +21,20 @@ class UrlBuilder {
   }
 }
 
-export default function SyncAdapter (getHttpAdapter, {
-  getToken,
-  isDebug = false,
-  interval = 5000,
-}) {
+export default function SyncAdapter(
+  getHttpAdapter,
+  { getToken, isDebug = false, interval = 5000 }
+) {
   const emitter = mitt()
   let lastMessageId = 0
   let lastEventId = 0
 
-  const logger = (...args) => isDebug ? console.log('QSync:', ...args) : {}
+  const logger = (...args) => (isDebug ? console.log('QSync:', ...args) : {})
   return {
     events: emitter,
-    synchronize: throttle((messageId) => {
+    synchronize: throttle(messageId => {
+      if (getHttpAdapter() == null) return
+
       messageId = messageId || lastMessageId
       const url = new UrlBuilder('api/v2/sdk/sync')
         .param('token', getToken())
@@ -42,15 +43,22 @@ export default function SyncAdapter (getHttpAdapter, {
 
       getHttpAdapter()
         .get(url)
-        .then((resp) => {
-          const results = resp.body.results
-          const messages = results.comments
-          lastMessageId = results.meta.last_received_comment_id
-          emitter.emit('last-message-id', lastMessageId)
-          messages.forEach(message => emitter.emit('message.new', message))
-        }, (error) => logger('Error when synchonize', error))
+        .then(
+          resp => {
+            const results = resp.body.results
+            const messages = results.comments
+            lastMessageId = results.meta.last_received_comment_id
+            emitter.emit('last-message-id', lastMessageId)
+            messages
+              .sort((a, b) => a.id - b.id)
+              .forEach(message => emitter.emit('message.new', message))
+          },
+          error => logger('Error when synchonize', error)
+        )
     }, interval),
-    synchronizeEvent: throttle((eventId) => {
+    synchronizeEvent: throttle(eventId => {
+      if (getHttpAdapter() == null) return
+
       eventId = eventId || lastEventId
       const url = new UrlBuilder('api/v2/sdk/sync_event')
         .param('token', getToken())
@@ -59,9 +67,10 @@ export default function SyncAdapter (getHttpAdapter, {
 
       getHttpAdapter()
         .get(url)
-        .then((resp) => {
+        .then(resp => {
           const events = resp.body.events
-          const lastId = events.map(it => it.id)
+          const lastId = events
+            .map(it => it.id)
             .slice()
             .sort((a, b) => a - b)
             .pop()
@@ -69,15 +78,23 @@ export default function SyncAdapter (getHttpAdapter, {
             lastEventId = lastId
             emitter.emit('last-event-id', lastEventId)
           }
-          events.filter(it => it.action_topic === 'delivered')
-            .forEach((event) => emitter.emit('message.delivered', event.payload.data))
-          events.filter(it => it.action_topic === 'read')
-            .forEach((event) => emitter.emit('message.read', event.payload.data))
-          events.filter(it => it.action_topic === 'delete_message')
-            .forEach((event) => emitter.emit('message.deleted', event.payload.data))
-          events.filter(it => it.action_topic === 'clear_room')
-            .forEach((event) => emitter.emit('room.deleted', event.payload.data))
+          events
+            .filter(it => it.action_topic === 'delivered')
+            .forEach(event =>
+              emitter.emit('message.delivered', event.payload.data)
+            )
+          events
+            .filter(it => it.action_topic === 'read')
+            .forEach(event => emitter.emit('message.read', event.payload.data))
+          events
+            .filter(it => it.action_topic === 'delete_message')
+            .forEach(event =>
+              emitter.emit('message.deleted', event.payload.data)
+            )
+          events
+            .filter(it => it.action_topic === 'clear_room')
+            .forEach(event => emitter.emit('room.deleted', event.payload.data))
         })
-    }, interval),
+    }, interval)
   }
 }

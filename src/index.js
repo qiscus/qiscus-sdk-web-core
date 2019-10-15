@@ -81,7 +81,7 @@ class QiscusSDK {
    * @param {any} config - Qiscus SDK Configurations
    * @return {void}
    */
-  init (config) {
+  init(config) {
     // set AppID
     if (!config.AppId) throw new Error("Please provide valid AppId");
     this.AppId = config.AppId;
@@ -582,7 +582,7 @@ class QiscusSDK {
     this.loadComments(this.selected.id);
   }
 
-  _callNewMessagesCallback (comments) {
+  _callNewMessagesCallback(comments) {
     if (this.options.newMessagesCallback) {
       this.options.newMessagesCallback(comments);
     }
@@ -679,7 +679,7 @@ class QiscusSDK {
     this.logout();
   }
 
-  setActiveRoom (room) {
+  setActiveRoom(room) {
     // when we activate a room
     // we need to unsubscribe from typing event
     if (this.selected) {
@@ -745,7 +745,7 @@ class QiscusSDK {
    * @param options {object} - optional data sent to qiscus database
    * @return room <Room>
    */
-  chatTarget (userId, options = {}) {
+  chatTarget(userId, options = {}) {
     // make sure data already loaded first (user already logged in)
     if (this.userData.length != null) return false;
 
@@ -946,7 +946,7 @@ class QiscusSDK {
     );
   }
 
-  getNonce () {
+  getNonce() {
     return request
       .post(`${this.baseURL}/api/v2/sdk/auth/nonce`)
       .send()
@@ -958,7 +958,7 @@ class QiscusSDK {
       );
   }
 
-  verifyIdentityToken (identityToken) {
+  verifyIdentityToken(identityToken) {
     return request
       .post(`${this.baseURL}/api/v2/sdk/auth/verify_identity_token`)
       .send({
@@ -987,7 +987,7 @@ class QiscusSDK {
    * @return {Promise}
    */
   // #region sendComment
-  sendComment (
+  sendComment(
     topicId,
     commentMessage,
     uniqueId,
@@ -1368,7 +1368,7 @@ class QiscusSDK {
     this.uploadedFiles.push(new FileUploaded(name, roomId));
   }
 
-  removeUploadedFile (name, roomId) {
+  removeUploadedFile(name, roomId) {
     const index = this.uploadedFiles.findIndex(
       file => file.name === name && file.roomId === roomId
     );
@@ -1392,7 +1392,7 @@ class QiscusSDK {
     return this.userAdapter.getRoomsInfo(params);
   }
 
-  deleteComment (roomId, commentUniqueIds, isForEveryone, isHard) {
+  deleteComment(roomId, commentUniqueIds, isForEveryone, isHard) {
     if (!Array.isArray(commentUniqueIds)) {
       throw new Error(`unique ids' must be type of Array`);
     }
@@ -1412,7 +1412,7 @@ class QiscusSDK {
       );
   }
 
-  clearRoomsCache () {
+  clearRoomsCache() {
     // remove all room except currently selected
     if (this.selected) {
       // clear the map
@@ -1433,21 +1433,21 @@ class QiscusSDK {
     }
   }
 
-  exitChatRoom () {
+  exitChatRoom() {
     // remove all subscriber
     this.realtimeAdapter.unsubscribeTyping();
     this.realtimeAdapter.unsubscribeRoomPresence();
     this.selected = null;
   }
 
-  clearRoomMessages (roomIds) {
+  clearRoomMessages(roomIds) {
     if (!Array.isArray(roomIds)) {
       throw new Error("room_ids must be type of array");
     }
     return this.userAdapter.clearRoomMessages(roomIds);
   }
 
-  logging (message, params = {}) {
+  logging(message, params = {}) {
     if (this.debugMode) {
       console.log(message, params);
     }
