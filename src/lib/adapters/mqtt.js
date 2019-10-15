@@ -59,8 +59,6 @@ export default class MqttAdapter {
       if (this.mqtt.connected) {
         core.disableSync()
       }
-      core.synchronize()
-      core.synchronizeEvent()
     })
     this.mqtt.on('close', (...args) => {
       this.logger('close', args)

@@ -163,6 +163,12 @@ class QiscusSDK {
     })
 
     this.realtimeAdapter = new MqttAdapter(this.mqttURL, this)
+    this.realtimeAdapter.on("reconnect", () => {
+      if (this.__isLogin) {
+        this.synchronize()
+        this.synchronizeEvent()
+      }
+    })
     this.realtimeAdapter.on(
       'message-delivered',
       ({ commentId, commentUniqueId, userId }) =>
