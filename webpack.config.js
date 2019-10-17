@@ -1,7 +1,7 @@
 const path = require('path')
 const webpack = require('webpack')
 
-module.exports = (env) => {
+module.exports = env => {
   const filename = env.production
     ? 'qiscus-sdk-core.min.js'
     : 'qiscus-sdk-core.js'
@@ -18,24 +18,31 @@ module.exports = (env) => {
       library: 'QiscusSDKCore',
       libraryTarget: 'umd',
       libraryExport: 'default',
-      umdNamedDefine: true
+      umdNamedDefine: true,
     },
     module: {
-      rules: [{
-        test: /\.js$/,
-        use: 'babel-loader',
-        exclude: /(node_modules|bower_components)/
-      }]
+      rules: [
+        {
+          test: /\.js$/,
+          use: 'babel-loader',
+          exclude: /(node_modules|bower_components)/,
+        },
+      ],
+      rules: [
+        {
+          test: /\.ts$/,
+          use: 'ts-loader',
+          exclude: /node_modules/,
+        },
+      ],
     },
     resolve: {
-      extensions: ['.js']
+      extensions: ['.js'],
     },
-    plugins: [
-      new webpack.DefinePlugin({ 'global.GENTLY': false })
-    ],
+    plugins: [new webpack.DefinePlugin({ 'global.GENTLY': false })],
     performance: {
       maxEntrypointSize: 512000,
-      maxAssetSize: 512000
-    }
+      maxAssetSize: 512000,
+    },
   }
 }
