@@ -524,10 +524,10 @@ class QiscusSDK {
      * Called when there's new presence data of currently subscribed target user (last seen timestamp)
      * @param {string} data MQTT Payload with format of "x:xxxxxxxxxxxxx"
      */
-    self.events.on("presence", function(data) {
-      const payload = data.split(":");
-      if (self.chatmateStatus !== payload[0]) {
-        self.chatmateStatus =
+    self.events.on("presence", ({ message, userId }) => {
+      const payload = message.split(":");
+      if (this.chatmateStatus !== payload[0]) {
+        this.chatmateStatus =
           payload[0] === 1
             ? "Online"
             : `Last seen ${distanceInWordsToNow(
