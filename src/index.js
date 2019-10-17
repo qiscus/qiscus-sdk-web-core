@@ -534,7 +534,8 @@ class QiscusSDK {
                 Number(payload[1].substring(0, 13))
               )}`;
       }
-      if (self.options.presenceCallback) self.options.presenceCallback(data);
+      if (self.options.presenceCallback)
+        self.options.presenceCallback(message, userId);
     });
 
     self.events.on("typing", function(data) {
