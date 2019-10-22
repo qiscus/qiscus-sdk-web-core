@@ -111,25 +111,25 @@ export default class MqttAdapter {
 
   // #region regexp
   get reNewMessage() {
-    return /^([\w]+)\/c$/i;
+    return /^(.+)\/c$/i;
   }
   get reNotification() {
-    return /^([\w]+)\/n$/i;
+    return /^(.+)\/n$/i;
   }
   get reTyping() {
-    return /^r\/([\d]+)\/([\d]+)\/([\S]+)\/t$/i;
+    return /^r\/([\d]+)\/([\d]+)\/(.+)\/t$/i;
   }
   get reDelivery() {
-    return /^r\/([\d]+)\/([\d]+)\/([\S]+)\/d$/i;
+    return /^r\/([\d]+)\/([\d]+)\/(.+)\/d$/i;
   }
   get reRead() {
-    return /^r\/([\d]+)\/([\d]+)\/([\S]+)\/r$/i;
+    return /^r\/([\d]+)\/([\d]+)\/(.+)\/r$/i;
   }
   get reOnlineStatus() {
-    return /^u\/([\S]+)\/s$/i;
+    return /^u\/(.+)\/s$/i;
   }
   get reChannelMessage() {
-    return /^([\S]+)\/([\S]+)\/c$/i;
+    return /^(.+)\/(.+)\/c$/i;
   }
   // #endregion
 
