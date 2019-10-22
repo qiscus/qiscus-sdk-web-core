@@ -42,6 +42,7 @@ class QiscusSDK {
     this.baseURL = "https://api.qiscus.com";
     this.uploadURL = `${this.baseURL}/api/v2/sdk/upload`;
     this.mqttURL = "wss://mqtt.qiscus.com:1886/mqtt";
+    this.brokerLbUrl = "http://emqx-balancer.qiscus.com";
     this.HTTPAdapter = null;
     this.realtimeAdapter = null;
     this.customEventAdapter = null;
@@ -90,7 +91,8 @@ class QiscusSDK {
     this.AppId = config.AppId;
 
     if (config.baseURL) this.baseURL = config.baseURL;
-    if (config.mqttURL) this.mqttURL = config.mqttURL;
+    if (config.mqttURL) this.mqttURL = config.brokerUrl || config.mqttURL;
+    if (config.brokerLbURL) this.brokerLbUrl = config.brokerLbURL;
     if (config.uploadURL) this.uploadURL = config.uploadURL;
     if (config.sync) this.sync = config.sync;
     if (config.mode) this.mode = config.mode;
@@ -113,6 +115,51 @@ class QiscusSDK {
 
     // set Event Listeners
     this.setEventListeners();
+
+    this.realtimeAdapter = new MqttAdapter(this.mqttURL, this, {
+      brokerLbUrl: this.brokerLbUrl,
+    });
+    this.realtimeAdapter.on("connect", () => {});
+    this.realtimeAdapter.on("close", () => {});
+    this.realtimeAdapter.on("reconnect", () => {
+      if (this.isLogin) {
+        this.synchronize();
+        this.synchronizeEvent();
+      }
+    });
+    this.realtimeAdapter.on(
+      "message-delivered",
+      ({ commentId, commentUniqueId, userId }) =>
+        this._setDelivered(commentId, commentUniqueId, userId)
+    );
+    this.realtimeAdapter.on(
+      "message-read",
+      ({ commentId, commentUniqueId, userId }) =>
+        this._setRead(commentId, commentUniqueId, userId)
+    );
+    this.realtimeAdapter.on("new-message", async (message) => {
+      message = await this._hookAdapter.trigger(
+        Hooks.MESSAGE_BEFORE_RECEIVED,
+        message
+      );
+      this.events.emit("newmessages", [message]);
+    });
+    this.realtimeAdapter.on("presence", (data) =>
+      this.events.emit("presence", data)
+    );
+    this.realtimeAdapter.on("comment-deleted", (data) =>
+      this.events.emit("comment-deleted", data)
+    );
+    this.realtimeAdapter.on("room-cleared", (data) =>
+      this.events.emit("room-cleared", data)
+    );
+    this.realtimeAdapter.on("typing", (data) =>
+      this.events.emit("typing", {
+        message: data.message,
+        username: data.userId,
+        room_id: data.roomId,
+      })
+    );
 
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
       getToken: () => this.userData.token,
