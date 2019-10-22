@@ -1,9 +1,11 @@
 import { match, when } from "../match";
 import mitt from "mitt";
 import connect from "mqtt/lib/connect";
+import request from "superagent";
+import debounce from "lodash.debounce";
 
 export default class MqttAdapter {
-  constructor(url, core) {
+  constructor(url, core, { brokerLbUrl }) {
     const emitter = mitt();
     const mqtt = connect(
       url,
@@ -39,40 +41,89 @@ export default class MqttAdapter {
       [when()]: (topic) => this.logger("topic not handled", topic),
     });
 
-    // #region mqtt event
-    this.mqtt.on("message", (t, m) => {
+    const __mqtt_connected_handler = () => {
+      emitter.emit("connected");
+    };
+    const __mqtt_reconnect_handler = () => {
+      emitter.emit("reconnect");
+    };
+    const __mqtt_closed_handler = (...args) => {
+      emitter.emit("close", args);
+    };
+    const __mqtt_message_handler = (t, m) => {
       const message = m.toString();
       const func = matcher(t);
+      this.logger("message", t, m);
       if (func != null) func(message);
-    });
-
-    this.mqtt.on("connect", () => {
-      this.emit("connected");
-      this.logger("connect", this.mqtt.connected);
-      if (core.sync === "socket") core.disableSync();
-    });
-
-    this.mqtt.on("reconnect", () => {
-      this.logger("reconnect", this.mqtt.connected);
-      this.emit("reconnect");
-
-      if (this.mqtt.connected) {
-        core.disableSync();
+    };
+    const __mqtt_error_handler = (err) => {
+      if (err && err.message === "client disconnecting") return;
+      emitter.emit("error", err.message);
+      this.logger("error", err.message);
+    };
+    const __mqtt_conneck = (brokerUrl) => {
+      if (this.mqtt != null) {
+        this.mqtt.removeAllListeners();
+        this.mqtt = null;
       }
-    });
-    this.mqtt.on("close", (...args) => {
-      this.logger("close", args);
-      this.emit("close", this.mqtt);
+      const opts = {
+        will: {
+          topic: `u/${core.userData.email}/s`,
+          payload: 0,
+          retain: true,
+        },
+      };
 
-      core.activateSync();
-    });
-    this.mqtt.on("error", (...args) => {
-      this.logger("error", args);
-      this.emit("error");
+      const mqtt = connect(
+        brokerUrl,
+        opts
+      );
+      // #region Mqtt Listener
+      mqtt.addListener("connected", __mqtt_connected_handler);
+      mqtt.addListener("reconnected", __mqtt_reconnect_handler);
+      mqtt.addListener("close", __mqtt_closed_handler);
+      mqtt.addListener("error", __mqtt_error_handler);
+      mqtt.addListener("message", __mqtt_message_handler);
+      // #endregion
 
-      core.activateSync();
+      return mqtt;
+    };
+
+    let mqtt = __mqtt_conneck(url);
+    this.willConnectToRealtime = false;
+    this.cacheRealtimeURL = url;
+    // Define a read-only property so user cannot accidentially
+    // overwrite it's value
+    Object.defineProperties(this, {
+      core: { value: core },
+      emitter: { value: emitter },
+      mqtt: { value: mqtt, writable: true },
+      brokerLbUrl: { value: brokerLbUrl },
     });
-    // #endregion
+
+    // handle load balencer
+    emitter.on(
+      "close",
+      debounce(async () => {
+        this.willConnectToRealtime = true;
+        const url = await this.getMqttNode();
+        this.cacheRealtimeURL = url;
+        this.logger("trying to reconnect to", url);
+        this.mqtt = __mqtt_conneck(url);
+      }, 300)
+    );
+  }
+
+  getMqttNode() {
+    return new Promise((resolve, reject) => {
+      request.get(this.brokerLbUrl).end((err, res) => {
+        if (err) return reject(err);
+        const url = res.body.data.url;
+        const port = res.body.data.wss_port;
+        // const port = "8083";
+        resolve(`wss://${url}:${port}/mqtt`);
+      });
+    });
   }
 
   get connected() {
