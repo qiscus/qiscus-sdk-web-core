@@ -164,8 +164,9 @@ class QiscusSDK {
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
       getToken: () => this.userData.token,
       interval: this.syncInterval,
+      getShouldSync: () => this.isLogin && !this.realtimeAdapter.connected,
     });
-    this.syncAdapter.events.on("message.new", async (message) => {
+    this.syncAdapter.on("message.new", async (message) => {
       message = await this._hookAdapter.trigger(
         Hooks.MESSAGE_BEFORE_RECEIVED,
         message
@@ -187,21 +188,21 @@ class QiscusSDK {
         this.events.emit("newmessages", [message]);
       }
     });
-    this.syncAdapter.events.on("message.delivered", (message) => {
+    this.syncAdapter.on("message.delivered", (message) => {
       this._setDelivered(
         message.comment_id,
         message.comment_unique_id,
         message.email
       );
     });
-    this.syncAdapter.events.on("message.read", (message) => {
+    this.syncAdapter.on("message.read", (message) => {
       this._setRead(
         message.comment_id,
         message.comment_unique_id,
         message.email
       );
     });
-    this.syncAdapter.events.on("message.deleted", (data) => {
+    this.syncAdapter.on("message.deleted", (data) => {
       data.deleted_messages.forEach((it) => {
         this.events.emit("comment-deleted", {
           roomId: it.room_id,
@@ -211,46 +212,12 @@ class QiscusSDK {
         });
       });
     });
-    this.syncAdapter.events.on("room.deleted", (data) => {
+    this.syncAdapter.on("room.cleared", (data) => {
       data.deleted_rooms.forEach((room) => {
         this.events.emit("room-cleared", room);
       });
     });
 
-    this.realtimeAdapter = new MqttAdapter(this.mqttURL, this);
-    this.realtimeAdapter.on(
-      "message-delivered",
-      ({ commentId, commentUniqueId, userId }) =>
-        this._setDelivered(commentId, commentUniqueId, userId)
-    );
-    this.realtimeAdapter.on(
-      "message-read",
-      ({ commentId, commentUniqueId, userId }) =>
-        this._setRead(commentId, commentUniqueId, userId)
-    );
-    this.realtimeAdapter.on("new-message", async (message) => {
-      message = await this._hookAdapter.trigger(
-        Hooks.MESSAGE_BEFORE_RECEIVED,
-        message
-      );
-      this.events.emit("newmessages", [message]);
-    });
-    this.realtimeAdapter.on("presence", (data) =>
-      this.events.emit("presence", data)
-    );
-    this.realtimeAdapter.on("comment-deleted", (data) =>
-      this.events.emit("comment-deleted", data)
-    );
-    this.realtimeAdapter.on("room-cleared", (data) =>
-      this.events.emit("room-cleared", data)
-    );
-    this.realtimeAdapter.on("typing", (data) =>
-      this.events.emit("typing", {
-        message: data.message,
-        username: data.userId,
-        room_id: data.roomId,
-      })
-    );
     this.customEventAdapter = CustomEventAdapter(
       this.realtimeAdapter,
       this.user_id
@@ -456,7 +423,7 @@ class QiscusSDK {
         3500
       );
 
-      if (this.sync === "http" || this.sync === "both") this.activateSync();
+      // if (this.sync === "http" || this.sync === "both") this.activateSync();
       if (this.options.loginSuccessCallback) {
         this.options.loginSuccessCallback(response);
       }
@@ -707,25 +674,6 @@ class QiscusSDK {
     this.isLogin = false;
     this.userData = {};
     this.realtimeAdapter.disconnect();
-  }
-
-  // Activate Sync Feature if `http` or `both` is chosen as sync value when init
-  activateSync() {
-    if (this.isSynced) return;
-    this.isSynced = true;
-
-    this.httpsync = setInterval(() => {
-      if (!this.realtimeAdapter.connected) this.synchronize();
-    }, this.syncInterval);
-    this.eventsync = setInterval(() => {
-      if (!this.realtimeAdapter.connected) this.synchronizeEvent();
-    }, this.syncInterval);
-  }
-
-  disableSync() {
-    this.isSynced = false;
-    clearInterval(this.httpsync);
-    clearInterval(this.eventsync);
   }
 
   get synchronize() {
