@@ -24,7 +24,14 @@ class UrlBuilder {
   }
 }
 
-function synchronizeFactory(getHttp, getToken, getInterval, getMessageId) {
+function synchronizeFactory(
+  getHttp,
+  getToken,
+  getInterval,
+  getSync,
+  getId,
+  logger
+) {
   const emitter = mitt();
   const synchronize = (messageId) => {
     const url = new UrlBuilder("api/v2/sdk/sync")
@@ -50,7 +57,7 @@ function synchronizeFactory(getHttp, getToken, getInterval, getMessageId) {
   async function* generator() {
     while (true) {
       const http = getHttp();
-      if (http != null) yield synchronize(getMessageId());
+      if (http != null && getSync()) yield synchronize(getId());
       await sleep(getInterval());
     }
   }
@@ -67,17 +74,28 @@ function synchronizeFactory(getHttp, getToken, getInterval, getMessageId) {
     },
     async run() {
       for await (let result of generator()) {
-        const messageId = result.lastMessageId;
-        const messages = result.messages;
-        if (messageId > getMessageId()) {
-          emitter.emit("last-message-id.new", messageId);
-          messages.forEach((m) => emitter.emit("message.new", m));
+        try {
+          const messageId = result.lastMessageId;
+          const messages = result.messages;
+          if (messageId > getId()) {
+            emitter.emit("last-message-id.new", messageId);
+            messages.forEach((m) => emitter.emit("message.new", m));
+          }
+        } catch (e) {
+          logger("error when sync", e.message);
         }
       }
     },
   };
 }
-function synchronizeEventFactory(getHttp, getToken, getInterval, getEventId) {
+function synchronizeEventFactory(
+  getHttp,
+  getToken,
+  getInterval,
+  getSync,
+  getId,
+  logger
+) {
   const emitter = mitt();
   const synchronize = (messageId) => {
     const url = new UrlBuilder("api/v2/sdk/sync_event")
@@ -122,7 +140,8 @@ function synchronizeEventFactory(getHttp, getToken, getInterval, getEventId) {
   async function* generator() {
     while (true) {
       const http = getHttp();
-      if (http != null) yield synchronize(getEventId());
+      if (http != null && getSync()) yield synchronize(getId());
+      // if (http != null) yield synchronize(getId());
       await sleep(getInterval());
     }
   }
@@ -139,17 +158,25 @@ function synchronizeEventFactory(getHttp, getToken, getInterval, getEventId) {
     },
     async run() {
       for await (let result of generator()) {
-        const eventId = result.lastId;
-        if (eventId > getEventId()) {
-          emitter.emit("last-event-id.new", eventId);
-          result.messageDelivered.forEach((it) =>
-            emitter.emit("message.delivered", it)
-          );
-          result.messageDeleted.forEach((it) =>
-            emitter.emit("message.deleted", it)
-          );
-          result.messageRead.forEach((it) => emitter.emit("message.read", it));
-          result.roomCleared.forEach((it) => emitter.emit("room.cleared", it));
+        try {
+          const eventId = result.lastId;
+          if (eventId > getId()) {
+            emitter.emit("last-event-id.new", eventId);
+            result.messageDelivered.forEach((it) =>
+              emitter.emit("message.delivered", it)
+            );
+            result.messageDeleted.forEach((it) =>
+              emitter.emit("message.deleted", it)
+            );
+            result.messageRead.forEach((it) =>
+              emitter.emit("message.read", it)
+            );
+            result.roomCleared.forEach((it) =>
+              emitter.emit("room.cleared", it)
+            );
+          }
+        } catch (e) {
+          logger("error when sync event", e.message);
         }
       }
     },
@@ -161,6 +188,8 @@ export default function SyncAdapter(
   { getToken, isDebug = false, interval = 5000, getShouldSync = noop }
 ) {
   const emitter = mitt();
+  const logger = (...args) => (isDebug ? console.log("QSync:", ...args) : {});
+
   let lastMessageId = 0;
   let lastEventId = 0;
 
@@ -172,7 +201,9 @@ export default function SyncAdapter(
     getHttpAdapter,
     getToken,
     getInterval,
-    () => lastMessageId
+    getShouldSync,
+    () => lastMessageId,
+    logger
   );
   syncFactory.on("last-message-id.new", (id) => (lastMessageId = id));
   syncFactory.on("message.new", (m) => emitter.emit("message.new", m));
@@ -182,22 +213,22 @@ export default function SyncAdapter(
     getHttpAdapter,
     getToken,
     getInterval,
-    () => lastEventId
+    getShouldSync,
+    () => lastEventId,
+    logger
   );
   syncEventFactory.on("last-event-id.new", (id) => (lastEventId = id));
-  syncEventFactory.on("message.read", (it) => emitter.emit("message.read", m));
+  syncEventFactory.on("message.read", (it) => emitter.emit("message.read", it));
   syncEventFactory.on("message.delivered", (it) =>
-    emitter.emit("message.delivered", m)
+    emitter.emit("message.delivered", it)
   );
   syncEventFactory.on("message.deleted", (it) =>
-    emitter.emit("message.deleted", m)
+    emitter.emit("message.deleted", it)
   );
-  syncEventFactory.on("room.cleared", (it) => emitter.emit("room.cleared", m));
+  syncEventFactory.on("room.cleared", (it) => emitter.emit("room.cleared", it));
   syncEventFactory
     .run()
     .catch((err) => console.log("got error when sync event", err));
-
-  const logger = (...args) => (isDebug ? console.log("QSync:", ...args) : {});
 
   return {
     get on() {
