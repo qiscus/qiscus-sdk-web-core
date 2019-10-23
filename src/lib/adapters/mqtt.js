@@ -7,23 +7,6 @@ import debounce from "lodash.debounce";
 export default class MqttAdapter {
   constructor(url, core, { brokerLbUrl }) {
     const emitter = mitt();
-    const mqtt = connect(
-      url,
-      {
-        will: {
-          topic: `u/${core.userData.email}/s`,
-          payload: 0,
-          retain: true,
-        },
-      }
-    );
-    // Define a read-only property so user cannot accidentially
-    // overwrite it's value
-    Object.defineProperties(this, {
-      core: { value: core },
-      emitter: { value: emitter },
-      mqtt: { value: mqtt },
-    });
 
     const matcher = match({
       [when(this.reNewMessage)]: (topic) =>
