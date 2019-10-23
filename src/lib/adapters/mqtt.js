@@ -5,7 +5,7 @@ import request from "superagent";
 import debounce from "lodash.debounce";
 
 export default class MqttAdapter {
-  constructor(url, core, { brokerLbUrl }) {
+  constructor(url, core, { brokerLbUrl, enableLb }) {
     const emitter = mitt();
 
     const matcher = match({
@@ -88,6 +88,7 @@ export default class MqttAdapter {
     emitter.on(
       "close",
       debounce(async () => {
+        if (!enableLb) return;
         this.willConnectToRealtime = true;
         const url = await this.getMqttNode();
         this.cacheRealtimeURL = url;

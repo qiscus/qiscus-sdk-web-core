@@ -50,6 +50,7 @@ class QiscusSDK {
     this.isSynced = false;
     this.syncInterval = 5000;
     this.sync = "socket"; // possible values 'socket', 'http', 'both'
+    this.enableLb = true;
     this.httpsync = null;
     this.eventsync = null;
     this.extras = null;
@@ -95,6 +96,8 @@ class QiscusSDK {
     if (config.brokerLbURL) this.brokerLbUrl = config.brokerLbURL;
     if (config.uploadURL) this.uploadURL = config.uploadURL;
     if (config.sync) this.sync = config.sync;
+    if (config.enableRealtimeLB != null)
+      this.enableLb = config.enableRealtimeLB;
     if (config.mode) this.mode = config.mode;
     if (config.syncInterval) this.syncInterval = config.syncInterval || 5000;
     if (config.googleMapKey) this.googleMapKey = config.googleMapKey;
@@ -118,6 +121,7 @@ class QiscusSDK {
 
     this.realtimeAdapter = new MqttAdapter(this.mqttURL, this, {
       brokerLbUrl: this.brokerLbUrl,
+      enableLb: this.enableLb,
     });
     this.realtimeAdapter.on("connect", () => {});
     this.realtimeAdapter.on("close", () => {});
