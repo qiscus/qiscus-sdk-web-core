@@ -11,8 +11,8 @@ export default class MqttAdapter {
         will: {
           topic: `u/${core.userData.email}/s`,
           payload: 0,
-          retain: true
-        }
+          retain: true,
+        },
       }
     );
     // Define a read-only property so user cannot accidentially
@@ -20,23 +20,23 @@ export default class MqttAdapter {
     Object.defineProperties(this, {
       core: { value: core },
       emitter: { value: emitter },
-      mqtt: { value: mqtt }
+      mqtt: { value: mqtt },
     });
 
     const matcher = match({
-      [when(this.reNewMessage)]: topic =>
+      [when(this.reNewMessage)]: (topic) =>
         this.newMessageHandler.bind(this, topic),
-      [when(this.reNotification)]: topic =>
+      [when(this.reNotification)]: (topic) =>
         this.notificationHandler.bind(this, topic),
-      [when(this.reTyping)]: topic => this.typingHandler.bind(this, topic),
-      [when(this.reDelivery)]: topic =>
+      [when(this.reTyping)]: (topic) => this.typingHandler.bind(this, topic),
+      [when(this.reDelivery)]: (topic) =>
         this.deliveryReceiptHandler.bind(this, topic),
-      [when(this.reRead)]: topic => this.readReceiptHandler.bind(this, topic),
-      [when(this.reOnlineStatus)]: topic =>
+      [when(this.reRead)]: (topic) => this.readReceiptHandler.bind(this, topic),
+      [when(this.reOnlineStatus)]: (topic) =>
         this.onlinePresenceHandler.bind(this, topic),
-      [when(this.reChannelMessage)]: topic =>
+      [when(this.reChannelMessage)]: (topic) =>
         this.channelMessageHandler.bind(this, topic),
-      [when()]: topic => this.logger("topic not handled", topic)
+      [when()]: (topic) => this.logger("topic not handled", topic),
     });
 
     // #region mqtt event
@@ -111,25 +111,25 @@ export default class MqttAdapter {
 
   // #region regexp
   get reNewMessage() {
-    return /^([\w]+)\/c$/i;
+    return /^(.+)\/c$/i;
   }
   get reNotification() {
-    return /^([\w]+)\/n$/i;
+    return /^(.+)\/n$/i;
   }
   get reTyping() {
-    return /^r\/([\d]+)\/([\d]+)\/([\S]+)\/t$/i;
+    return /^r\/([\d]+)\/([\d]+)\/(.+)\/t$/i;
   }
   get reDelivery() {
-    return /^r\/([\d]+)\/([\d]+)\/([\S]+)\/d$/i;
+    return /^r\/([\d]+)\/([\d]+)\/(.+)\/d$/i;
   }
   get reRead() {
-    return /^r\/([\d]+)\/([\d]+)\/([\S]+)\/r$/i;
+    return /^r\/([\d]+)\/([\d]+)\/(.+)\/r$/i;
   }
   get reOnlineStatus() {
-    return /^u\/([\S]+)\/s$/i;
+    return /^u\/(.+)\/s$/i;
   }
   get reChannelMessage() {
-    return /^([\S]+)\/([\S]+)\/c$/i;
+    return /^(.+)\/(.+)\/c$/i;
   }
   // #endregion
 
@@ -146,18 +146,18 @@ export default class MqttAdapter {
     message = JSON.parse(message);
     const data = message.payload.data;
     if ("deleted_messages" in data) {
-      data.deleted_messages.forEach(message => {
+      data.deleted_messages.forEach((message) => {
         this.emit("comment-deleted", {
           roomId: message.room_id,
           commentUniqueIds: message.message_unique_ids,
           isForEveryone: true,
-          isHard: true
+          isHard: true,
         });
       });
     }
 
     if ("deleted_rooms" in data) {
-      data.deleted_rooms.forEach(room => {
+      data.deleted_rooms.forEach((room) => {
         this.emit("room-cleared", room);
       });
     }
@@ -175,7 +175,7 @@ export default class MqttAdapter {
     this.emit("typing", {
       message,
       userId,
-      roomId
+      roomId,
     });
 
     // TODO: Don't allow side-effect
@@ -183,7 +183,7 @@ export default class MqttAdapter {
     if (this.core.selected == null) return;
     if (message === "1" && roomId === this.core.selected.id) {
       const actor = this.core.selected.participants.find(
-        it => it.email === userId
+        (it) => it.email === userId
       );
       if (actor == null) return;
       const displayName = actor.username;
@@ -205,7 +205,7 @@ export default class MqttAdapter {
     this.emit("message-delivered", {
       commentId,
       commentUniqueId,
-      userId
+      userId,
     });
   }
 
@@ -221,7 +221,7 @@ export default class MqttAdapter {
     this.emit("message-read", {
       commentId,
       commentUniqueId,
-      userId
+      userId,
     });
   }
 
