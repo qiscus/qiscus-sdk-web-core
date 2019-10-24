@@ -1,28 +1,8 @@
 import mitt from "mitt";
-import throttle from "lodash.throttle";
+import UrlBuilder from "../url-builder";
 
 const noop = () => {};
 const sleep = (time) => new Promise((res) => setTimeout(res, time));
-
-class UrlBuilder {
-  constructor(baseUrl) {
-    this.baseUrl = baseUrl;
-    this.params = {};
-  }
-
-  param(key, value) {
-    this.params[key] = value;
-    return this;
-  }
-
-  build() {
-    const param = Object.keys(this.params)
-      .filter((it) => this.params[it] != null)
-      .map((key) => `${key}=${this.params[key]}`)
-      .join("&");
-    return [this.baseUrl, param].join("?");
-  }
-}
 
 function synchronizeFactory(
   getHttp,
@@ -34,7 +14,7 @@ function synchronizeFactory(
 ) {
   const emitter = mitt();
   const synchronize = (messageId) => {
-    const url = new UrlBuilder("api/v2/sdk/sync")
+    const url = UrlBuilder("api/v2/sdk/sync")
       .param("token", getToken())
       .param("last_received_comment_id", messageId)
       .build();
@@ -98,7 +78,7 @@ function synchronizeEventFactory(
 ) {
   const emitter = mitt();
   const synchronize = (messageId) => {
-    const url = new UrlBuilder("api/v2/sdk/sync_event")
+    const url = UrlBuilder("api/v2/sdk/sync_event")
       .param("token", getToken())
       .param("start_event_id", messageId)
       .build();
