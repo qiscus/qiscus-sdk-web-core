@@ -21,17 +21,16 @@ export class Room {
     this.id = roomData.id
     this.last_comment_id = roomData.last_comment_id
     this.last_comment_message = roomData.last_comment_message
-    this.last_comment_message_created_at =
-      roomData.last_comment_message_created_at
+    this.last_comment_message_created_at = roomData.last_comment_message_created_at
     this.last_comment_topic_title = roomData.last_comment_topic_title
-    this.avatar =
-      roomData.room_avatar || roomData.avatarURL || roomData.avatar_url
+    this.avatar = roomData.room_avatar || roomData.avatarURL || roomData.avatar_url
     this.name = roomData.room_name
     this.room_type = roomData.room_type || roomData.chat_type
     this.secret_code = roomData.secret_code
     this.participants = roomData.participants
     this.options = roomData.options
     this.topics = []
+    this.last_comment = roomData.last_comment
 
     this.comments = []
 
@@ -77,9 +76,7 @@ export class Room {
     // Ignore if not from the same room
     if (comment.room_id !== this.id) return
     // let's check first whether this room already has this specific comment
-    const commentToFind = this.comments.find(
-      cmt => cmt.unique_id === comment.unique_id
-    )
+    const commentToFind = this.comments.find(cmt => cmt.unique_id === comment.unique_id)
     if (commentToFind) {
       commentToFind.id = comment.id
       commentToFind.message = comment.message
