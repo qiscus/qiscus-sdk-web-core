@@ -353,16 +353,18 @@ export default class Qiscus implements IQiscus {
 
   registerDeviceToken(
     token: string,
+    isDevelopment: boolean,
     callback?: IQCallback<boolean>
   ): void | Promise<boolean> {
     return xs
       .combine(
         process(token, isReqString({ token })),
+        process(isDevelopment, isOptBoolean({ isDevelopment })),
         process(callback, isOptCallback({ callback }))
       )
       .compose(bufferUntil(() => this.isLogin))
-      .map(([token]) =>
-        xs.fromPromise(this.userAdapter.registerDeviceToken(token))
+      .map(([token, isDevelopment]) =>
+        xs.fromPromise(this.userAdapter.registerDeviceToken(token, isDevelopment))
       )
       .flatten()
       .compose(toCallbackOrPromise(callback));
@@ -370,11 +372,13 @@ export default class Qiscus implements IQiscus {
 
   removeDeviceToken(
     token: string,
+    isDevelopment: boolean,
     callback?: IQCallback<boolean>
   ): void | Promise<boolean> {
     return xs
       .combine(
         process(token, isReqString({ token })),
+        process(isDevelopment, isOptBoolean({ isDevelopment })),
         process(callback, isOptCallback({ callback }))
       )
       .compose(bufferUntil(() => this.isLogin))
@@ -487,7 +491,6 @@ export default class Qiscus implements IQiscus {
       .compose(toCallbackOrPromise(callback));
   }
 
-  // Test me
   removeParticipants(
     roomId: number,
     userIds: string[],

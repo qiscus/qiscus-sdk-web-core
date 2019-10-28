@@ -208,10 +208,12 @@ export interface IQiscus {
   upload(file: File, callback?: IQProgressListener): void;
   registerDeviceToken(
     token: string,
+    isDevelopment: boolean,
     callback?: IQCallback<boolean>
   ): void | Promise<boolean>;
   removeDeviceToken(
     token: string,
+    isDevelopment: boolean,
     callback?: IQCallback<boolean>
   ): void | Promise<boolean>;
   getJWTNonce(callback?: IQCallback<string>): void | Promise<string>;
@@ -258,8 +260,8 @@ export interface IQUserAdapter {
   blockUser(userId: string): Promise<IQUser>;
   unblockUser(userId: string): Promise<IQUser>;
   getUserData(): Promise<IQUser>;
-  registerDeviceToken(token: string): Promise<boolean>;
-  unregisterDeviceToken(token: string): Promise<boolean>;
+  registerDeviceToken(token: string, isDevelopment: boolean): Promise<boolean>;
+  unregisterDeviceToken(token: string, isDevelopment: boolean): Promise<boolean>;
 
   readonly token: Derivable<string>;
   readonly currentUser: Derivable<IQUser>;
