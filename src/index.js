@@ -1006,8 +1006,9 @@ class QiscusSDK {
       type: type || 'text',
       timestamp: format(new Date()),
       unique_id: uniqueId,
+      payload: payload,
     }
-    if (type !== 'text') commentData.payload = JSON.parse(payload)
+    // if (type !== 'text') commentData.payload = JSON.parse(payload)
     const pendingComment = self.prepareCommentToBeSubmitted(commentData)
 
     // push this comment unto active room
