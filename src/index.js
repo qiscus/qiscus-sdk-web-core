@@ -50,7 +50,7 @@ class QiscusSDK {
     this.isSynced = false
     this.syncInterval = 5000
     this.sync = 'socket' // possible values 'socket', 'http', 'both'
-    this.enableLb = true
+    this.enableLb = false
     this.httpsync = null
     this.eventsync = null
     this.extras = null
