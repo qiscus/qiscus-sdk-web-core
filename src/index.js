@@ -907,7 +907,6 @@ class QiscusSDK {
 
   async registerDeviceToken(token, isDevelopment = false) {
     const res = await this.HTTPAdapter.post('api/v2/sdk/set_user_device_token', {
-      token: this.userAdapter.token,
       device_token: token,
       is_development: isDevelopment,
     })
@@ -915,7 +914,6 @@ class QiscusSDK {
   }
   async removeDeviceToken(token, isDevelopment = false) {
     const res = await this.HTTPAdapter.post('api/v2/sdk/remove_user_device_token', {
-      token: this.userAdapter.token,
       device_token: token,
       is_development: isDevelopment,
     })
@@ -1078,7 +1076,6 @@ class QiscusSDK {
   getUsers(query = '', page = 1, limit = 20) {
     return this.HTTPAdapter.get_request('api/v2/sdk/get_user_list')
       .query({
-        token: this.userData.token,
         query,
         page,
         limit,
@@ -1091,7 +1088,6 @@ class QiscusSDK {
   getRoomParticipants(roomUniqueId, offset = 0) {
     return this.HTTPAdapter.get_request('api/v2/sdk/room_participants')
       .query({
-        token: this.userData.token,
         room_unique_id: roomUniqueId,
         offset,
       })
@@ -1300,7 +1296,6 @@ class QiscusSDK {
     return request
       .post(this.uploadURL)
       .attach('file', file)
-      .field('token', this.userData.token)
       .set('qiscus_sdk_app_id', this.AppId)
       .set('qiscus_sdk_token', this.userData.token)
       .set('qiscus_sdk_user_id', this.user_id)
@@ -1330,7 +1325,6 @@ class QiscusSDK {
     const self = this
     var formData = new FormData()
     formData.append('file', file)
-    formData.append('token', self.userData.token)
     var xhr = new XMLHttpRequest()
     xhr.open('POST', `${self.baseURL}/api/v2/sdk/upload`, true)
     xhr.setRequestHeader('qiscus_sdk_app_id', `${self.AppId}`)
