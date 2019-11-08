@@ -127,29 +127,31 @@ export default function getUserAdapter(http: Atom<IQHttpAdapter>): IQUserAdapter
     },
     async registerDeviceToken(
       deviceToken: string,
-      platform: string,
-      isDevelopment: boolean
+      isDevelopment: boolean = false,
+      platform: string = "rn"
     ): Promise<boolean> {
-      const resp = await http.get().post<DeviceTokenResponse.RootObject>('set_user_device_token', {
-        token: token.get(),
-        device_platform: platform,
-        device_token: deviceToken,
-        is_development: isDevelopment,
-      })
-      return resp.results.changed
+      const resp = await http
+        .get()
+        .post<DeviceTokenResponse.RootObject>("set_user_device_token", {
+          token: token.get(),
+          is_development: isDevelopment,
+          device_platform: platform,
+          device_token: deviceToken
+        });
+      return resp.results.changed;
     },
     async unregisterDeviceToken(
       deviceToken: string,
-      platform: string,
-      isDevelopment: boolean
+      isDevelopment: boolean = false,
+      platform: string = "rn"
     ): Promise<boolean> {
       const resp = await http
         .get()
         .post<DeviceTokenResponse.RootObject>('remove_user_device_token', {
           token: token.get(),
+          is_development: isDevelopment,
           device_platform: platform,
           device_token: deviceToken,
-          is_development: isDevelopment,
         })
       return resp.results.changed
     },
@@ -219,7 +221,7 @@ declare module BlockUserResponse {
     avatar: Avatar2
   }
 
-  export interface Extras {}
+  export interface Extras { }
 
   export interface User {
     avatar: Avatar
@@ -246,7 +248,7 @@ declare module UserListResponse {
     total_page: number
   }
 
-  export interface Extras {}
+  export interface Extras { }
 
   export interface User {
     avatar_url: string
@@ -278,7 +280,7 @@ declare module BlockedUserListResponse {
     avatar: Avatar2
   }
 
-  export interface Extras {}
+  export interface Extras { }
 
   export interface BlockedUser {
     avatar: Avatar

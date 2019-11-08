@@ -183,13 +183,11 @@ export interface IQiscus {
   upload(file: File, callback?: IQProgressListener): void
   registerDeviceToken(
     token: string,
-    platform: 'rn',
     isDevelopment: boolean,
     callback?: IQCallback<boolean>
   ): void | Promise<boolean>
   removeDeviceToken(
     token: string,
-    platform: 'rn',
     isDevelopment: boolean,
     callback?: IQCallback<boolean>
   ): void | Promise<boolean>
@@ -223,18 +221,22 @@ export interface IQUserExtraProps {
 }
 
 export interface IQUserAdapter {
-  login(userId: string, userKey: string, extra: IQUserExtraProps): Promise<IQUser>
-  clear(): void
-  updateUser(name: string, avatarUrl: string, extras: string): Promise<IQUser>
-  getNonce(): Promise<QNonce>
-  setUserFromIdentityToken(token: string): Promise<IQUser>
-  getUserList(query: string, page?: number, limit?: number): Promise<IQUser[]>
-  getBlockedUser(page?: number, limit?: number): Promise<IQUser[]>
-  blockUser(userId: string): Promise<IQUser>
-  unblockUser(userId: string): Promise<IQUser>
-  getUserData(): Promise<IQUser>
-  registerDeviceToken(token: string, platform: string, isDevelopment: boolean): Promise<boolean>
-  unregisterDeviceToken(token: string, platform: string, isDevelopment: boolean): Promise<boolean>
+  login(
+    userId: string,
+    userKey: string,
+    extra: IQUserExtraProps
+  ): Promise<IQUser>;
+  clear(): void;
+  updateUser(name: string, avatarUrl: string, extras: string): Promise<IQUser>;
+  getNonce(): Promise<QNonce>;
+  setUserFromIdentityToken(token: string): Promise<IQUser>;
+  getUserList(query: string, page?: number, limit?: number): Promise<IQUser[]>;
+  getBlockedUser(page?: number, limit?: number): Promise<IQUser[]>;
+  blockUser(userId: string): Promise<IQUser>;
+  unblockUser(userId: string): Promise<IQUser>;
+  getUserData(): Promise<IQUser>;
+  registerDeviceToken(token: string, isDevelopment: boolean): Promise<boolean>;
+  unregisterDeviceToken(token: string, isDevelopment: boolean): Promise<boolean>;
 
   readonly token: Derivable<string>
   readonly currentUser: Derivable<IQUser>

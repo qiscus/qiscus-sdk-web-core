@@ -212,7 +212,7 @@ export default class Qiscus implements IQiscus {
       )
       .flatten()
       .compose(
-        tap(it => {
+        tap((it: IQUser) => {
           this.realtimeAdapter.mqtt.connect(it.userId)
           this.realtimeAdapter.mqtt.subscribeUser(this.userAdapter.token.get())
         })
@@ -335,20 +335,18 @@ export default class Qiscus implements IQiscus {
 
   registerDeviceToken(
     token: string,
-    platform: 'rn',
-    isDevelopment: boolean = false,
+    isDevelopment: boolean,
     callback?: IQCallback<boolean>
   ): void | Promise<boolean> {
     return xs
       .combine(
         process(token, isReqString({ token })),
-        process(platform, isReqString({ platform })),
-        process(isDevelopment, isReqBoolean({ isDevelopment })),
+        process(isDevelopment, isOptBoolean({ isDevelopment })),
         process(callback, isOptCallback({ callback }))
       )
       .compose(bufferUntil(() => this.isLogin))
-      .map(([token]) =>
-        xs.fromPromise(this.userAdapter.registerDeviceToken(token, platform, isDevelopment))
+      .map(([token, isDevelopment]) =>
+        xs.fromPromise(this.userAdapter.registerDeviceToken(token, isDevelopment))
       )
       .flatten()
       .compose(toCallbackOrPromise(callback))
@@ -356,13 +354,13 @@ export default class Qiscus implements IQiscus {
 
   removeDeviceToken(
     token: string,
-    platform: 'rn' = 'rn',
-    isDevelopment: boolean = false,
+    isDevelopment: boolean,
     callback?: IQCallback<boolean>
   ): void | Promise<boolean> {
     return xs
       .combine(
         process(token, isReqString({ token })),
+        process(isDevelopment, isOptBoolean({ isDevelopment })),
         process(callback, isOptCallback({ callback }))
       )
       .compose(bufferUntil(() => this.isLogin))
@@ -456,7 +454,6 @@ export default class Qiscus implements IQiscus {
       .compose(toCallbackOrPromise(callback))
   }
 
-  // Test me
   removeParticipants(
     roomId: number,
     userIds: string[],
