@@ -1473,6 +1473,12 @@ class QiscusSDK {
       match.replace(g1, '/upload/w_320,h_320,c_limit/').replace(g2, '.png')
     )
   }
+  getBlurryThumbnailURL (fileURL) {
+    const reURL = /^https?:\/\/\S+(\/upload\/)\S+(\.\w+)$/i
+    return fileURL.replace(reURL, (match, g1, g2) =>
+      match.replace(g1, '/upload/w_320,h_320,c_limit,e_blur:300/').replace(g2, '.png')
+    )
+  }
 
   get logger () {
     if (this.debugMode) return console.log.bind(console, 'Qiscus ->')
