@@ -1050,12 +1050,6 @@ class QiscusSDK {
         // When the posting succeeded, we mark the Comment as sent,
         // so all the interested party can be notified.
         messageData.markAsSent()
-        messageData.markAsRead({
-          participants: this.selected.participants,
-          actor: this.user_id,
-          comment_id: res.id,
-          activeActorId: this.user_id
-        })
         messageData.id = res.id
         messageData.before_id = res.comment_before_id
         // update the timestamp also then re-sort the comment list
