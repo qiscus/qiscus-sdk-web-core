@@ -80,14 +80,16 @@ class Comment {
     this.isFailed = false
     this.status = 'sent'
   }
-  markAsDelivered () {
+  markAsDelivered ({ actor, activeActorId } = {}) {
+    if (actor === activeActorId) return
     if (this.isRead || this.status === 'read') return
     this.isSent = true
     this.isRead = false
     this.isDelivered = true
     this.status = 'delivered'
   }
-  markAsRead () {
+  markAsRead ({ actor, activeActorId } = {}) {
+    if (actor === activeActorId) return
     this.isPending = false
     this.isSent = true
     this.isDelivered = true
