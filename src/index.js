@@ -676,7 +676,6 @@ class QiscusSDK {
 
       if (this.realtimeAdapter != null) {
         if (this.debugMode) {
-          console.log(this.realtimeAdapter)
           console.log('MQTT Connected')
         }
         clearInterval(initialSubscribe)
@@ -1060,7 +1059,6 @@ class QiscusSDK {
         return messageData
       })
       .catch(err => {
-        console.log('Why error', err)
         messageData.markAsFailed()
         return Promise.reject(err)
       })
@@ -1190,7 +1188,6 @@ class QiscusSDK {
       .create()
       .then(res => {
         self.events.emit('group-room-created', res)
-        console.log('create-group-room', res)
         return Promise.resolve(res)
       })
   }
