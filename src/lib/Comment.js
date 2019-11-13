@@ -16,6 +16,7 @@ class Comment {
     this.room_id = comment.room_id
     this.isChannel = comment.is_public_channel
     this.unix_timestamp = comment.unix_timestamp
+    this.extras = comment.extras
     /* comment status */
     this.is_deleted = comment.is_deleted
     this.isPending = false
