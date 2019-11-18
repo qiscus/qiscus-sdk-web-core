@@ -13,6 +13,7 @@ import MqttAdapter from './lib/adapters/mqtt'
 import CustomEventAdapter from './lib/adapters/custom-event'
 import SyncAdapter from './lib/adapters/sync'
 import { GroupChatBuilder } from './lib/utils'
+import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
 
@@ -1004,9 +1005,8 @@ class QiscusSDK {
       type: type || 'text',
       timestamp: format(new Date()),
       unique_id: uniqueId,
-      payload: payload
+      payload: tryCatch(() => JSON.parse(payload), payload, (error) => this.logger('Error when parsing payload', error.message))
     }
-    // if (type !== 'text') commentData.payload = JSON.parse(payload)
     const pendingComment = self.prepareCommentToBeSubmitted(commentData)
 
     // push this comment unto active room
@@ -1034,7 +1034,7 @@ class QiscusSDK {
 
     return this.userAdapter
       .postComment(
-        topicId,
+        '' + topicId,
         messageData.message,
         messageData.unique_id,
         messageData.type,

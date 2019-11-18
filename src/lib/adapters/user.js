@@ -14,7 +14,7 @@ export default class User {
   }
 
   postComment (topicId, commentMessage, uniqueId, type, payload, extras) {
-    return this.HTTPAdapter.post(`api/v2/sdk/post_comment`, {
+    return this.HTTPAdapter.post_json(`api/v2/sdk/post_comment`, {
       comment: commentMessage,
       topic_id: topicId,
       unique_temp_id: uniqueId,
