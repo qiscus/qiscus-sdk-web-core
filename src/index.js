@@ -909,6 +909,7 @@ class QiscusSDK {
   async registerDeviceToken (token, isDevelopment = false) {
     const res = await this.HTTPAdapter.post('api/v2/sdk/set_user_device_token', {
       device_token: token,
+      device_platform: 'rn',
       is_development: isDevelopment
     })
     return res.body.results
@@ -916,6 +917,7 @@ class QiscusSDK {
   async removeDeviceToken (token, isDevelopment = false) {
     const res = await this.HTTPAdapter.post('api/v2/sdk/remove_user_device_token', {
       device_token: token,
+      device_platform: 'rn',
       is_development: isDevelopment
     })
     return res.body.results
