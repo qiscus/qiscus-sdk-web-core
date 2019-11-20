@@ -27,41 +27,18 @@ export default class User {
     })
   }
 
-  sync (id = 0) {
-    return this.HTTPAdapter.get(`api/v2/sdk/sync?last_received_comment_id=${id}`)
-      .then((res, err) => {
-        if (err) return Promise.reject(err)
-        return new Promise((resolve, reject) => {
-          if (res.body.status !== 200) return reject(res)
-          const data = res.body.results.comments
-          return resolve(data)
-        })
-      })
-      .catch(error => console.log(error))
-  }
+  updateCommentStatus = throttle(
+    (roomId, lastReadCommentId, lastReceivedCommentId) => {
+      const body = {
+        room_id: roomId
+      }
+      if (lastReadCommentId) body.last_comment_read_id = lastReadCommentId
+      if (lastReceivedCommentId) { body.last_comment_received_id = lastReceivedCommentId }
 
-  syncEvent (id = 0) {
-    return this.HTTPAdapter.get(`api/v2/sdk/sync_event?start_event_id=${id}`)
-      .then((res, err) => {
-        if (err) return Promise.reject(err)
-        return new Promise((resolve, reject) => {
-          if (res.statusCode !== 200) return reject(res)
-          const data = res.body
-          return resolve(data)
-        })
-      })
-      .catch(error => console.log(error))
-  }
-
-  updateCommentStatus = throttle((roomId, lastReadCommentId, lastReceivedCommentId) => {
-    const body = {
-      room_id: roomId
-    }
-    if (lastReadCommentId) body.last_comment_read_id = lastReadCommentId
-    if (lastReceivedCommentId) body.last_comment_received_id = lastReceivedCommentId
-
-    return this.HTTPAdapter.post('api/v2/mobile/update_comment_status', body)
-  }, 300)
+      return this.HTTPAdapter.post('api/v2/mobile/update_comment_status', body)
+    },
+    300
+  )
 
   loadRoomList (params = {}) {
     const url = UrlBuilder('api/v2/sdk/user_rooms')
@@ -94,14 +71,18 @@ export default class User {
       avatar_url: params.avatar_url || null,
       extras: params.extra ? JSON.stringify(params.extras) : null
     }
-    return this.HTTPAdapter.patch('api/v2/sdk/my_profile', body).then(res => res.body.results.user)
+    return this.HTTPAdapter.patch('api/v2/sdk/my_profile', body).then(
+      res => res.body.results.user
+    )
   }
 
   uploadFile (file) {
     const body = {
       file: file
     }
-    return this.HTTPAdapter.post(`api/v2/sdk/upload`, body).then(res => res.body)
+    return this.HTTPAdapter.post(`api/v2/sdk/upload`, body).then(
+      res => res.body
+    )
   }
 
   getRoomsInfo (opts) {
@@ -113,7 +94,9 @@ export default class User {
     if (opts.room_unique_ids) body.room_unique_id = opts.room_unique_ids
     if (opts.show_participants) body.show_participants = opts.show_participants
     if (opts.show_removed) body.show_removed = opts.show_removed
-    return this.HTTPAdapter.post_json(`api/v2/mobile/rooms_info`, body).then(res => res.body)
+    return this.HTTPAdapter.post_json(`api/v2/mobile/rooms_info`, body).then(
+      res => res.body
+    )
   }
 
   loadComments (topicId, options) {
@@ -133,26 +116,34 @@ export default class User {
 
   deleteComment (roomId, commentUniqueIds, isForEveryone = true, isHard = true) {
     if (isForEveryone === false) {
-      console.warn('Deprecated: delete comment for me will be removed on next release')
+      console.warn(
+        'Deprecated: delete comment for me will be removed on next release'
+      )
     }
-    if (isHard === false) console.warn('Deprecated: soft delete will be removed on next release')
+    if (isHard === false) { console.warn('Deprecated: soft delete will be removed on next release') }
     const body = {
       unique_ids: commentUniqueIds,
       is_delete_for_everyone: isForEveryone,
       is_hard_delete: isHard
     }
-    return this.HTTPAdapter.del(`api/v2/sdk/delete_messages`, body).then(res => res.body)
+    return this.HTTPAdapter.del(`api/v2/sdk/delete_messages`, body).then(
+      res => res.body
+    )
   }
 
   clearRoomMessages (roomIds) {
     const body = {
       room_channel_ids: roomIds
     }
-    return this.HTTPAdapter.del(`api/v2/sdk/clear_room_messages`, body).then(res => res.body)
+    return this.HTTPAdapter.del(`api/v2/sdk/clear_room_messages`, body).then(
+      res => res.body
+    )
   }
 
   getCommentReceiptStatus (id) {
-    return this.HTTPAdapter.get(`api/v2/sdk/comment_receipt?comment_id=${id}`).then(res => res.body)
+    return this.HTTPAdapter.get(
+      `api/v2/sdk/comment_receipt?comment_id=${id}`
+    ).then(res => res.body)
   }
 
   getBlockedUser (page = 1, limit = 20) {
@@ -169,10 +160,12 @@ export default class User {
       user_email: email
     }
 
-    return this.HTTPAdapter.post(`api/v2/mobile/block_user`, params).then(res => {
-      if (res.body.status !== 200) return Promise.reject(res)
-      return Promise.resolve(res.body.results.user)
-    })
+    return this.HTTPAdapter.post(`api/v2/mobile/block_user`, params).then(
+      res => {
+        if (res.body.status !== 200) return Promise.reject(res)
+        return Promise.resolve(res.body.results.user)
+      }
+    )
   }
 
   unblockUser (email) {
@@ -181,13 +174,17 @@ export default class User {
       user_email: email
     }
 
-    return this.HTTPAdapter.post(`api/v2/mobile/unblock_user`, params).then(res => {
-      if (res.body.status !== 200) return Promise.reject(res)
-      return Promise.resolve(res.body.results.user)
-    })
+    return this.HTTPAdapter.post(`api/v2/mobile/unblock_user`, params).then(
+      res => {
+        if (res.body.status !== 200) return Promise.reject(res)
+        return Promise.resolve(res.body.results.user)
+      }
+    )
   }
 
   getProfile () {
-    return this.HTTPAdapter.get(`api/v2/sdk/my_profile`).then(res => res.body.results.user)
+    return this.HTTPAdapter.get(`api/v2/sdk/my_profile`).then(
+      res => res.body.results.user
+    )
   }
 }

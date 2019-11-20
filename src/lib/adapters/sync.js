@@ -78,18 +78,10 @@ function synchronizeEventFactory (getHttp, getInterval, getSync, getId, logger) 
         if (lastId != null) {
           emitter.emit('last-event-id.new', lastId)
         }
-        const messageDelivered = events
-          .filter(it => it.action_topic === 'delivered')
-          .map(it => it.payload.data)
-        const messageRead = events
-          .filter(it => it.action_topic === 'read')
-          .map(it => it.payload.data)
-        const messageDeleted = events
-          .filter(it => it.action_topic === 'delete_message')
-          .map(it => it.payload.data)
-        const roomCleared = events
-          .filter(it => it.action_topic === 'clear_room')
-          .map(it => it.payload.data)
+        const messageDelivered = events.filter(it => it.action_topic === 'delivered').map(it => it.payload.data)
+        const messageRead = events.filter(it => it.action_topic === 'read').map(it => it.payload.data)
+        const messageDeleted = events.filter(it => it.action_topic === 'delete_message').map(it => it.payload.data)
+        const roomCleared = events.filter(it => it.action_topic === 'clear_room').map(it => it.payload.data)
         return Promise.resolve({
           lastId,
           messageDelivered,
@@ -139,10 +131,7 @@ function synchronizeEventFactory (getHttp, getInterval, getSync, getId, logger) 
   }
 }
 
-export default function SyncAdapter (
-  getHttpAdapter,
-  { isDebug = false, interval = 5000, getShouldSync = noop }
-) {
+export default function SyncAdapter (getHttpAdapter, { isDebug = false, interval = 5000, getShouldSync = noop }) {
   const emitter = mitt()
   const logger = (...args) => (isDebug ? console.log('QSync:', ...args) : {})
 
@@ -153,16 +142,10 @@ export default function SyncAdapter (
     if (getShouldSync()) return interval
     return 30000
   }
-  const syncFactory = synchronizeFactory(
-    getHttpAdapter,
-    getInterval,
-    getShouldSync,
-    () => lastMessageId,
-    logger
-  )
+  const syncFactory = synchronizeFactory(getHttpAdapter, getInterval, getShouldSync, () => lastMessageId, logger)
   syncFactory.on('last-message-id.new', id => (lastMessageId = id))
   syncFactory.on('message.new', m => emitter.emit('message.new', m))
-  syncFactory.run().catch(err => console.log('got error when sync', err))
+  syncFactory.run().catch(err => logger('got error when sync', err))
 
   const syncEventFactory = synchronizeEventFactory(
     getHttpAdapter,
@@ -176,7 +159,7 @@ export default function SyncAdapter (
   syncEventFactory.on('message.delivered', it => emitter.emit('message.delivered', it))
   syncEventFactory.on('message.deleted', it => emitter.emit('message.deleted', it))
   syncEventFactory.on('room.cleared', it => emitter.emit('room.cleared', it))
-  syncEventFactory.run().catch(err => console.log('got error when sync event', err))
+  syncEventFactory.run().catch(err => logger('got error when sync event', err))
 
   return {
     get on () {
@@ -185,11 +168,11 @@ export default function SyncAdapter (
     get off () {
       return emitter.off
     },
-    get synchronize () {
-      return syncFactory.synchronize
+    synchronize () {
+      syncFactory.synchronize()
     },
-    get synchronizeEvent () {
-      return syncEventFactory.synchronize
+    synchronizeEvent () {
+      syncEventFactory.synchronize()
     }
   }
 }

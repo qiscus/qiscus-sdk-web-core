@@ -220,9 +220,7 @@ class QiscusSDK {
   _setRead (messageId, messageUniqueId, userId) {
     if (this.selected == null) return
     const room = this.selected
-    const message = room.comments.find(
-      it => it.id === messageId || it.unique_id === messageUniqueId
-    )
+    const message = room.comments.find(it => it.id === messageId || it.unique_id === messageUniqueId)
     if (message == null) return
     if (message.status === 'read') return
 
@@ -243,9 +241,7 @@ class QiscusSDK {
   _setDelivered (messageId, messageUniqueId, userId) {
     if (this.selected == null) return
     const room = this.selected
-    const message = room.comments.find(
-      it => it.id === messageId || it.unique_id === messageUniqueId
-    )
+    const message = room.comments.find(it => it.id === messageId || it.unique_id === messageUniqueId)
     if (message == null) return
     if (message.status === 'read') return
 
@@ -323,10 +319,7 @@ class QiscusSDK {
       this.logging('newmessages', comments)
 
       const lastReceivedMessageNotEmpty = this.lastReceiveMessages.length > 0
-      if (
-        lastReceivedMessageNotEmpty &&
-        this.lastReceiveMessages[0].unique_temp_id === comments[0].unique_temp_id
-      ) {
+      if (lastReceivedMessageNotEmpty && this.lastReceiveMessages[0].unique_temp_id === comments[0].unique_temp_id) {
         this.logging('lastReceiveMessages double', comments)
         return
       }
@@ -351,9 +344,7 @@ class QiscusSDK {
           }
           // pastiin sync
           const roomLastCommentId = lastComment.id
-          const commentBeforeThis = self.selected.comments.find(
-            c => c.id === lastComment.comment_before_id
-          )
+          const commentBeforeThis = self.selected.comments.find(c => c.id === lastComment.comment_before_id)
           if (!lastComment.isPending && !commentBeforeThis) {
             this.logging('comment before id not found! ', comment.comment_before_id)
             // need to fix, these method does not work
@@ -401,10 +392,7 @@ class QiscusSDK {
       if (this.presensePublisherId != null && this.presensePublisherId !== -1) {
         clearInterval(this.presensePublisherId)
       }
-      this.presensePublisherId = setInterval(
-        () => this.realtimeAdapter.publishPresence(this.user_id),
-        3500
-      )
+      this.presensePublisherId = setInterval(() => this.realtimeAdapter.publishPresence(this.user_id), 3500)
 
       // if (this.sync === "http" || this.sync === "both") this.activateSync();
       if (this.options.loginSuccessCallback) {
@@ -430,7 +418,9 @@ class QiscusSDK {
           self.selected = currentRoom
         }
       }
-      if (self.options.roomClearedCallback) self.options.roomClearedCallback(room)
+      if (self.options.roomClearedCallback) {
+        self.options.roomClearedCallback(room)
+      }
     })
 
     self.events.on('comment-deleted', function (data) {
@@ -445,9 +435,7 @@ class QiscusSDK {
       if (self.selected && self.selected.id === roomId) {
         // loop through the array of unique_ids
         commentUniqueIds.map(id => {
-          const commentToBeFound = self.selected.comments.findIndex(
-            comment => comment.unique_id === id
-          )
+          const commentToBeFound = self.selected.comments.findIndex(comment => comment.unique_id === id)
           if (commentToBeFound > -1) {
             if (isHard) {
               self.selected.comments.splice(commentToBeFound, 1)
@@ -523,11 +511,11 @@ class QiscusSDK {
       const payload = message.split(':')
       if (this.chatmateStatus !== payload[0]) {
         this.chatmateStatus =
-          payload[0] === 1
-            ? 'Online'
-            : `Last seen ${distanceInWordsToNow(Number(payload[1].substring(0, 13)))}`
+          payload[0] === 1 ? 'Online' : `Last seen ${distanceInWordsToNow(Number(payload[1].substring(0, 13)))}`
       }
-      if (self.options.presenceCallback) self.options.presenceCallback(message, userId)
+      if (self.options.presenceCallback) {
+        self.options.presenceCallback(message, userId)
+      }
     })
 
     self.events.on('typing', function (data) {
@@ -556,9 +544,7 @@ class QiscusSDK {
      */
     self.events.on('participants-removed', response => {
       if (response == null || this.selected == null) return
-      const participants = this.selected.participants.filter(
-        participant => response.indexOf(participant.email) <= -1
-      )
+      const participants = this.selected.participants.filter(participant => response.indexOf(participant.email) <= -1)
       this.selected.participants = participants
     })
 
@@ -823,9 +809,7 @@ class QiscusSDK {
         })
 
         self.last_received_comment_id =
-          self.last_received_comment_id < room.last_comment_id
-            ? room.last_comment_id
-            : self.last_received_comment_id
+          self.last_received_comment_id < room.last_comment_id ? room.last_comment_id : self.last_received_comment_id
         self.setActiveRoom(room)
         self.isLoading = false
         // id of last comment on this room
@@ -858,11 +842,8 @@ class QiscusSDK {
         // make sure the room hasn't been pushed yet
         let room = new Room(response)
         self.last_received_comment_id =
-          self.last_received_comment_id < room.last_comment_id
-            ? room.last_comment_id
-            : self.last_received_comment_id
-        const mapIntercept = async item =>
-          await this._hookAdapter.trigger(Hooks.MESSAGE_BEFORE_RECEIVED, item)
+          self.last_received_comment_id < room.last_comment_id ? room.last_comment_id : self.last_received_comment_id
+        const mapIntercept = async item => await this._hookAdapter.trigger(Hooks.MESSAGE_BEFORE_RECEIVED, item)
         room.comments = await Promise.all(room.comments.map(it => mapIntercept(it)))
         self.setActiveRoom(room)
         self.isLoading = false
@@ -970,7 +951,10 @@ class QiscusSDK {
       .send()
       .set('qiscus_sdk_app_id', `${this.AppId}`)
       .set('qiscus_sdk_version', `${this.version}`)
-      .then(res => Promise.resolve(res.body.results), err => Promise.reject(err))
+      .then(
+        res => Promise.resolve(res.body.results),
+        err => Promise.reject(err)
+      )
   }
 
   verifyIdentityToken (identityToken) {
@@ -981,7 +965,10 @@ class QiscusSDK {
       })
       .set('qiscus_sdk_app_id', `${this.AppId}`)
       .set('qiscus_sdk_version', `${this.version}`)
-      .then(res => Promise.resolve(res.body.results), err => Promise.reject(err))
+      .then(
+        res => Promise.resolve(res.body.results),
+        err => Promise.reject(err)
+      )
   }
 
   /**
@@ -1024,7 +1011,11 @@ class QiscusSDK {
       type: type || 'text',
       timestamp: format(new Date()),
       unique_id: uniqueId,
-      payload: tryCatch(() => JSON.parse(payload), payload, (error) => this.logger('Error when parsing payload', error.message))
+      payload: tryCatch(
+        () => JSON.parse(payload),
+        payload,
+        error => this.logger('Error when parsing payload', error.message)
+      )
     }
     const pendingComment = self.prepareCommentToBeSubmitted(commentData)
 
@@ -1033,9 +1024,7 @@ class QiscusSDK {
       // change payload for pendingComment
       // get the comment for current replied id
       var parsedPayload = JSON.parse(payload)
-      var repliedMessage = self.selected.comments.find(
-        cmt => cmt.id === parsedPayload.replied_comment_id
-      )
+      var repliedMessage = self.selected.comments.find(cmt => cmt.id === parsedPayload.replied_comment_id)
       parsedPayload.replied_comment_message =
         repliedMessage.type === 'reply' ? repliedMessage.payload.text : repliedMessage.message
       parsedPayload.replied_comment_sender_username = repliedMessage.username_as
@@ -1166,7 +1155,9 @@ class QiscusSDK {
   }
 
   removeSelectedRoomParticipants (values = [], payload = 'id') {
-    if (is.not.array(values)) return Promise.reject(new Error('`values` must have type of array'))
+    if (is.not.array(values)) {
+      return Promise.reject(new Error('`values` must have type of array'))
+    }
 
     const participants = this.selected.participants
     if (!participants) {
@@ -1178,14 +1169,10 @@ class QiscusSDK {
       participantsExclude = participants.filter(participant => values.indexOf(participant.id) <= -1)
     }
     if (payload === 'email') {
-      participantsExclude = participants.filter(
-        participant => values.indexOf(participant.email) <= -1
-      )
+      participantsExclude = participants.filter(participant => values.indexOf(participant.email) <= -1)
     }
     if (payload === 'username') {
-      participantsExclude = participants.filter(
-        participant => values.indexOf(participant.username) <= -1
-      )
+      participantsExclude = participants.filter(participant => values.indexOf(participant.username) <= -1)
     }
     this.selected.participants = participantsExclude
     return Promise.resolve(participants)
@@ -1242,7 +1229,9 @@ class QiscusSDK {
    * @memberof QiscusSDK
    */
   removeParticipantsFromGroup (roomId, emails) {
-    if (is.not.array(emails)) return Promise.reject(new Error('`emails` must have type of array'))
+    if (is.not.array(emails)) {
+      return Promise.reject(new Error('`emails` must have type of array'))
+    }
     return this.roomAdapter.removeParticipantsFromGroup(roomId, emails).then(res => {
       this.events.emit('participants-removed', emails)
       return Promise.resolve(res)
@@ -1423,7 +1412,12 @@ class QiscusSDK {
   exitChatRoom () {
     // remove all subscriber
     this.realtimeAdapter.unsubscribeTyping()
-    this.realtimeAdapter.unsubscribeRoomPresence()
+    tryCatch(
+      () => this.selected.participants.filter(it => it.email !== this.user_id).map(it => it.email),
+      null,
+      this.noop,
+      userIds => userIds.forEach(userId => this.realtimeAdapter.unsubscribeRoomPresence(userId))
+    )
     this.selected = null
   }
 
@@ -1464,7 +1458,9 @@ class QiscusSDK {
   }
 
   setCustomHeader (headers) {
-    if (is.not.json(headers)) throw new TypeError('`headers` must have type of object')
+    if (is.not.json(headers)) {
+      throw new TypeError('`headers` must have type of object')
+    }
     this._customHeader = headers
   }
 
@@ -1473,6 +1469,9 @@ class QiscusSDK {
   }
 
   static Interceptor = Hooks
+  get Interceptor () {
+    return Hooks
+  }
   intercept (interceptor, callback) {
     return this._hookAdapter.intercept(interceptor, callback)
   }
