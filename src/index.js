@@ -42,8 +42,8 @@ class QiscusSDK {
     this.AppId = null
     this.baseURL = 'https://api.qiscus.com'
     this.uploadURL = `${this.baseURL}/api/v2/sdk/upload`
-    this.mqttURL = 'wss://mqtt.qiscus.com:1886/mqtt'
-    this.brokerLbUrl = 'http://emqx-balancer.qiscus.com'
+    this.mqttURL = 'wss://realtime-bali.qiscus.com:1886/mqtt'
+    this.brokerLbUrl = 'https://realtime.qiscus.com'
     this.HTTPAdapter = null
     this.realtimeAdapter = null
     this.customEventAdapter = null
@@ -51,7 +51,7 @@ class QiscusSDK {
     this.isSynced = false
     this.syncInterval = 5000
     this.sync = 'socket' // possible values 'socket', 'http', 'both'
-    this.enableLb = false
+    this.enableLb = true
     this.httpsync = null
     this.eventsync = null
     this.extras = null
@@ -92,12 +92,29 @@ class QiscusSDK {
     if (!config.AppId) throw new Error('Please provide valid AppId')
     this.AppId = config.AppId
 
+    // We need to disable realtime load balancing if user are using custom server
+    // and did not provide a brokerLbUrl
+    const isDifferentBaseUrl = config.baseURL != null && this.baseURL !== config.baseURL
+    const isDifferentMqttUrl = config.mqttURL != null && this.mqttURL !== config.mqttURL
+    const isDifferentBrokerLbUrl = config.brokerLbURL != null && this.brokerLbUrl !== config.brokerLbURL
+    // disable realtime lb if user change baseUrl or mqttUrl but did not change
+    // broker lb url
+    if ((isDifferentBaseUrl || isDifferentMqttUrl) && !isDifferentBrokerLbUrl) {
+      this.logger('' +
+        'force disable load balancing for realtime server, because ' +
+        '`baseURL` or `mqttURL` get changed but ' +
+        'did not provide `brokerLbURL`'
+      )
+      this.enableLb = false
+    } else if (config.enableRealtimeLB != null) {
+      this.enableLb = config.enableRealtimeLB
+    }
     if (config.baseURL) this.baseURL = config.baseURL
     if (config.mqttURL) this.mqttURL = config.brokerUrl || config.mqttURL
+    if (config.mqttURL) this.brokerUrl = config.brokerUrl || config.mqttURL
     if (config.brokerLbURL) this.brokerLbUrl = config.brokerLbURL
     if (config.uploadURL) this.uploadURL = config.uploadURL
     if (config.sync) this.sync = config.sync
-    if (config.enableRealtimeLB != null) this.enableLb = config.enableRealtimeLB
     if (config.mode) this.mode = config.mode
     if (config.syncInterval) this.syncInterval = config.syncInterval || 5000
     if (config.googleMapKey) this.googleMapKey = config.googleMapKey
