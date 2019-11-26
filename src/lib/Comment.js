@@ -40,7 +40,7 @@ class Comment {
     //   'carousel'
     // ];
     this.type = comment.type
-    this.subtype = (comment.type === 'custom') ? comment.payload.type : null
+    this.subtype = comment.type === 'custom' ? comment.payload.type : null
     // comment status
     // comment status
     if (comment.status === 'sent') {
@@ -49,13 +49,13 @@ class Comment {
       this.markAsDelivered()
     } else if (comment.status === 'read') {
       this.markAsRead()
-    };
+    }
   }
   isAttachment (message) {
-    return (message.substring(0, '[file]'.length) === '[file]')
+    return message.substring(0, '[file]'.length) === '[file]'
   }
   isImageAttachment (message) {
-    return (this.isAttachment(message) && message.match(/\.(jpg|jpeg|gif|png)/i) != null)
+    return this.isAttachment(message) && message.match(/\.(jpg|jpeg|gif|png)/i) != null
   }
   attachUniqueId (uniqueId) {
     this.unique_id = uniqueId
@@ -81,87 +81,21 @@ class Comment {
     this.isFailed = false
     this.status = 'sent'
   }
-  markAsDelivered (options = {}) {
-    if (Object.keys(options).length === 0) {
-      this.isSent = true
-      this.isRead = false
-      this.isDelivered = true
-      this.status = 'delivered'
-      return
-    }
-
-    const participants = options.participants
-    const actorId = options.actor
-    const commentId = options.comment_id
-    const activeActorId = options.activeActorId
-
-    const actor = participants.find(it => it.email === actorId)
-
-    if (actor) {
-      actor.last_comment_received_id = commentId
-      actor.last_comment_received_id_str = commentId
-    }
-
-    // Get list of participants that has not receive the message
-    // excluding current active user
-    const unreceivedParticipants = participants
-      .map((it) => ({
-        commentId: it.last_comment_received_id,
-        userId: it.email
-      }))
-      .filter(it => it.userId !== activeActorId)
-      .filter(it => it.commentId < this.id)
-
-    if (unreceivedParticipants.length === 0) {
-      this.isSent = true
-      this.isRead = false
-      this.isDelivered = true
-      this.status = 'delivered'
-    }
+  markAsDelivered ({ actor, activeActorId } = {}) {
+    if (actor === activeActorId) return
+    if (this.isRead || this.status === 'read') return
+    this.isSent = true
+    this.isRead = false
+    this.isDelivered = true
+    this.status = 'delivered'
   }
-  markAsRead (options = {}) {
-    if (Object.keys(options).length === 0) {
-      this.isPending = false
-      this.isSent = true
-      this.isDelivered = true
-      this.isRead = true
-      this.status = 'read'
-      return
-    }
-
-    const participants = options.participants
-    const actorId = options.actor
-    const commentId = options.comment_id
-    const activeActorId = options.activeActorId
-
-    const actor = participants.find(p => p.email === actorId)
-    if (actor != null) {
-      actor.last_comment_read_id = commentId
-      actor.last_comment_read_id_str = commentId.toString()
-      actor.last_comment_received_id = commentId
-      actor.last_comment_received_id_str = commentId.toString()
-    }
-
-    if (activeActorId === actorId) return
-
-    // Get list of participants that has not read the message
-    // excluding current active user
-    const unreadParticipants = participants
-      .map(it => ({
-        commentId: it.last_comment_read_id,
-        userId: it.email
-      }))
-      .filter(it => it.userId !== options.activeActorId)
-      .filter(it => it.commentId < this.id)
-
-    // If all participants already read the message, mark message as read
-    if (unreadParticipants.length === 0) {
-      this.isPending = false
-      this.isSent = true
-      this.isDelivered = true
-      this.isRead = true
-      this.status = 'read'
-    }
+  markAsRead ({ actor, activeActorId } = {}) {
+    if (actor === activeActorId) return
+    this.isPending = false
+    this.isSent = true
+    this.isDelivered = true
+    this.isRead = true
+    this.status = 'read'
   }
   markAsFailed () {
     this.isFailed = true
@@ -192,7 +126,7 @@ class Comment {
       this.markAsDelivered()
     } else if (data.status === 'read') {
       this.markAsRead()
-    };
+    }
   }
 }
 

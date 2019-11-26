@@ -1,41 +1,46 @@
-const path = require('path')
-const webpack = require('webpack')
+const path = require("path");
+const webpack = require("webpack");
 
 module.exports = (env) => {
   const filename = env.production
-    ? 'qiscus-sdk-core.min.js'
-    : 'qiscus-sdk-core.js'
+    ? "qiscus-sdk-core.min.js"
+    : "qiscus-sdk-core.js";
   return {
     // entry: ['@babel/polyfill', path.join(__dirname, 'src', 'index.js')],
-    entry: [path.join(__dirname, 'src', 'index.js')],
-    devtool: env.production ? 'source-map' : 'cheap-module-source-map',
-    mode: env.production ? 'production' : 'development',
-    target: env.target || 'web',
-    stats: 'minimal',
+    entry: [path.join(__dirname, "src", "index.js")],
+    devtool: env.production ? "source-map" : "cheap-module-source-map",
+    mode: env.production ? "production" : "development",
+    target: env.target || "web",
+    stats: "minimal",
     output: {
-      path: path.join(__dirname, 'dist'),
+      path: path.join(__dirname, "dist"),
       filename: filename,
-      library: 'QiscusSDKCore',
-      libraryTarget: 'umd',
-      libraryExport: 'default',
-      umdNamedDefine: true
+      library: "QiscusSDKCore",
+      libraryTarget: "umd",
+      libraryExport: "default",
+      umdNamedDefine: true,
     },
     module: {
-      rules: [{
-        test: /\.js$/,
-        use: 'babel-loader',
-        exclude: /(node_modules|bower_components)/
-      }]
+      rules: [
+        {
+          test: /\.js$/,
+          use: "babel-loader",
+          exclude: /(node_modules|bower_components)/,
+        },
+        {
+          test: /\.ts$/,
+          use: "ts-loader",
+          exclude: /node_modules/,
+        },
+      ],
     },
     resolve: {
-      extensions: ['.js']
+      extensions: [".js", ".ts"],
     },
-    plugins: [
-      new webpack.DefinePlugin({ 'global.GENTLY': false })
-    ],
+    plugins: [new webpack.DefinePlugin({ "global.GENTLY": false })],
     performance: {
       maxEntrypointSize: 512000,
-      maxAssetSize: 512000
-    }
-  }
-}
+      maxAssetSize: 512000,
+    },
+  };
+};
