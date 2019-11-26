@@ -23,7 +23,8 @@
     "test:watch": "npm run test -- -w",
     "clean": "rimraf dist lib",
     "preversion": "npm-run-all clean build",
-    "prepublishOnly": "npm-run-all clean build"
+    "prepublishOnly": "npm-run-all clean build",
+    "serve": "serve dist -l 1234"
   },
   "devDependencies": {
     "@babel/cli": "^7.4.3",
