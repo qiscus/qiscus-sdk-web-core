@@ -1013,7 +1013,7 @@ class QiscusSDK {
       id: Math.round(Math.random() * 10e6),
       type: type || 'text',
       timestamp: format(new Date()),
-      unique_id: uniqueId,
+      unique_id: String(uniqueId),
       payload: tryCatch(
         () => JSON.parse(payload),
         payload,
