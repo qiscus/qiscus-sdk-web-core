@@ -140,8 +140,13 @@ class QiscusSDK {
       brokerLbUrl: this.brokerLbUrl,
       enableLb: this.enableLb
     })
-    this.realtimeAdapter.on('connect', () => {})
-    this.realtimeAdapter.on('close', () => {})
+    this.realtimeAdapter.on('connected', () => {
+      if (this.options.onReconnectCallback) {
+        this.options.onReconnectCallback()
+      }
+    })
+    this.realtimeAdapter.on('close', () => {
+    })
     this.realtimeAdapter.on('reconnect', () => {
       if (this.isLogin) {
         this.synchronize()
@@ -369,8 +374,6 @@ class QiscusSDK {
      * Basically, it sets up necessary properties for qiscusSDK
      */
     this.events.on('login-success', response => {
-      this.logging('login-success', response)
-
       this.isLogin = true
       this.userData = response.user
       this.last_received_comment_id = this.userData.last_comment_id
@@ -568,8 +571,8 @@ class QiscusSDK {
   }
 
   onReconnectMqtt () {
-    if (!this.selected) return
     if (this.options.onReconnectCallback) this.options.onReconnectedCallback()
+    if (!this.selected) return
     this.loadComments(this.selected.id)
   }
 

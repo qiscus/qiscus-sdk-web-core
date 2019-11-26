@@ -55,8 +55,8 @@ export default class MqttAdapter {
 
       const mqtt = connect(brokerUrl, opts)
       // #region Mqtt Listener
-      mqtt.addListener('connected', __mqtt_connected_handler)
-      mqtt.addListener('reconnected', __mqtt_reconnect_handler)
+      mqtt.addListener('connect', __mqtt_connected_handler)
+      mqtt.addListener('reconnect', __mqtt_reconnect_handler)
       mqtt.addListener('close', __mqtt_closed_handler)
       mqtt.addListener('error', __mqtt_error_handler)
       mqtt.addListener('message', __mqtt_message_handler)
@@ -300,7 +300,6 @@ export default class MqttAdapter {
   }
 
   publishPresence (userId) {
-    this.core.logging('emitting presence status for user', userId)
     this.publish(`u/${userId}/s`, 1, { retain: true })
   }
 
