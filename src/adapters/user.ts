@@ -2,6 +2,10 @@ import { Atom, atom } from 'derivable'
 import { IQHttpAdapter } from './http'
 import QUrlBuilder from '../utils/url-builder'
 import { IQUser, IQUserAdapter, IQUserExtraProps, QNonce } from '../defs'
+import * as Decoder from '../decoder'
+import * as model from '../model'
+import * as Api from '../api'
+import {Provider} from '../provider'
 
 export class QUser implements IQUser {
   id: number
@@ -39,6 +43,18 @@ export default function getUserAdapter(http: Atom<IQHttpAdapter>): IQUserAdapter
       userKey: string,
       { avatarUrl, extras, name }: IQUserExtraProps
     ): Promise<IQUser> {
+
+      const api = Api.request<UserResponse.RootObject>(Api.loginOrRegister({
+        userId: userId,
+        userKey: userKey,
+        username: name,
+        avatarUrl: avatarUrl,
+        headers: {
+          'qiscus-sdk-app-id': '',
+          'qiscus-sdk-version': ''
+        }
+      })).then(resp => Decoder.loginOrRegister(resp.results.user))
+
       const data = {
         email: userId,
         password: userKey,
@@ -190,7 +206,7 @@ declare module UserResponse {
     avatar: Avatar
     avatar_url: string
     email: string
-    extras: Extras
+    extras: object
     id: number
     id_str: string
     last_comment_id: number

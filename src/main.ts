@@ -47,13 +47,16 @@ import {
   toCallbackOrPromise,
   toEventSubscription,
 } from './utils/stream'
+import {storageFactory} from './storage'
 
 export type QSyncMode = 'socket' | 'http' | 'both'
 
 export default class Qiscus implements IQiscus {
   private static _instance: Qiscus = null
 
-  //<editor-fold desc="Property">
+  private storage = storageFactory()
+
+  // #region Property
   private readonly _syncMode: Atom<QSyncMode> = atom('socket')
 
   private readonly _realtimeAdapter: Atom<IQRealtimeAdapter | null> = atom(null)
@@ -68,13 +71,14 @@ export default class Qiscus implements IQiscus {
   private readonly _appId: Atom<string> = atom(null)
   private readonly _shouldSync = atom(false)
   private readonly _customHeaders = atom<{ [key: string]: string }>(null)
-  //</editor-fold>
+  // #endregion
 
   public static get instance(): Qiscus {
     if (this._instance == null) this._instance = new this()
     return this._instance
   }
 
+  // #region helpers
   public get httpAdapter() {
     return this._httpAdapter.get()
   }
@@ -118,13 +122,14 @@ export default class Qiscus implements IQiscus {
   private get shouldSync() {
     return this._shouldSync.get()
   }
+  // #endregion
 
   setup(appId: string, syncInterval: number = 5000): void {
     this.setupWithCustomServer(
       appId,
       'https://api.qiscus.com/api/v2/sdk/',
-      'wss://mqtt.qiscus.com:1886/mqtt',
-      null,
+      'wss://realtime-bali.qiscus.com:1886/mqtt',
+      'https://realtime.qiscus.com',
       syncInterval
     )
   }
@@ -133,9 +138,36 @@ export default class Qiscus implements IQiscus {
     appId: string,
     baseUrl: string,
     brokerUrl: string,
-    brokerLBUrl: string,
+    brokerLbUrl: string,
     syncInterval: number = 5000
   ): void {
+    const defaultBaseUrl = this.storage.getBaseUrl()
+    const defaultBrokerUrl = this.storage.getBrokerUrl()
+    const defaultBrokerLbUrl = this.storage.getBrokerLbUrl()
+
+    // We need to disable realtime load balancing if user are using custom server
+    // and did not provide a brokerLbUrl
+    const isDifferentBaseUrl = baseUrl !== defaultBaseUrl
+    const isDifferentBrokerUrl = brokerUrl !== defaultBrokerUrl
+    const isDifferentBrokerLbUrl = brokerLbUrl !== defaultBrokerLbUrl
+    // disable realtime lb if user change baseUrl or mqttUrl but did not change
+    // broker lb url
+    if ((isDifferentBaseUrl || isDifferentBrokerUrl) && !isDifferentBrokerLbUrl) {
+      this._loggerAdapter.get().log('' +
+        'force disable load balancing for realtime server, because ' +
+        '`baseUrl` or `brokerUrl` get changed but ' +
+        'did not provide `brokerLbURL`'
+      )
+      this.storage.setBrokerLbEnabled(false)
+    }
+
+    this.storage.setAppId(appId)
+    this.storage.setBaseUrl(baseUrl)
+    this.storage.setBrokerUrl(brokerUrl)
+    this.storage.setBrokerLbUrl(brokerLbUrl)
+    this.storage.setSyncInterval(syncInterval)
+    this.storage.setDebugEnabled(false)
+
     this._appId.set(appId)
     this._baseUrl.set(baseUrl)
     this._brokerUrl.set(brokerUrl)
@@ -364,7 +396,9 @@ export default class Qiscus implements IQiscus {
         process(callback, isOptCallback({ callback }))
       )
       .compose(bufferUntil(() => this.isLogin))
-      .map(([token]) => xs.fromPromise(this.userAdapter.unregisterDeviceToken(token)))
+      .map(([token, isDevelopment]) =>
+        xs.fromPromise(this.userAdapter.unregisterDeviceToken(token, isDevelopment))
+      )
       .flatten()
       .compose(toCallbackOrPromise(callback))
   }

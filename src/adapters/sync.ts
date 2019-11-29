@@ -4,7 +4,12 @@ import QUrlBuilder from '../utils/url-builder'
 import { EventEmitter } from 'pietile-eventemitter'
 import { IQMessage, IQMessageAdapter, IQRoom, IQRoomAdapter } from '../defs'
 import { IQHttpAdapter } from './http'
-import { JsonMessage, QMessage } from './message'
+import { JsonMessage, QMessage } from 'adapters/message'
+import * as m from 'model'
+import * as Decoder from 'decoder'
+
+const noop = () => {}
+const sleep = (period: number) => new Promise(res => setTimeout(res, period))
 
 type CallbackMessageDelivery = (
   roomId: number,
@@ -180,8 +185,116 @@ export default function getSyncAdapter(
   };
 }
 
+const synchronizeFactory = (
+  getHttp: () => IQHttpAdapter,
+  getInterval: () => number,
+  getEnableSync: () => boolean,
+  getId: () => number,
+  getToken: () => any,
+  logger: (...arg: string[]) => void
+) => {
+  interface Event {
+    'last-message-id.new': (messageId: m.IQAccount['lastMessageId']) => void
+    'message.new': (message: m.IQMessage) => void
+  }
+  const emitter = new EventEmitter<Event>()
+  const synchronize = (messageId: m.IQAccount['lastMessageId']): Promise<{
+    lastMessageId: m.IQAccount['lastMessageId'],
+    messages: m.IQMessage[],
+    interval: number,
+  }> => {
+    const url = QUrlBuilder('sync')
+      .param('token', getToken())
+      .param('last_received_comment_id', messageId)
+      .build()
+
+    return getHttp()
+      .get<SyncResponse.RootObject>(url)
+      .then(resp => {
+        const results = resp.results
+        const messages = results.comments.map(Decoder.synchronize)
+        const lastMessageId = results.meta.last_received_comment_id
+
+        messages.sort((a, b) => a.id - b.id)
+
+        return { lastMessageId, messages, interval: getInterval() }
+      })
+  }
+
+  async function * generator() {
+    while (true) {
+      const http = getHttp()
+      if (http != null && getEnableSync()) yield synchronize(getId())
+      await sleep(getInterval())
+    }
+  }
+
+  return {
+    get synchronize() { return synchronize },
+    get on() { return emitter.on },
+    get off() { return emitter.off },
+    async run() {
+      for await (let result of generator()) {
+        try {
+          const messageId = result.lastMessageId
+          const messages = result.messages
+          if (messageId > getId()) {
+            emitter.emit('last-message-id.new', messageId)
+            messages.forEach(m => emitter.emit('message.new', m))
+          }
+        } catch (e) {
+          logger('error when sync', e.message)
+        }
+      }
+    }
+  }
+}
+
+const synchronizeEventFactory = (
+  getHttp: () => IQHttpAdapter, getInterval, getEnableSync, getId, getToken, logger
+) => {
+  interface Event {
+    'last-event-id.new': (lastId: m.IQAccount['lastSyncEventId']) => void
+  }
+  const emitter = new EventEmitter<Event>()
+  const synchronize = (eventId: m.IQAccount['lastSyncEventId']) => {
+    const url = QUrlBuilder('/sync_event')
+      .param('token', getToken())
+      .param('start_event_id', eventId)
+      .build()
+
+    return getHttp()
+      .get<SyncEventResponse.RootObject>(url)
+      .then(resp => {
+        const events = resp.events
+        const lastId = events
+          .map(it => it.id)
+          .sort((a, b) => a - b)
+          .pop()
+        if (lastId != null) emitter.emit('last-event-id.new', lastId)
+
+        const messageDelivered = events.filter(it => it.action_topic === 'delivered')
+          .map(it => it.payload.data as SyncEventResponse.DataMessageDelivered)
+        const messageRead = events.filter(it => it.action_topic === 'read')
+          .map(it => it.payload.data as SyncEventResponse.DataMessageDelivered)
+        const messageDeleted = events.filter(it => it.action_topic === 'deleted_message')
+          .map(it => it.payload.data as SyncEventResponse.DataMessageDeleted)
+        const roomCleared = events.filter(it => it.action_topic === 'clear_room')
+          .map(it => it.payload.data as SyncEventResponse.DataRoomCleared)
+        return {
+          lastId,
+          messageDelivered,
+          messageRead,
+          messageDeleted,
+          roomCleared,
+          interval: getInterval()
+        }
+      })
+  }
+}
+
 // Response type
-declare module SyncResponse {
+export declare module SyncResponse {
   export interface Meta {
     last_received_comment_id: number;
     need_clear: boolean;
@@ -227,7 +340,7 @@ declare module SyncResponse {
     results: Results;
   }
 }
-declare module SyncEventResponse {
+export declare module SyncEventResponse {
   export interface Actor {
     id: string;
     email: string;

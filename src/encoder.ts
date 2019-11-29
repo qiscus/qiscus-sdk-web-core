@@ -17,3 +17,4 @@ export const patchProfile = (u: IQUser) => ({
   avatar_url: u.avatarUrl,
   extras: u.extras,
 })
+export const userRooms = () => ({})
