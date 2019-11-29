@@ -83,6 +83,7 @@ export default class MqttAdapter {
       debounce(async () => {
         if (!enableLb) return
         this.willConnectToRealtime = true
+        const topics = Object.keys(this.mqtt._resubscribeTopics)
         const [url, err] = await wrapP(this.getMqttNode())
         if (err) {
           this.logger(`cannot get new brokerURL, using old url instead (${this.cacheRealtimeURL})`)
@@ -92,6 +93,8 @@ export default class MqttAdapter {
           this.logger('trying to reconnect to', url)
           this.mqtt = __mqtt_conneck(url)
         }
+        this.logger(`resubscribe to old topics ${topics}`)
+        topics.forEach(topic => this.mqtt.subscribe(topic))
       }, 300)
     )
   }
