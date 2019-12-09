@@ -1,10 +1,12 @@
 import axios from 'axios'
-import { IQUser, IQChatRoom, IQMessage } from 'model'
-import * as Encode from 'encoder'
+import { IQUser, IQChatRoom, IQMessage } from './model'
+import * as Encode from './encoder'
 
 export const request = async <Resp extends unknown> (api: Api): Promise<Resp> => {
+  console.log('before-request api', api)
   const resp = await axios({
     method: api.method,
+    baseURL: api.baseUrl,
     url: api.url,
     headers: api.headers,
     data: api.body,
@@ -18,6 +20,7 @@ interface Request<O> {
 }
 
 export type Api = {
+  baseUrl?: string
   method: 'get' | 'post' | 'put' | 'patch' | 'delete'
   url: string
   params?: Record<string, string>
@@ -50,12 +53,12 @@ type FnParams = <O extends Json>(
 ) => (o: O) => { params: Json }
 const useParams: FnParams = fn => o => ({ params: fn(o) })
 
-type FnUrl = (url: string) => () => { method: Api['method']; url: Api['url'] }
-const useGetUrl: FnUrl = (url: string) => () => ({ method: 'get', url })
-const usePostUrl: FnUrl = (url: string) => () => ({ method: 'post', url })
-const usePutUrl: FnUrl = (url: string) => () => ({ method: 'put', url })
-const usePatchUrl: FnUrl = (url: string) => () => ({ method: 'patch', url })
-const useDeleteUrl: FnUrl = (url: string) => () => ({ method: 'delete', url })
+type FnUrl = <O extends Api>(url: string) => (o?: O) => { method: Api['method']; url: Api['url']; baseUrl: Api['baseUrl'] }
+const useGetUrl: FnUrl = <O extends Api>(url: string) => (o: O) => ({ method: 'get', url, baseUrl: o.baseUrl })
+const usePostUrl: FnUrl = <O extends Api>(url: string) => (o: O) => ({ method: 'post', url, baseUrl: o.baseUrl })
+const usePutUrl: FnUrl = <O extends Api>(url: string) => (o: O) => ({ method: 'put', url, baseUrl: o.baseUrl })
+const usePatchUrl: FnUrl = <O extends Api>(url: string) => (o: O) => ({ method: 'patch', url, baseUrl: o.baseUrl })
+const useDeleteUrl: FnUrl = <O extends Api>(url: string) => (o: O) => ({ method: 'delete', url, baseUrl: o.baseUrl })
 
 type Json = Record<string, unknown>
 type BodyMapperFn<O> = (o: O) => Json
@@ -65,6 +68,7 @@ const useBody = <O extends Json> (mapper: BodyMapperFn<O>) => (o: O) => ({
 
 const parseApi = (o: Record<string, any>): Api => ({
   method: o.method,
+  baseUrl: o.baseUrl,
   url: o.url,
   headers: o.headers,
   params: o.params,
@@ -77,7 +81,7 @@ type Fn<O> =
   | ReturnType<FnParams>
 const compose = <O extends Record<string, unknown>> (...fns: Fn<O>[]) => (
   o: O
-): Api => parseApi(fns.reduce((acc, fn) => ({ ...acc, ...fn(acc) }), o))
+): Api => parseApi(fns.reduce((acc, fn) => ({ ...acc, ...fn(acc as any) }), o))
 
 export type loginOrRegisterParams = {
   userId: string
@@ -161,24 +165,40 @@ export const getTotalUnreadCount: Request<{} & withCredentials> = compose(
   useCredentials
 )
 
-export const createRoom: Request<{ name: string; userIds: IQUser['id'][] } & withCredentials> = compose(
+export const createRoom: Request<{
+  name: string
+  userIds: IQUser['id'][]
+  avatarUrl?: IQChatRoom['avatarUrl']
+  extras?: IQChatRoom['extras']
+} & withCredentials> = compose(
   usePostUrl('/create_room'),
   useCredentials,
   useBody(it => ({
     name: it.name,
     participants: it.userIds,
+    avatar_url: it.avatarUrl,
+    options: it.extras,
   }))
 )
 
-export const getOrCreateRoomWithTarget: Request<{ userIds: IQUser['id'][] } & withCredentials> = compose(
+export const getOrCreateRoomWithTarget: Request<{
+  userIds: IQUser['id'][]
+  extras?: IQChatRoom['extras']
+} & withCredentials> = compose(
   usePostUrl('/get_or_create_room_with_target'),
   useCredentials,
   useBody(o => ({
     emails: o.userIds,
+    options: o.extras,
   }))
 )
 
-export const getOrCreateRoomWithUniqueId: Request<{ uniqueId: string } & withCredentials> = compose(
+export const getOrCreateRoomWithUniqueId: Request<{
+  uniqueId: string
+  name?: string
+  avatarUrl?: string
+  options?: Record<string, any>
+} & withCredentials> = compose(
   usePostUrl('/get_or_create_room_with_unique_id'),
   useCredentials,
   useBody(o => ({

@@ -1,5 +1,7 @@
 import { IQAccount, IQChatRoom, IQMessage } from './model'
 
+export type Storage = ReturnType<typeof storageFactory>
+
 export const storageFactory = () => {
   const storage = new Map<string, any>()
   const makeSetter = <T>(name: string) => (value: T): void => {
@@ -47,5 +49,10 @@ export const storageFactory = () => {
     setRooms: makeSetter<IQChatRoom[]>('chat-rooms'),
     getMessages: makeGetter<IQMessage[]>('messages'),
     setMessages: makeSetter<IQMessage[]>('messages'),
+
+    getLastMessageId: makeGetter<IQAccount['lastMessageId']>('last-message-id'),
+    setLastMessageId: makeSetter<IQAccount['lastMessageId']>('last-message-id'),
+    getLastEventId: makeGetter<IQAccount['lastSyncEventId']>('last-event-id'),
+    setLastEventId: makeSetter<IQAccount['lastSyncEventId']>('last-event-id'),
   }
 }

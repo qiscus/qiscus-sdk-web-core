@@ -1,5 +1,4 @@
 import axios from "axios";
-import it from "param.macro";
 import { Derivable } from "derivable";
 
 export interface IQHttpAdapter {
@@ -64,22 +63,22 @@ export default function getHttpAdapter({
         .delete(path, {
           data
         })
-        .then(it.data);
+        .then(it => it.data);
     },
     get<T>(path: string): Promise<T> {
-      return api.get<T>(path).then(it.data);
+      return api.get<T>(path).then(it => it.data);
     },
     patch<T>(path: string, data?: object): Promise<T> {
-      return api.patch<T>(path, data).then(it.data);
+      return api.patch<T>(path, data).then(it => it.data);
     },
     post<T>(path: string, data?: object): Promise<T> {
-      return api.post<T>(path, data).then(it.data);
+      return api.post<T>(path, data).then(it => it.data);
     },
     postFormData<T>(path: string, form: FormData): Promise<T> {
-      return api.post<T>(path, form).then(it.data);
+      return api.post<T>(path, form).then(it => it.data);
     },
     put<T>(path: string, data?: object): Promise<T> {
-      return api.put<T>(path, data).then(it.data);
+      return api.put<T>(path, data).then(it => it.data);
     },
     upload<T>(
       path: string,
@@ -93,7 +92,7 @@ export default function getHttpAdapter({
             progressCallback(percentage);
           }
         })
-        .then(it.data);
+        .then(it => it.data);
     }
   };
 }

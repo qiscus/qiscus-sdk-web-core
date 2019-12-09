@@ -16,7 +16,7 @@ module.exports = env => {
     output: {
       path: path.join(__dirname, 'dist'),
       filename: filename.replace('{module}', 'umd'),
-      library: 'QiscusSDKCore',
+      library: 'QiscusSDK',
       libraryTarget: 'umd',
       libraryExport: 'default',
       umdNamedDefine: true
@@ -27,13 +27,16 @@ module.exports = env => {
         use: 'babel-loader',
         exclude: /(node_modules|bower_components)/
       }, {
-        test: /\.tsx?$/,
-        use: 'babel-loader',
+        test: /\.ts$/,
+        use: [
+          'babel-loader',
+          // 'ts-loader'
+        ],
         exclude: /(node_modules|bower_components)/
       }]
     },
     resolve: {
-      extensions: ['.tsx', '.ts', '.js']
+      extensions: ['.ts', '.js']
     },
     plugins: [
       new webpack.DefinePlugin({

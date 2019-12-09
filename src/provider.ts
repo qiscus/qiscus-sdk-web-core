@@ -1,25 +1,24 @@
-import { storageFactory } from './storage'
+import { Storage } from './storage'
 
-type Storage = ReturnType<typeof storageFactory>
-
-const withHeaders = (s: Storage) => ({
+export const withHeaders = (s: Storage) => ({
   headers: {
     'qiscus-sdk-app-id': s.getAppId(),
     'qiscus-sdk-version': s.getVersion(),
   }
 })
-const withCredentials = (s: Storage) => ({
+export const withCredentials = (s: Storage) => ({
   headers: {
+    ...withHeaders(s).headers,
     'qiscus-sdk-token': s.getToken(),
     'qiscus-sdk-user-id': s.getCurrentUser()?.id,
   }
 })
 
-const withBaseUrl = (s: Storage) => ({
-  baseUrl: s.getBaseUrl()
+export const withBaseUrl = (s: Storage) => ({
+  baseUrl: s.getBaseUrl(),
 })
 
-export const Provider = (s: ReturnType<typeof storageFactory>) => ({
+export const Provider = (s: Storage) => ({
   withHeaders: withHeaders(s),
   withCredentials: withCredentials(s),
   withBaseUrl: withBaseUrl(s),

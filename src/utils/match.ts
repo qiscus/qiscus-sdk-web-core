@@ -61,7 +61,7 @@ export function match(...args) {
   return args.length === 2 ? calculateResult(args[0]) : calculateResult;
 }
 
-export function when(props) {
+export function when(props?: any) {
   if (props === undefined) {
     return _catchAllSymbol;
   }
