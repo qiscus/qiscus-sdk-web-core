@@ -191,25 +191,19 @@ export default class Qiscus {
         process(extras, isOptJson({ extras })),
         process(callback, isOptCallback({ callback })),
       )
-      .map(([userId, userKey, username, avatarUrl, extras]) => [
-        userId,
-        userKey,
-        username,
-        avatarUrl,
-        JSON.stringify(extras),
-      ])
       .map(([userId, userKey, username, avatarUrl, extras]) =>
         xs.fromPromise(
           this.userAdapter.login(userId, userKey, {
             name: username,
             avatarUrl,
             extras,
-          }),
+          } as { name: string, avatarUrl: string, extras: any }),
         ),
       )
       .flatten()
       .compose(
         tap((it: model.IQAccount) => {
+          this.realtimeAdapter.mqtt.conneck()
           this.realtimeAdapter.mqtt.subscribeUser(this.storage.getToken())
         }),
       )

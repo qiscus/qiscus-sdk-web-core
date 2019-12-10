@@ -350,7 +350,7 @@ export default function getMqttAdapter (
     return mqtt_
   }
 
-  mqtt = __mqtt_conneck(s.getBrokerUrl())
+  // mqtt = __mqtt_conneck(s.getBrokerUrl())
   cacheUrl = s.getBrokerUrl()
 
   emitter.on('mqtt::close', debounce(async () => {
@@ -380,6 +380,9 @@ export default function getMqttAdapter (
 
   return {
     get mqtt () { return mqtt },
+    conneck() {
+      mqtt = __mqtt_conneck(s.getBrokerUrl())
+    },
     onMqttConnected (callback: () => void): () => void {
       emitter.on('mqtt::connected', callback)
       return () => emitter.off('mqtt::connected', callback)

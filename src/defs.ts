@@ -1,5 +1,6 @@
 import { Atom, Derivable, Lens } from 'derivable'
 import { PostCommentResponse } from './adapters/message'
+import * as model from './model'
 
 export type IQCallback<T> = (response: T, error?: Error) => void
 
@@ -215,9 +216,9 @@ export interface IQiscus {
 }
 
 export interface IQUserExtraProps {
-  avatarUrl?: string
-  name?: string
-  extras?: string
+  avatarUrl?: model.IQAccount['avatarUrl']
+  name?: model.IQAccount['name']
+  extras?: model.IQAccount['extras']
 }
 
 export interface IQUserAdapter {

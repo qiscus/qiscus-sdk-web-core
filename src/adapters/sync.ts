@@ -1,6 +1,6 @@
 import flatten from 'lodash.flatten'
-import { EventEmitter } from 'pietile-eventemitter'
-import { IQHttpAdapter } from './http'
+// import { EventEmitter } from 'pietile-eventemitter'
+import { EventEmitter } from 'events'
 import * as Api from '../api'
 import * as m from '../model'
 import * as Decoder from '../decoder'
@@ -28,7 +28,9 @@ export default function getSyncAdapter (
     logger: (...args: string[]) => void
   },
 ) {
-  const emitter = new EventEmitter<IQSyncEvent>()
+  // const emitter = new EventEmitter<IQSyncEvent>()
+  const emitter = new EventEmitter()
+  const shouldSync = (): boolean => o.shouldSync() && o.s.getCurrentUser() != null
 
   const getInterval = () => {
     if (o.shouldSync()) return o.s.getSyncInterval()
@@ -37,7 +39,7 @@ export default function getSyncAdapter (
 
   const sync = synchronizeFactory(
     getInterval,
-    o.shouldSync,
+    shouldSync,
     () => o.s.getLastMessageId(),
     o.logger,
     o.s,
@@ -48,7 +50,7 @@ export default function getSyncAdapter (
 
   const syncEvent = synchronizeEventFactory(
     getInterval,
-    o.shouldSync,
+    shouldSync,
     () => o.s.getLastEventId(),
     o.logger,
     o.s,
@@ -101,7 +103,8 @@ const synchronizeFactory = (
     'message.new': (message: m.IQMessage) => void
   }
 
-  const emitter = new EventEmitter<Event>()
+  // const emitter = new EventEmitter<Event>()
+  const emitter = new EventEmitter()
   const synchronize = (messageId: m.IQAccount['lastMessageId']): Promise<{
     lastMessageId: m.IQAccount['lastMessageId'],
     messages: m.IQMessage[],
