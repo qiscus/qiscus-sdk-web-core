@@ -27,10 +27,16 @@ function synchronizeFactory (getHttp, getInterval, getSync, getId, logger) {
       .catch(noop)
   }
   async function * generator () {
+    let accumulatedInterval = 0
+    const interval = 100
+    const shouldSync = () => getHttp() != null && getSync()
     while (true) {
-      const http = getHttp()
-      if (http != null && getSync()) yield synchronize(getId())
-      await sleep(getInterval())
+      accumulatedInterval += interval
+      if (accumulatedInterval >= getInterval() && shouldSync) {
+        accumulatedInterval = 0
+        yield synchronize(getId())
+      }
+      await sleep(interval)
     }
   }
 
@@ -75,9 +81,6 @@ function synchronizeEventFactory (getHttp, getInterval, getSync, getId, logger) 
           .map(it => it.id)
           .sort((a, b) => a - b)
           .pop()
-        if (lastId != null) {
-          emitter.emit('last-event-id.new', lastId)
-        }
         const messageDelivered = events.filter(it => it.action_topic === 'delivered').map(it => it.payload.data)
         const messageRead = events.filter(it => it.action_topic === 'read').map(it => it.payload.data)
         const messageDeleted = events.filter(it => it.action_topic === 'delete_message').map(it => it.payload.data)
@@ -94,11 +97,16 @@ function synchronizeEventFactory (getHttp, getInterval, getSync, getId, logger) 
       .catch(noop)
   }
   async function * generator () {
+    let accumulatedInterval = 0
+    const interval = 100
+    const shouldSync = () => getHttp() != null && getSync()
     while (true) {
-      const http = getHttp()
-      if (http != null && getSync()) yield synchronize(getId())
-      // if (http != null) yield synchronize(getId());
-      await sleep(getInterval())
+      accumulatedInterval += interval
+      if (accumulatedInterval >= getInterval() && shouldSync) {
+        accumulatedInterval = 0
+        yield synchronize(getId())
+      }
+      await sleep(interval)
     }
   }
 
@@ -154,8 +162,12 @@ export default function SyncAdapter (getHttpAdapter, { isDebug = false, interval
     () => lastEventId,
     logger
   )
-  syncEventFactory.on('last-event-id.new', id => (lastEventId = id))
-  syncEventFactory.on('message.read', it => emitter.emit('message.read', it))
+  syncEventFactory.on('last-event-id.new', id => {
+    lastEventId = id
+  })
+  syncEventFactory.on('message.read', it => {
+    emitter.emit('message.read', it)
+  })
   syncEventFactory.on('message.delivered', it => emitter.emit('message.delivered', it))
   syncEventFactory.on('message.deleted', it => emitter.emit('message.deleted', it))
   syncEventFactory.on('room.cleared', it => emitter.emit('room.cleared', it))
