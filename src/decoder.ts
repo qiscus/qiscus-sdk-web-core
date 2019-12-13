@@ -145,7 +145,7 @@ export const room = <T extends RoomJson>(json: T): IQChatRoom => ({
   extras: tryCatch(() => JSON.parse(json.options), json.options),
   avatarUrl: json.avatar_url,
   uniqueId: json.unique_id,
-  lastMessage: message(json.last_comment),
+  lastMessage: tryCatch(() => message(json.last_comment), void 0),
   id: json.id,
 })
 

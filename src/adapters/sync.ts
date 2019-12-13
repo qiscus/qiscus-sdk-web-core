@@ -30,7 +30,8 @@ export default function getSyncAdapter (
 ) {
   // const emitter = new EventEmitter<IQSyncEvent>()
   const emitter = new EventEmitter()
-  const shouldSync = (): boolean => o.shouldSync() && o.s.getCurrentUser() != null
+  const shouldSync = (): boolean => o.shouldSync() && o.s.getCurrentUser() !=
+    null
 
   const getInterval = () => {
     if (o.shouldSync()) return o.s.getSyncInterval()
@@ -60,6 +61,7 @@ export default function getSyncAdapter (
   syncEvent.on('message.delivered', it => emitter.emit('message.delivered', it))
   syncEvent.on('message.deleted', it => emitter.emit('message.deleted', it))
   syncEvent.on('room.cleared', it => emitter.emit('room.cleared', it))
+  syncEvent.run().catch(err => o.logger('got error when sync event', err))
 
   return {
     synchronize (messageId: m.IQAccount['lastMessageId']): void {
@@ -123,9 +125,15 @@ const synchronizeFactory = (
   }
 
   async function * generator () {
+    const interval = 100
+    let accumulator = 0
     while (true) {
-      if (getEnableSync()) yield synchronize(getId())
-      await sleep(getInterval())
+      accumulator += interval
+      if (accumulator >= getInterval() && getEnableSync()) {
+        yield synchronize(getId())
+        accumulator = 0
+      }
+      await sleep(interval)
     }
   }
 
@@ -166,7 +174,8 @@ const synchronizeEventFactory = (
     'room.cleared': (room: m.IQChatRoom) => void
   }
 
-  const emitter = new EventEmitter<Event>()
+  // const emitter = new EventEmitter<Event>()
+  const emitter = new EventEmitter()
   const synchronize = (eventId: m.IQAccount['lastSyncEventId']) => {
     return Api.request<SyncEventResponse.RootObject>(Api.synchronizeEvent({
       ...Provider.withBaseUrl(s),
@@ -240,9 +249,15 @@ const synchronizeEventFactory = (
   }
 
   async function * generator () {
+    const interval = 100
+    let accumulator = 0
     while (true) {
-      if (getEnableSync()) yield synchronize(getId())
-      await sleep(getInterval())
+      accumulator += interval
+      if (accumulator >= getInterval() && getEnableSync()) {
+        yield synchronize(getId())
+        accumulator = 0
+      }
+      await sleep(interval)
     }
   }
 

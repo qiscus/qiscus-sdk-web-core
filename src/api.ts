@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { IQUser, IQChatRoom, IQMessage } from './model'
 import * as Encode from './encoder'
+import { tryCatch } from './utils/try-catch'
 
 export const request = async <Resp extends unknown> (api: Api): Promise<Resp> => {
   console.log('before-request api', api)
@@ -121,7 +122,7 @@ export const patchProfile: Request<IQUser & withCredentials> = compose(
 export const getUserList: Request<{ page?: number; limit?: number; query?: string } & withCredentials> = compose(
   useGetUrl('get_user_list'),
   useCredentials,
-  useBody(o => ({
+  useParams(o => ({
     page: o.page,
     limit: o.limit,
     query: o.query,
@@ -177,7 +178,7 @@ export const createRoom: Request<{
     name: it.name,
     participants: it.userIds,
     avatar_url: it.avatarUrl,
-    options: it.extras,
+    options: tryCatch(() => JSON.stringify(it.extras), it.extras),
   }))
 )
 
@@ -221,7 +222,7 @@ export const updateRoom: Request<{
   usePostUrl('/update_room'),
   useCredentials,
   useBody(o => ({
-    id: o.id,
+    id: String(o.id),
     room_name: o.name,
     avatar_url: o.avatarUrl,
     options: o.extras
@@ -313,7 +314,7 @@ export const postComment: Request<{
   usePostUrl('/post_comment'),
   useCredentials,
   useBody(o => ({
-    topic_id: o.roomId,
+    topic_id: String(o.roomId),
     comment: o.text,
     unique_temp_id: o.uniqueId,
     type: o.type,

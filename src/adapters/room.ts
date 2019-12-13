@@ -124,7 +124,7 @@ const getRoomAdapter = (s: Storage) => ({
     }))
   },
   getRoomInfo (
-    roomIds?: number[],
+    roomIds?: string[],
     roomUniqueIds?: string[],
     page?: number,
     showRemoved: boolean = false,
@@ -137,7 +137,7 @@ const getRoomAdapter = (s: Storage) => ({
       showRemoved,
       roomIds,
       roomUniqueIds,
-    })).then(resp => resp.results.rooms_info
+    } as any)).then(resp => resp.results.rooms_info
       .map(Decoder.room),
     )
   },

@@ -29,12 +29,12 @@ export type RealtimeAdapter = ReturnType<typeof getRealtimeAdapter>
 export default function getRealtimeAdapter (
   storage: Storage,
 ) {
+  const mqtt = getMqttAdapter(storage)
   const sync = getSyncAdapter({
     s: storage,
-    shouldSync: () => true,
+    shouldSync: () => !mqtt.mqtt.connected,
     logger: () => getLogger(),
   })
-  const mqtt = getMqttAdapter(storage)
 
   return {
     get mqtt () {

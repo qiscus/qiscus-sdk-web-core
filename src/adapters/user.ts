@@ -24,7 +24,7 @@ const getUserAdapter = (s: Storage) => ({
       userId,
       userKey,
       username: name,
-      extras: tryCatch(() => JSON.parse(extras), extras as any),
+      extras,
       avatarUrl,
     })
 

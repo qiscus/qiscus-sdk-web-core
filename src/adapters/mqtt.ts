@@ -22,62 +22,6 @@ const reOnlineStatus = /^u\/([\S]+)\/s$/i
 const reChannelMessage = /^([\S]+)\/([\S]+)\/c/i
 const reCustomEvent = /^r\/[\w]+\/[\w]+\/e$/i
 
-export interface IQMqttAdapter {
-  connect (userId: string): void;
-
-  onMqttConnected (callback: () => void): Subscription;
-
-  onMqttReconnecting (callback: () => void): Subscription;
-
-  onMqttDisconnected (callback: () => void): Subscription;
-
-  onNewMessage (callback: Callback<IQMessage>): Subscription;
-
-  onMessageDelivered (callback: Callback<any>): Subscription;
-
-  onMessageRead (callback: Callback<any>): Subscription;
-
-  onUserTyping (
-    callback: (userId: string, roomId: number, isTyping: boolean) => void,
-  ): Subscription;
-
-  onUserPresence (
-    callback: (userId: string, isOnline: boolean, lastSeen: Date) => void,
-  ): Subscription;
-
-  onNewChannelMessage (callback: Callback<any>): Subscription;
-
-  onMessageDeleted (callback: Callback<any>): Subscription;
-
-  onRoomDeleted (callback: Callback<any>): Subscription;
-
-  sendPresence (userId: string, isOnline: boolean): void;
-
-  sendTyping (roomId: number, userId: string, isTyping: boolean): void;
-
-  publishCustomEvent (roomId: number, userId: string, data: any): void;
-
-  subscribeCustomEvent (roomId: number, callback: Callback<any>): void;
-
-  unsubscribeCustomEvent (roomId: number): void;
-
-  subscribeUser (userToken: string): Subscription;
-
-  subscribeUserPresence (userId: string): void;
-
-  unsubscribeUserPresence (userId: string): void;
-
-  subscribeRoom (roomId: number): void;
-
-  unsubscribeRoom (roomId: number): void;
-
-  subscribeChannel (appId: string, channelUniqueId: string): void;
-
-  unsubscribeChannel (appId: string, channelUniqueId: string): void;
-
-  readonly mqtt: any;
-}
-
 export type MqttMessage = {
   id: number;
   comment_before_id: number;
@@ -151,7 +95,7 @@ export type MqttMessageReceived = {
 export type MqttMessageDelivery = {
   roomId: number;
   userId: string;
-  messageId: number;
+  messageId: string;
   messageUniqueId: string;
 };
 export type MqttUserPresence = {
@@ -400,14 +344,24 @@ export default function getMqttAdapter (
       return () => emitter.off('message::deleted', callback)
     },
     onMessageDelivered (callback: (data: any) => void): () => void {
-      emitter.on('message::delivered', callback)
-      return () => emitter.off('message::delivered', callback)
+      const handler = (data: MqttMessageDelivery) => {
+        const message = Decoder.message({
+          unique_temp_id: data.messageUniqueId,
+          id: parseInt(data.messageId),
+          email: data.userId,
+          room_id: data.roomId,
+        } as any)
+        callback(message)
+      }
+
+      emitter.on('message::delivered', handler)
+      return () => emitter.off('message::delivered', handler)
     },
     onMessageRead (callback: (m: model.IQMessage) => void): () => void {
       const handler = (data: MqttMessageDelivery) => {
         const message = Decoder.message({
           unique_temp_id: data.messageUniqueId,
-          id: data.messageId,
+          id: parseInt(data.messageId),
           email: data.userId,
           room_id: data.roomId,
         } as any)
@@ -498,15 +452,15 @@ export default function getMqttAdapter (
     },
     subscribeRoom (roomId: number): void {
       mqtt
-        .subscribe(`r/${roomId}/${roomId}/+/t`)
-        .subscribe(`r/${roomId}/${roomId}/+/d`)
-        .subscribe(`r/${roomId}/${roomId}/+/r`)
+        ?.subscribe(`r/${roomId}/${roomId}/+/t`)
+        ?.subscribe(`r/${roomId}/${roomId}/+/d`)
+        ?.subscribe(`r/${roomId}/${roomId}/+/r`)
     },
     unsubscribeRoom (roomId: number): void {
       mqtt
-        .unsubscribe(`r/${roomId}/${roomId}/+/t`)
-        .unsubscribe(`r/${roomId}/${roomId}/+/d`)
-        .unsubscribe(`r/${roomId}/${roomId}/+/r`)
+        ?.unsubscribe(`r/${roomId}/${roomId}/+/t`)
+        ?.unsubscribe(`r/${roomId}/${roomId}/+/d`)
+        ?.unsubscribe(`r/${roomId}/${roomId}/+/r`)
     },
     subscribeChannel (appId: string, channelUniqueId: string): void {
       mqtt.subscribe(`${appId}/${channelUniqueId}/c`)

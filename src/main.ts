@@ -1,4 +1,5 @@
 import { Atom, atom } from 'derivable'
+import axios, { AxiosResponse } from 'axios'
 import xs from 'xstream'
 import getHttpAdapter, { IQHttpAdapter } from './adapters/http'
 import { getLogger, ILogger } from './adapters/logger'
@@ -6,16 +7,14 @@ import getMessageAdapter, { MessageAdapter } from './adapters/message'
 import getRealtimeAdapter, { RealtimeAdapter } from './adapters/realtime'
 import getRoomAdapter, { RoomAdapter } from './adapters/room'
 import getUserAdapter from './adapters/user'
+import * as Api from './api'
+import * as Provider from './provider'
 import {
   Callback,
   IQCallback,
-  IQMessage,
-  IQMessageStatus,
   IQMessageT,
   IQMessageType,
-  IQParticipant,
   IQProgressListener,
-  IQUser,
   Subscription,
   UploadResult,
 } from './defs'
@@ -52,7 +51,6 @@ export default class Qiscus {
   private storage = storageFactory()
 
   // region Property
-  private readonly _syncMode: Atom<QSyncMode> = atom('socket')
 
   private readonly _realtimeAdapter: Atom<RealtimeAdapter | null> = atom(null)
   private readonly _loggerAdapter: Atom<ILogger> = atom(null)
@@ -63,9 +61,6 @@ export default class Qiscus {
   private readonly _messageAdapter: Atom<MessageAdapter | null> = atom(null)
   private readonly _syncInterval: Atom<number> = atom(5000)
   private readonly _baseUrl: Atom<string> = atom(null)
-  private readonly _brokerUrl: Atom<string | null> = atom(null)
-  private readonly _appId: Atom<string> = atom(null)
-  private readonly _shouldSync = atom(false)
   private readonly _customHeaders = atom<{ [key: string]: string }>(null)
   // endregion
 
@@ -296,7 +291,7 @@ export default class Qiscus {
       .combine(
         process(searchUsername, isOptString({ searchUsername })),
         process(page, isOptNumber({ page })),
-        process(limit, isOptString({ limit })),
+        process(limit, isOptNumber({ limit })),
         process(callback, isOptCallback({ callback })),
       )
       .compose(bufferUntil(() => this.isLogin))
@@ -601,7 +596,7 @@ export default class Qiscus {
       .compose(bufferUntil(() => this.isLogin))
       .map(([_, page, showRemoved, showParticipant]) =>
         xs.fromPromise(
-          this.roomAdapter.getRoomInfo(roomIds, uniqueIds, page, showRemoved,
+          this.roomAdapter.getRoomInfo(roomIds.map(it => String(it)), uniqueIds, page, showRemoved,
             showParticipant),
         ),
       )
@@ -735,7 +730,7 @@ export default class Qiscus {
       .compose(toCallbackOrPromise(callback))
   }
 
-  getPreviouseMessagesById (
+  getPreviousMessagesById (
     roomId: number,
     limit?: number,
     messageId?: number,
@@ -806,14 +801,21 @@ export default class Qiscus {
     const data = new FormData()
     data.append('file', file)
     data.append('token', this.token)
-    this.httpAdapter
-      .upload<UploadResult>('upload', data,
-        progress => callback(null, progress))
-      .then(res => {
-        const fileUrl = res.results.file.url
-        callback(null, null, fileUrl)
-      })
-      .catch(error => callback(error))
+
+    axios({
+      ...Provider.withHeaders(this.storage),
+      baseURL: this.storage.getBaseUrl(),
+      url: '/upload',
+      method: 'post',
+      data: data,
+      onUploadProgress(event: ProgressEvent) {
+        const percentage = (event.loaded / event.total * 100).toFixed(2)
+        callback(void 0, percentage as any)
+      }
+    }).then((resp: AxiosResponse<UploadResult>) => {
+      const url = resp.data.results.file.url
+      callback(void 0, void 0, url)
+    }).catch((error) => callback(error))
   }
 
   hasSetupUser (callback: (isSetup: boolean) => void): void | Promise<boolean> {
@@ -954,9 +956,9 @@ export default class Qiscus {
       .compose(
         subscribeOnNext(([room]) => {
           if (room.type ===
-            'channel') this.realtimeAdapter.mqtt.subscribeChannel(this.appId,
+            'channel') this.realtimeAdapter.mqtt.unsubscribeChannel(this.appId,
             room.uniqueId)
-          else this.realtimeAdapter.mqtt.subscribeRoom(room.id)
+          else this.realtimeAdapter.mqtt.unsubscribeRoom(room.id)
         }),
       )
   }
