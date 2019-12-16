@@ -4,7 +4,6 @@ import * as model from '../model'
 import * as Api from '../api'
 import { Storage } from '../storage'
 import * as Provider from '../provider'
-import { tryCatch } from '../utils/try-catch'
 
 type NonceResponse = {
   status: number

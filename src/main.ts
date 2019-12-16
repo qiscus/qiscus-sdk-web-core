@@ -54,7 +54,6 @@ export default class Qiscus {
 
   private readonly _realtimeAdapter: Atom<RealtimeAdapter | null> = atom(null)
   private readonly _loggerAdapter: Atom<ILogger> = atom(null)
-  private readonly _httpAdapter: Atom<IQHttpAdapter | null> = atom(null)
   private readonly _userAdapter: Atom<ReturnType<typeof getUserAdapter> | null> = atom(
     null)
   private readonly _roomAdapter: Atom<RoomAdapter | null> = atom(null)
@@ -70,9 +69,6 @@ export default class Qiscus {
   }
 
   // region helpers
-  public get httpAdapter () {
-    return this._httpAdapter.get()
-  }
   public get realtimeAdapter () {
     return this._realtimeAdapter.get()
   }
@@ -147,23 +143,13 @@ export default class Qiscus {
     this.storage.setVersion('3-alpha')
     this.storage.setSyncInterval(5000)
 
-    this._httpAdapter.set(
-      getHttpAdapter({
-        baseUrl: this._baseUrl.get(),
-        httpHeader: this._customHeaders,
-        getAppId: () => this.appId,
-        getToken: () => this.token,
-        getUserId: () => (this.currentUser ? this.currentUser.id : null),
-        getSdkVersion: () => '3-alpha',
-      }),
-    )
     this._userAdapter.set(getUserAdapter(this.storage))
     this._roomAdapter.set(getRoomAdapter(this.storage))
     this._messageAdapter.set(getMessageAdapter(this.storage))
     this._realtimeAdapter.set(getRealtimeAdapter(this.storage))
   }
 
-  setCustomHeader (headers: { [key: string]: string }): void {
+  setCustomHeader (headers: Record<string, string>): void {
     this._customHeaders.set(headers)
   }
 
@@ -176,7 +162,6 @@ export default class Qiscus {
     extras?: object | null,
     callback?: null | IQCallback<model.IQAccount>,
   ): void | Promise<model.IQAccount> {
-    // this method should set currentUser and token
     return xs
       .combine(
         process(userId, isReqString({ userId })),
@@ -197,7 +182,7 @@ export default class Qiscus {
       )
       .flatten()
       .compose(
-        tap((it: model.IQAccount) => {
+        tap(() => {
           this.realtimeAdapter.mqtt.conneck()
           this.realtimeAdapter.mqtt.subscribeUser(this.storage.getToken())
         }),
