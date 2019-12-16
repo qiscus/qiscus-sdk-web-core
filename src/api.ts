@@ -267,7 +267,8 @@ export const getRoomInfo: Request<{
 
 export const getRoomParticipants: Request<{
   uniqueId: IQChatRoom['uniqueId'],
-  offset?: number,
+  page?: number,
+  limit?: number,
   sorting?: 'asc' | 'desc'
 } & withCredentials> = compose(
   useGetUrl('/room_participants'),

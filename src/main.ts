@@ -519,21 +519,23 @@ export default class Qiscus {
 
   getParticipants (
     roomUniqueId: string,
-    offset?: number,
+    page?: number,
+    limit?: number,
     sorting?: 'asc' | 'desc' | null,
     callback?: IQCallback<model.IQParticipant[]>,
   ): void | Promise<model.IQParticipant[]> {
     return xs
       .combine(
         process(roomUniqueId, isReqString({ roomUniqueId })),
-        process(offset, isOptNumber({ offset })),
+        process(page, isOptNumber({ page })),
+        process(limit, isOptNumber({ limit })),
         process(sorting, isOptString({ sorting })),
         process(callback, isOptCallback({ callback })),
       )
       .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId, offset, sorting]) =>
+      .map(([roomId, page, limit, sorting]) =>
         xs.fromPromise(
-          this.roomAdapter.getParticipantList(roomId, offset, sorting)),
+          this.roomAdapter.getParticipantList(roomId, page, limit, sorting)),
       )
       .flatten()
       .compose(toCallbackOrPromise(callback))

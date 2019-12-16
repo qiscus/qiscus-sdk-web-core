@@ -100,7 +100,8 @@ const getRoomAdapter = (s: Storage) => ({
   },
   getParticipantList (
     uniqueId: string,
-    offset?: number | null,
+    page?: number | null,
+    limit?: number,
     sorting?: 'asc' | 'desc' | null,
   ): Promise<model.IQParticipant[]> {
     return Api.request<GetParticipantResponse.RootObject>(
@@ -108,7 +109,8 @@ const getRoomAdapter = (s: Storage) => ({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
         uniqueId,
-        offset,
+        page,
+        limit,
         sorting,
       })).then(resp => resp.results.participants.map((Decoder.participant)))
   },
