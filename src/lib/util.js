@@ -1,8 +1,8 @@
-export const tryCatch = <T>(
-  fn: () => T,
-  default_: T,
-  onError?: (error: Error) => void,
-  onSuccess?: (resp: T) => void
+export const tryCatch = (
+  fn,
+  default_,
+  onError,
+  onSuccess
 ) => {
   try {
     const resp = fn()
@@ -14,5 +14,5 @@ export const tryCatch = <T>(
   }
 }
 
-export const wrapP = <T>(promise: Promise<T>) =>
+export const wrapP = (promise) =>
   promise.then(res => [res, null]).catch(err => [null, err])

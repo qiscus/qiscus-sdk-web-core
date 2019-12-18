@@ -1,11 +1,7 @@
-interface IUrlBuilder {
-  param(key: string, value: any): IUrlBuilder;
-  build(): string;
-}
 
-export default function UrlBuilder(basePath: string): IUrlBuilder {
-  const params: Record<string, any> = {};
-  const getQuery = (key: string, value: string) => `${key}=${value}`;
+export default function UrlBuilder(basePath) {
+  const params = {};
+  const getQuery = (key, value) => `${key}=${value}`;
 
   return {
     param(key, value) {
@@ -18,7 +14,7 @@ export default function UrlBuilder(basePath: string): IUrlBuilder {
         .map((key) => {
           if (Array.isArray(params[key])) {
             return params[key]
-              .map((value: string) => getQuery(`${key}[]`, value))
+              .map((value) => getQuery(`${key}[]`, value))
               .join("&");
           }
           return getQuery(key, params[key]);

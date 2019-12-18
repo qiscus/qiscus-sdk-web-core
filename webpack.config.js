@@ -27,11 +27,6 @@ module.exports = (env) => {
           use: "babel-loader",
           exclude: /(node_modules|bower_components)/,
         },
-        {
-          test: /\.ts$/,
-          use: "ts-loader",
-          exclude: /node_modules/,
-        },
       ],
     },
     resolve: {
