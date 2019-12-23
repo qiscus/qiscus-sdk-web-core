@@ -42,7 +42,7 @@ class QiscusSDK {
     this.AppId = null
     this.baseURL = 'https://api.qiscus.com'
     this.uploadURL = `${this.baseURL}/api/v2/sdk/upload`
-    this.mqttURL = 'wss://realtime-bali.qiscus.com:1886/mqtt'
+    this.mqttURL = 'wss://mqtt.qiscus.com:1886/mqtt'
     this.brokerLbUrl = 'https://realtime.qiscus.com'
     this.HTTPAdapter = null
     this.realtimeAdapter = null
@@ -1092,7 +1092,16 @@ class QiscusSDK {
       })
   }
 
+  getParticipants(roomUniqueId, page = 1, limit = 20) {
+    return this.HTTPAdapter.get_request('api/v2/sdk/room_participants')
+      .query({
+        room_unique_id: roomUniqueId,
+        page,
+        limit,
+      }).then(resp => resp.body.results)
+  }
   getRoomParticipants (roomUniqueId, offset = 0) {
+    console.warn("`getRoomParticipants` are deprecated, use `getParticipants` instead.")
     return this.HTTPAdapter.get_request('api/v2/sdk/room_participants')
       .query({
         room_unique_id: roomUniqueId,
