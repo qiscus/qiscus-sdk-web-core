@@ -30,8 +30,8 @@ export default function getSyncAdapter (
 ) {
   // const emitter = new EventEmitter<IQSyncEvent>()
   const emitter = new EventEmitter()
-  const shouldSync = (): boolean => o.shouldSync() && o.s.getCurrentUser() !=
-    null
+  const shouldSync = (): boolean =>
+    o.shouldSync() && o.s.getCurrentUser() != null
 
   const getInterval = () => {
     if (o.shouldSync()) return o.s.getSyncInterval()

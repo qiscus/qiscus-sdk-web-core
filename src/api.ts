@@ -3,17 +3,15 @@ import { IQUser, IQChatRoom, IQMessage } from './model'
 import * as Encode from './encoder'
 import { tryCatch } from './utils/try-catch'
 
-export const request = async <Resp extends unknown> (api: Api): Promise<Resp> => {
-  console.log('before-request api', api)
-  const resp = await axios({
+export const request = <Resp extends unknown>(api: Api): Promise<Resp> => {
+  return axios({
     method: api.method,
     baseURL: api.baseUrl,
     url: api.url,
     headers: api.headers,
     data: api.body,
     params: api.params,
-  })
-  return resp.data
+  }).then(resp => resp.data)
 }
 
 interface Request<O> {
@@ -50,16 +48,36 @@ const useHeaders: FnHeaders<withHeaders> = o => ({
 })
 
 type FnParams = <O extends Json>(
-  fn: (o: O) => Json
+  fn: (o: O) => Json,
 ) => (o: O) => { params: Json }
 const useParams: FnParams = fn => o => ({ params: fn(o) })
 
 type FnUrl = <O extends Api>(url: string) => (o?: O) => { method: Api['method']; url: Api['url']; baseUrl: Api['baseUrl'] }
-const useGetUrl: FnUrl = <O extends Api>(url: string) => (o: O) => ({ method: 'get', url, baseUrl: o.baseUrl })
-const usePostUrl: FnUrl = <O extends Api>(url: string) => (o: O) => ({ method: 'post', url, baseUrl: o.baseUrl })
-const usePutUrl: FnUrl = <O extends Api>(url: string) => (o: O) => ({ method: 'put', url, baseUrl: o.baseUrl })
-const usePatchUrl: FnUrl = <O extends Api>(url: string) => (o: O) => ({ method: 'patch', url, baseUrl: o.baseUrl })
-const useDeleteUrl: FnUrl = <O extends Api>(url: string) => (o: O) => ({ method: 'delete', url, baseUrl: o.baseUrl })
+const useGetUrl: FnUrl = <O extends Api> (url: string) => (o: O) => ({
+  method: 'get',
+  url,
+  baseUrl: o.baseUrl,
+})
+const usePostUrl: FnUrl = <O extends Api> (url: string) => (o: O) => ({
+  method: 'post',
+  url,
+  baseUrl: o.baseUrl,
+})
+const usePutUrl: FnUrl = <O extends Api> (url: string) => (o: O) => ({
+  method: 'put',
+  url,
+  baseUrl: o.baseUrl,
+})
+const usePatchUrl: FnUrl = <O extends Api> (url: string) => (o: O) => ({
+  method: 'patch',
+  url,
+  baseUrl: o.baseUrl,
+})
+const useDeleteUrl: FnUrl = <O extends Api> (url: string) => (o: O) => ({
+  method: 'delete',
+  url,
+  baseUrl: o.baseUrl,
+})
 
 type Json = Record<string, unknown>
 type BodyMapperFn<O> = (o: O) => Json
@@ -81,7 +99,7 @@ type Fn<O> =
   | ReturnType<FnUrl>
   | ReturnType<FnParams>
 const compose = <O extends Record<string, unknown>> (...fns: Fn<O>[]) => (
-  o: O
+  o: O,
 ): Api => parseApi(fns.reduce((acc, fn) => ({ ...acc, ...fn(acc as any) }), o))
 
 export type loginOrRegisterParams = {
@@ -95,28 +113,28 @@ export type loginOrRegisterParams = {
 export const loginOrRegister: Request<loginOrRegisterParams & withHeaders> = compose(
   usePostUrl('/login_or_register'),
   useHeaders,
-  useBody(Encode.loginOrRegister)
+  useBody(Encode.loginOrRegister),
 )
 
 export const getNonce: Request<withHeaders> = compose(
   usePostUrl('/auth/nonce'),
-  useHeaders
+  useHeaders,
 )
 
 export const verifyIdentityToken: Request<{ identityToken: string } & withHeaders> = compose(
   usePostUrl('/auth/verify_identity_token'),
   useHeaders,
-  useBody(Encode.verifyIdentityToken)
+  useBody(Encode.verifyIdentityToken),
 )
 
 export const getProfile: Request<withCredentials> = compose(
   useGetUrl('/my_profile'),
-  useHeaders
+  useHeaders,
 )
 export const patchProfile: Request<IQUser & withCredentials> = compose(
   usePatchUrl('/my_profile'),
   useCredentials,
-  useBody((o: any) => Encode.patchProfile(o))
+  useBody((o: any) => Encode.patchProfile(o)),
 )
 
 export const getUserList: Request<{ page?: number; limit?: number; query?: string } & withCredentials> = compose(
@@ -126,7 +144,7 @@ export const getUserList: Request<{ page?: number; limit?: number; query?: strin
     page: o.page,
     limit: o.limit,
     query: o.query,
-  }))
+  })),
 )
 
 export const blockUser: Request<{
@@ -136,7 +154,7 @@ export const blockUser: Request<{
   useCredentials,
   useBody(o => ({
     user_email: o.userId,
-  }))
+  })),
 )
 
 export const unblockUser: Request<{
@@ -145,8 +163,8 @@ export const unblockUser: Request<{
   usePostUrl('/unblock_user'),
   useCredentials,
   useBody((o) => ({
-    user_email: o.userId
-  }))
+    user_email: o.userId,
+  })),
 )
 
 export const getBlockedUsers: Request<{
@@ -157,13 +175,13 @@ export const getBlockedUsers: Request<{
   useCredentials,
   useParams((o) => ({
     page: String(o.page),
-    limit: String(o.limit)
-  }))
+    limit: String(o.limit),
+  })),
 )
 
 export const getTotalUnreadCount: Request<{} & withCredentials> = compose(
   useGetUrl('/total_unread_count'),
-  useCredentials
+  useCredentials,
 )
 
 export const createRoom: Request<{
@@ -179,7 +197,7 @@ export const createRoom: Request<{
     participants: it.userIds,
     avatar_url: it.avatarUrl,
     options: tryCatch(() => JSON.stringify(it.extras), it.extras),
-  }))
+  })),
 )
 
 export const getOrCreateRoomWithTarget: Request<{
@@ -191,7 +209,7 @@ export const getOrCreateRoomWithTarget: Request<{
   useBody(o => ({
     emails: o.userIds,
     options: o.extras,
-  }))
+  })),
 )
 
 export const getOrCreateRoomWithUniqueId: Request<{
@@ -204,13 +222,13 @@ export const getOrCreateRoomWithUniqueId: Request<{
   useCredentials,
   useBody(o => ({
     unique_id: o.uniqueId,
-  }))
+  })),
 )
 
 export const getRoomById: Request<{ id: IQChatRoom['id'] } & withCredentials> = compose(
   useGetUrl('/get_room_by_id'),
   useCredentials,
-  useParams(o => ({ id: o.id }))
+  useParams(o => ({ id: o.id })),
 )
 
 export const updateRoom: Request<{
@@ -225,8 +243,8 @@ export const updateRoom: Request<{
     id: String(o.id),
     room_name: o.name,
     avatar_url: o.avatarUrl,
-    options: o.extras
-  }))
+    options: o.extras,
+  })),
 )
 
 export const getUserRooms: Request<{
@@ -246,7 +264,7 @@ export const getUserRooms: Request<{
     show_removed: o.showRemoved ?? false,
     room_type: o.type ?? 'all',
     show_empty: o.show_empty ?? false,
-  }))
+  })),
 )
 
 export const getRoomInfo: Request<{
@@ -262,7 +280,7 @@ export const getRoomInfo: Request<{
     room_unique_id: o.roomUniqueIds,
     show_participants: o.showParticipants,
     show_removed: o.showRemoved,
-  }))
+  })),
 )
 
 export const getRoomParticipants: Request<{
@@ -276,8 +294,8 @@ export const getRoomParticipants: Request<{
   useParams(o => ({
     room_unique_id: o.uniqueId,
     offset: o.offset ?? 0,
-    sorting: o.sorting ?? 'asc'
-  }))
+    sorting: o.sorting ?? 'asc',
+  })),
 )
 
 export const addRoomParticipants: Request<{
@@ -289,7 +307,7 @@ export const addRoomParticipants: Request<{
   useBody(o => ({
     room_id: o.id,
     emails: o.userIds,
-  }))
+  })),
 )
 
 export const removeRoomParticipants: Request<{
@@ -301,7 +319,7 @@ export const removeRoomParticipants: Request<{
   useBody(o => ({
     room_id: o.id,
     emails: o.userIds,
-  }))
+  })),
 )
 
 export const postComment: Request<{
@@ -321,7 +339,7 @@ export const postComment: Request<{
     type: o.type,
     payload: o.payload,
     extras: o.extras,
-  }))
+  })),
 )
 export const getComment: Request<{
   roomId: IQChatRoom['id'],
@@ -336,7 +354,7 @@ export const getComment: Request<{
     last_comment_id: o.lastMessageId,
     after: o.after,
     limit: o.limit,
-  }))
+  })),
 )
 export const updateCommentStatus: Request<{
   roomId: IQChatRoom['id'],
@@ -349,7 +367,7 @@ export const updateCommentStatus: Request<{
     room_id: o.roomId,
     last_comment_read_id: o.lastReadId,
     last_comment_received_id: o.lastReceivedId,
-  }))
+  })),
 )
 export const searchMessages: Request<{
   query: string,
@@ -362,7 +380,7 @@ export const searchMessages: Request<{
     query: o.query,
     room_id: o.roomId,
     page: o.page,
-  }))
+  })),
 )
 
 export const deleteMessages: Request<{
@@ -372,7 +390,7 @@ export const deleteMessages: Request<{
   useCredentials,
   useParams(o => ({
     unique_ids: o.uniqueIds,
-  }))
+  })),
 )
 
 export const clearRooms: Request<{
@@ -382,7 +400,7 @@ export const clearRooms: Request<{
   useCredentials,
   useParams(o => ({
     room_channel_ids: o.uniqueIds,
-  }))
+  })),
 )
 
 export const setDeviceToken: Request<{
@@ -394,8 +412,8 @@ export const setDeviceToken: Request<{
   useBody(o => ({
     device_token: o.deviceToken,
     device_platform: 'rn',
-    is_development: o.isDevelopment ?? false
-  }))
+    is_development: o.isDevelopment ?? false,
+  })),
 )
 export const removeDeviceToken: Request<{
   deviceToken: string,
@@ -406,8 +424,8 @@ export const removeDeviceToken: Request<{
   useBody(o => ({
     device_token: o.deviceToken,
     device_platform: 'rn',
-    is_development: o.isDevelopment ?? false
-  }))
+    is_development: o.isDevelopment ?? false,
+  })),
 )
 
 export const synchronize: Request<{
@@ -419,7 +437,7 @@ export const synchronize: Request<{
   useParams(o => ({
     last_received_comment_id: o.lastMessageId ?? 0,
     limit: o.limit,
-  }))
+  })),
 )
 
 export const synchronizeEvent: Request<{
@@ -429,5 +447,5 @@ export const synchronizeEvent: Request<{
   useCredentials,
   useParams(o => ({
     start_event_id: o.lastEventId ?? 0,
-  }))
+  })),
 )

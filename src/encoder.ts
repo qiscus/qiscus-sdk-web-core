@@ -9,6 +9,7 @@ export const loginOrRegister = (o: loginOrRegisterParams) => ({
   device_token: o.deviceToken,
   extras: o.extras,
 })
+
 export const verifyIdentityToken = (o: { identityToken: string }) => ({
   identity_token: o.identityToken,
 })

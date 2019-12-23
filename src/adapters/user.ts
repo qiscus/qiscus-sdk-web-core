@@ -32,6 +32,8 @@ const getUserAdapter = (s: Storage) => ({
         const [account, token_] = Decoder.account(resp.results.user)
         s.setCurrentUser(account)
         s.setToken(token_)
+        s.setLastMessageId(account.lastMessageId)
+        s.setLastEventId(account.lastSyncEventId)
         return account
       })
   },
