@@ -3,10 +3,8 @@ import axios from 'axios'
 import debounce from 'lodash.debounce'
 import { EventEmitter } from 'pietile-eventemitter'
 import connect from 'mqtt/lib/connect'
-import { atom, Atom, Derivable } from 'derivable'
 import { IClientPublishOptions, MqttClient } from 'mqtt'
-import { Callback, IQMessage, Subscription } from '../defs'
-import { MessageAdapter } from './message'
+import { Callback, Subscription } from '../defs'
 import * as model from '../model'
 import * as Decoder from '../decoder'
 import { getLogger } from './logger'
@@ -22,6 +20,7 @@ const reOnlineStatus = /^u\/([\S]+)\/s$/i
 const reChannelMessage = /^([\S]+)\/([\S]+)\/c/i
 const reCustomEvent = /^r\/[\w]+\/[\w]+\/e$/i
 
+// region Type
 export type MqttMessage = {
   id: number;
   comment_before_id: number;
@@ -143,6 +142,7 @@ interface IQMqttHandler {
   channelMessageHandler: MQTTHandler;
   customEventHandler: MQTTHandler;
 }
+// endregion
 
 const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
   return {
@@ -170,7 +170,6 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
         })
       }
       if (payload.action_topic === 'clear_room') {
-        console.log('got another notification', data)
         const clearedRooms = payload.payload.data.deleted_rooms
         clearedRooms.forEach(room => {
           const roomId = room.id
@@ -237,7 +236,7 @@ export default function getMqttAdapter (
   const handler = getMqttHandler(emitter)
   const subscribedCustomEventTopics = new Map<number, any>()
   const getTopicForCustomEvent = (roomId: number) => `r/${roomId}/${roomId}/e`
-  const logger = getLogger()
+  const logger = getLogger(s)
   const matcher = match({
     [when(reNewMessage)]: handler.newMessage,
     [when(reNotification)]: handler.notificationHandler,
@@ -251,9 +250,10 @@ export default function getMqttAdapter (
       logger.log('topic not handled', topic, message),
   })
   const getMqttNode = () => axios.get(s.getBrokerLbUrl())
+    .then(it => it.data)
     .then(res => {
       const url = res.data.url
-      const port = res.data.port
+      const port = res.data.wss_port
       return `wss://${url}:${port}/mqtt`
     })
 
@@ -280,7 +280,7 @@ export default function getMqttAdapter (
       will: {
         topic: `u/${s.getCurrentUser().id}/s`,
         payload: 0,
-        retain: true
+        retain: true,
       },
     }
 
@@ -304,7 +304,8 @@ export default function getMqttAdapter (
     const topics = Object.keys((mqtt as any)._resubscribeTopics)
     const [url, err] = await wrapP(getMqttNode())
     if (err) {
-      logger.log(`cannot get new brokerUrl, using old url instead (${cacheUrl})`)
+      logger.log(
+        `cannot get new brokerUrl, using old url instead (${cacheUrl})`)
       mqtt = __mqtt_conneck(cacheUrl)
     } else {
       cacheUrl = url
@@ -324,7 +325,7 @@ export default function getMqttAdapter (
 
   return {
     get mqtt () { return mqtt },
-    conneck() {
+    conneck () {
       mqtt = __mqtt_conneck(s.getBrokerUrl())
     },
     onMqttConnected (callback: () => void): () => void {
@@ -339,11 +340,15 @@ export default function getMqttAdapter (
       emitter.on('mqtt::disconnected', callback)
       return () => emitter.off('mqtt::disconnected', callback)
     },
-    onMessageDeleted (callback: (data: any) => void): () => void {
-      emitter.on('message::deleted', callback)
-      return () => emitter.off('message::deleted', callback)
+    onMessageDeleted (callback: (data: model.IQMessage) => void): () => void {
+      const handler = (msg: any) => {
+        const message = Decoder.message(msg)
+        callback(message)
+      }
+      emitter.on('message::deleted', handler)
+      return () => emitter.off('message::deleted', handler)
     },
-    onMessageDelivered (callback: (data: any) => void): () => void {
+    onMessageDelivered (callback: (data: model.IQMessage) => void): () => void {
       const handler = (data: MqttMessageDelivery) => {
         const message = Decoder.message({
           unique_temp_id: data.messageUniqueId,

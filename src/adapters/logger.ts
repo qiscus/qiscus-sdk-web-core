@@ -1,20 +1,17 @@
-import { atom, Derivable } from "derivable";
 
-export type ILogger = {
-  isEnabled: Derivable<boolean>;
-  setEnable(enable: boolean): void;
-  log(...args: any[]): void;
-};
-export function getLogger(): ILogger {
-  const enabled = atom<boolean>(false);
-  const log = enabled.derive(isEnabled =>
-    isEnabled
-      ? (...args: any[]) => console.log("QiscusSDK:", ...args)
-      : () => {}
-  );
+import {Storage} from '../storage'
+
+export function getLogger(s: Storage) {
+  const isEnabled = () => s.getDebugEnabled()
+
   return {
-    isEnabled: enabled.derive(it => it),
-    setEnable: enable => enabled.set(enable),
-    log: log.get()
+    get isEnabled() { return isEnabled() },
+    // setEnable: enable => enabled.set(enable),
+    // log: log.get()
+    setEnable: (enable: boolean) => s.setDebugEnabled(enable),
+    log: (...args: any[]) => {
+      if (isEnabled()) console.log('QiscusSDK:', ...args)
+    }
+
   };
 }

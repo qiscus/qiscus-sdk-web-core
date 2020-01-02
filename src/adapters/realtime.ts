@@ -1,8 +1,8 @@
 import getSyncAdapter from './sync'
 import { Callback, Subscription } from '../defs'
-import xs from 'xstream'
+import xs, {Stream} from 'xstream'
 import getMqttAdapter from './mqtt'
-import { subscribeOnNext } from '../utils/stream'
+import { subscribeOnNext, share } from '../utils/stream'
 import * as model from '../model'
 import { getLogger } from './logger'
 import { Storage } from '../storage'
@@ -25,6 +25,13 @@ function fromSync<T extends any[]> (method: SyncMethod<T>) {
   })
 }
 
+function isChatRoom(data: model.IQChatRoom | number): data is model.IQChatRoom {
+  return (data as model.IQChatRoom).id != null
+}
+function isNumber(data: model.IQChatRoom | number): data is number {
+  return typeof (data as number) === 'number'
+}
+
 export type RealtimeAdapter = ReturnType<typeof getRealtimeAdapter>
 export default function getRealtimeAdapter (
   storage: Storage,
@@ -33,38 +40,47 @@ export default function getRealtimeAdapter (
   const sync = getSyncAdapter({
     s: storage,
     shouldSync: () => !mqtt.mqtt.connected,
-    logger: () => getLogger(),
+    logger: () => getLogger(storage),
   })
+
+  const newMessage$ = xs.merge(fromSync(sync.onNewMessage), fromSync(mqtt.onNewMessage))
+  const onMessageRead$ = xs.merge(fromSync(sync.onMessageRead), fromSync(mqtt.onMessageRead))
+  const onMessageDelivered$ = xs.merge(fromSync(sync.onMessageDelivered), fromSync(mqtt.onMessageDelivered))
+  const onMessageDeleted$ = xs.merge(fromSync(sync.onMessageDeleted), fromSync(mqtt.onMessageDeleted))
+  const onRoomCleared$ = xs.merge(fromSync(sync.onRoomCleared), fromSync(mqtt.onRoomDeleted))
 
   return {
     get mqtt () {
       return mqtt
     },
     onMessageDeleted (callback: Callback<model.IQMessage>): Subscription {
-      const subscription = xs
-        .merge(fromSync(sync.onMessageDeleted), fromSync(mqtt.onMessageDeleted))
+      const subscription = onMessageDeleted$
         .compose(subscribeOnNext(([message]) => callback(message)))
       return () => subscription.unsubscribe()
     },
     onMessageDelivered (callback: Callback<model.IQMessage>): Subscription {
-      const subscription = xs
-        .merge(fromSync(sync.onMessageDelivered),
-          fromSync(mqtt.onMessageDelivered))
+      const subscription = onMessageDelivered$
         .compose(subscribeOnNext(([it]) => callback(it)))
       return () => subscription.unsubscribe()
     },
     onMessageRead (callback: Callback<model.IQMessage>): Subscription {
-      const subscription = xs
-        .merge(fromSync(sync.onMessageRead), fromSync(mqtt.onMessageRead))
+      const subscription = onMessageRead$
         .compose(subscribeOnNext(([it]) => callback(it)))
       return () => subscription.unsubscribe()
     },
     onNewMessage (callback: Callback<model.IQMessage>): Subscription {
-      const subscription = xs
-        .merge(fromSync(sync.onNewMessage), fromSync(mqtt.onNewMessage))
+      const subscription = newMessage$
         .compose(subscribeOnNext(([message]) => callback(message)))
       return () => subscription.unsubscribe()
     },
+    onNewMessage$ () {
+      return newMessage$
+        .map(([msg]) => msg)
+    },
+    onMessageRead$() { return onMessageRead$.map(([it]) => it) },
+    onMessageDelivered$() { return onMessageDelivered$.map(([it]) => it) },
+    onMessageDeleted$() { return onMessageDeleted$.map(([it]) => it) },
+    onRoomCleared$() { return onRoomCleared$.map(([it]) => it) },
     onPresence (
       callback: (userId: string, isOnline: boolean, lastSeen: Date) => void,
     ): Subscription {
@@ -75,9 +91,11 @@ export default function getRealtimeAdapter (
       return () => subscription.unsubscribe()
     },
     onRoomCleared (callback: Callback<number>): Subscription {
-      const subscription = fromSync(sync.onRoomCleared).compose(
-        subscribeOnNext(([room]) => callback(room.id)),
-      )
+      const subscription = onRoomCleared$
+        .compose(subscribeOnNext(([room]) => {
+          if (isNumber(room)) callback(room)
+          if (isChatRoom(room)) callback(room.id)
+        }))
       return () => subscription.unsubscribe()
     },
     onTyping (

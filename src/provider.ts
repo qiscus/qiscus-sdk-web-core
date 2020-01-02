@@ -15,7 +15,7 @@ export const withCredentials = (s: Storage) => ({
 })
 
 export const withBaseUrl = (s: Storage) => ({
-  baseUrl: s.getBaseUrl(),
+  baseUrl: `${s.getBaseUrl()}/api/v2/sdk`,
 })
 
 export const Provider = (s: Storage) => ({

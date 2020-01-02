@@ -305,7 +305,7 @@ export const addRoomParticipants: Request<{
   usePostUrl('/add_room_participants'),
   useCredentials,
   useBody(o => ({
-    room_id: o.id,
+    room_id: o.id.toString(),
     emails: o.userIds,
   })),
 )
@@ -317,7 +317,7 @@ export const removeRoomParticipants: Request<{
   usePostUrl('/remove_room_participants'),
   useCredentials,
   useBody(o => ({
-    room_id: o.id,
+    room_id: o.id.toString(),
     emails: o.userIds,
   })),
 )
@@ -364,9 +364,9 @@ export const updateCommentStatus: Request<{
   usePostUrl('/update_comment_status'),
   useCredentials,
   useBody(o => ({
-    room_id: o.roomId,
-    last_comment_read_id: o.lastReadId,
-    last_comment_received_id: o.lastReceivedId,
+    room_id: o.roomId.toString(),
+    last_comment_read_id: o.lastReadId?.toString(),
+    last_comment_received_id: o.lastReceivedId?.toString(),
   })),
 )
 export const searchMessages: Request<{
