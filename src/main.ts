@@ -1,3 +1,4 @@
+import If from '@ts-delight/if-expr.macro'
 import axios, { AxiosResponse } from 'axios'
 import { atom } from 'derivable'
 import xs from 'xstream'
@@ -40,6 +41,10 @@ export default class Qiscus {
   private readonly _onMessageReceived$ = this.realtimeAdapter.onNewMessage$()
     .map(this.hookAdapter.triggerBeforeReceived$)
     .flatten()
+    .compose(tap(message =>
+      If(this.currentUser.id !== message.sender.id)
+        .then(this.messageAdapter.markAsDelivered(message.chatRoomId, message.id))()
+    ))
   private readonly _onMessageRead$ = this.realtimeAdapter.onMessageRead$()
     .map(this.hookAdapter.triggerBeforeReceived$)
     .flatten()
@@ -115,7 +120,6 @@ export default class Qiscus {
     this.storage.setDebugEnabled(false)
     this.storage.setVersion('3-alpha')
     this.storage.setSyncInterval(5000)
-
   }
 
   setCustomHeader(headers: Record<string, string>): void {
