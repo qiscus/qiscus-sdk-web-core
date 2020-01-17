@@ -136,9 +136,13 @@ interface RoomJson {
   unread_count: number
   participants: ParticipantJson[]
 }
+const getRoomType = (type: string, isChannel: boolean): IQChatRoom['type'] => {
+  if (isChannel && type === 'group') return 'channel'
+  return type as IQChatRoom['type']
+}
 export const room = <T extends RoomJson>(json: T): IQChatRoom => ({
   unreadCount: json.unread_count,
-  type: json.chat_type as IQChatRoom['type'],
+  type: getRoomType(json.chat_type, json.is_public_channel),
   totalParticipants: json.participants?.length ?? 0,
   participants: json.participants?.map(participant) ?? [],
   name: json.room_name,

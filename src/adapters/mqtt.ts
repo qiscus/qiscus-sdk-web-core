@@ -5,11 +5,11 @@ import { EventEmitter } from 'pietile-eventemitter'
 import connect from 'mqtt/lib/connect'
 import { IClientPublishOptions, MqttClient } from 'mqtt'
 import { Callback, Subscription } from '../defs'
-import * as model from '../model'
+import * as m from '../model'
 import * as Decoder from '../decoder'
 import { getLogger } from './logger'
 import { Storage } from '../storage'
-import { wrapP } from '../utils/try-catch'
+import { tryCatch, wrapP } from '../utils/try-catch'
 
 const reNewMessage = /^([\w]+)\/c/i
 const reNotification = /^([\w]+)\/n/i
@@ -110,7 +110,7 @@ export type MqttUserTyping = {
 export type MqttCustomEvent = { roomId: number; payload: any };
 
 interface Events {
-  'message::received': (message: MqttMessageReceived) => void;
+  'message::received': (message: m.IQMessage) => void;
   'message::delivered': (message: MqttMessageDelivery) => void;
   'message::read': (message: MqttMessageDelivery) => void;
   'message::deleted': (data: { roomId: number; uniqueId: string }) => void;
@@ -118,7 +118,7 @@ interface Events {
   'user::typing': (data: MqttUserTyping) => void;
   'user::presence': (data: MqttUserPresence) => void;
   'channel-message::new': (
-    message: MqttMessageReceived & { channelUniqueId: string },
+    message: { message: m.IQMessage, channelUniqueId: string },
   ) => void;
   'custom-event': (payload: MqttCustomEvent) => void;
   'mqtt::connected': () => void;
@@ -142,6 +142,7 @@ interface IQMqttHandler {
   channelMessageHandler: MQTTHandler;
   customEventHandler: MQTTHandler;
 }
+
 // endregion
 
 const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
@@ -149,8 +150,12 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
     channelMessageHandler: topic => data => {
       const topicData = reChannelMessage.exec(topic)
       const channelUniqueId = topicData[2]
-      const message = JSON.parse(data)
-      emitter.emit('channel-message::new', { channelUniqueId, message })
+      const message = tryCatch(
+        () => Decoder.message(JSON.parse(data)),
+        data,
+        (error) => console.log('error when parsing data', error),
+      )
+      emitter.emit('message::received', message)
     },
     customEventHandler: topic => data => {
       const topicData = reCustomEvent.exec(topic)
@@ -200,8 +205,11 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
       })
     },
     newMessage: _ => data => {
-      const message: MqttMessage = JSON.parse(data)
-      emitter.emit('message::received', { message })
+      const message: m.IQMessage = tryCatch(
+        () => Decoder.message(JSON.parse(data)),
+        data,
+      )
+      emitter.emit('message::received', message)
     },
     readHandler: topic => data => {
       const topicData = reRead.exec(topic)
@@ -230,7 +238,7 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
 export default function getMqttAdapter (
   s: Storage,
 ) {
-  let mqtt: MqttClient = null
+  let mqtt: MqttClient | null = null
   let cacheUrl: string = s.getBrokerUrl()
   const emitter = new EventEmitter<Events>()
   const handler = getMqttHandler(emitter)
@@ -273,7 +281,7 @@ export default function getMqttAdapter (
   }
   const __mqtt_conneck = (brokerUrl: string) => {
     if (mqtt != null) {
-      mqtt.removeAllListeners()
+      mqtt?.removeAllListeners()
       mqtt = null
     }
     const opts = {
@@ -313,7 +321,7 @@ export default function getMqttAdapter (
       mqtt = __mqtt_conneck(url)
     }
     logger.log(`resubscribe to old topics ${topics}`)
-    topics.forEach(t => mqtt.subscribe(t))
+    topics.forEach(t => mqtt?.subscribe(t))
   }))
   emitter.on('custom-event', (data) => {
     const roomId = data.roomId
@@ -340,7 +348,7 @@ export default function getMqttAdapter (
       emitter.on('mqtt::disconnected', callback)
       return () => emitter.off('mqtt::disconnected', callback)
     },
-    onMessageDeleted (callback: (data: model.IQMessage) => void): () => void {
+    onMessageDeleted (callback: (data: m.IQMessage) => void): () => void {
       const handler = (msg: any) => {
         const message = Decoder.message(msg)
         callback(message)
@@ -348,7 +356,7 @@ export default function getMqttAdapter (
       emitter.on('message::deleted', handler)
       return () => emitter.off('message::deleted', handler)
     },
-    onMessageDelivered (callback: (data: model.IQMessage) => void): () => void {
+    onMessageDelivered (callback: (data: m.IQMessage) => void): () => void {
       const handler = (data: MqttMessageDelivery) => {
         const message = Decoder.message({
           unique_temp_id: data.messageUniqueId,
@@ -362,7 +370,7 @@ export default function getMqttAdapter (
       emitter.on('message::delivered', handler)
       return () => emitter.off('message::delivered', handler)
     },
-    onMessageRead (callback: (m: model.IQMessage) => void): () => void {
+    onMessageRead (callback: (m: m.IQMessage) => void): () => void {
       const handler = (data: MqttMessageDelivery) => {
         const message = Decoder.message({
           unique_temp_id: data.messageUniqueId,
@@ -376,16 +384,9 @@ export default function getMqttAdapter (
       emitter.on('message::read', handler)
       return () => emitter.off('message::read', handler)
     },
-    onNewChannelMessage (callback: (data: any) => void): () => void {
-      emitter.on('channel-message::new', callback)
-      return () => emitter.off('channel-message::new', callback)
-    },
-    onNewMessage (callback: (data: model.IQMessage) => void): () => void {
-      const handler = (data: MqttMessageReceived) => {
-        callback(Decoder.message(data.message))
-      }
-      emitter.on('message::received', handler)
-      return () => emitter.off('message::received', handler)
+    onNewMessage (callback: (data: m.IQMessage) => void): () => void {
+      emitter.on('message::received', callback)
+      return () => emitter.off('message::received', callback)
     },
     onRoomDeleted (callback: (data: number) => void): () => void {
       emitter.on('room::cleared', callback)
@@ -414,31 +415,31 @@ export default function getMqttAdapter (
         sender: userId,
         data: data,
       })
-      mqtt.publish(getTopicForCustomEvent(roomId), payload)
+      mqtt?.publish(getTopicForCustomEvent(roomId), payload)
     },
     subscribeCustomEvent (roomId: number, callback: Callback<any>): void {
       const topic = getTopicForCustomEvent(roomId)
       if (subscribedCustomEventTopics.has(roomId)) return
 
-      mqtt.subscribe(topic)
+      mqtt?.subscribe(topic)
       subscribedCustomEventTopics.set(roomId, callback)
     },
     unsubscribeCustomEvent (roomId: number): void {
       const topic = getTopicForCustomEvent(roomId)
       if (!subscribedCustomEventTopics.has(roomId)) return
 
-      mqtt.unsubscribe(topic)
+      mqtt?.unsubscribe(topic)
       subscribedCustomEventTopics.delete(roomId)
     },
     sendPresence (userId: string, isOnline: boolean): void {
       const status = isOnline ? '1' : '0'
-      mqtt.publish(`u/${userId}/s`, status, {
+      mqtt?.publish(`u/${userId}/s`, status, {
         retain: true,
       } as IClientPublishOptions)
     },
     sendTyping (roomId: number, userId: string, isTyping: boolean): void {
       const payload = isTyping ? '1' : '0'
-      mqtt.publish(`r/${roomId}/${roomId}/${userId}/t`, payload)
+      mqtt?.publish(`r/${roomId}/${roomId}/${userId}/t`, payload)
     },
     subscribeUser (userToken: string): Subscription {
       mqtt
@@ -450,10 +451,10 @@ export default function getMqttAdapter (
           .unsubscribe(`${userToken}/n`)
     },
     subscribeUserPresence (userId: string): void {
-      mqtt.subscribe(`u/${userId}/s`)
+      mqtt?.subscribe(`u/${userId}/s`)
     },
     unsubscribeUserPresence (userId: string): void {
-      mqtt.unsubscribe(`u/${userId}/s`)
+      mqtt?.unsubscribe(`u/${userId}/s`)
     },
     subscribeRoom (roomId: number): void {
       mqtt
@@ -468,10 +469,10 @@ export default function getMqttAdapter (
         ?.unsubscribe(`r/${roomId}/${roomId}/+/r`)
     },
     subscribeChannel (appId: string, channelUniqueId: string): void {
-      mqtt.subscribe(`${appId}/${channelUniqueId}/c`)
+      mqtt?.subscribe(`${appId}/${channelUniqueId}/c`)
     },
     unsubscribeChannel (appId: string, channelUniqueId: string): void {
-      mqtt.unsubscribe(`${appId}/${channelUniqueId}/c`)
+      mqtt?.unsubscribe(`${appId}/${channelUniqueId}/c`)
     },
   }
 }

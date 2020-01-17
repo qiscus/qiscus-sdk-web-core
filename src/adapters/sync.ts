@@ -1,6 +1,6 @@
 import flatten from 'lodash.flatten'
-// import { EventEmitter } from 'pietile-eventemitter'
-import { EventEmitter } from 'events'
+import { EventEmitter } from 'pietile-eventemitter'
+// import { EventEmitter } from 'events'
 import * as Api from '../api'
 import * as m from '../model'
 import * as Decoder from '../decoder'
@@ -28,8 +28,8 @@ export default function getSyncAdapter (
     logger: (...args: string[]) => void
   },
 ) {
-  // const emitter = new EventEmitter<IQSyncEvent>()
-  const emitter = new EventEmitter()
+  const emitter = new EventEmitter<IQSyncEvent>()
+  // const emitter = new EventEmitter()
   const shouldSync = (): boolean =>
     o.shouldSync() && o.s.getCurrentUser() != null
 
@@ -105,8 +105,8 @@ const synchronizeFactory = (
     'message.new': (message: m.IQMessage) => void
   }
 
-  // const emitter = new EventEmitter<Event>()
-  const emitter = new EventEmitter()
+  const emitter = new EventEmitter<Event>()
+  // const emitter = new EventEmitter()
   const synchronize = (messageId: m.IQAccount['lastMessageId']): Promise<{
     lastMessageId: m.IQAccount['lastMessageId'],
     messages: m.IQMessage[],
@@ -174,8 +174,8 @@ const synchronizeEventFactory = (
     'room.cleared': (room: m.IQChatRoom) => void
   }
 
-  // const emitter = new EventEmitter<Event>()
-  const emitter = new EventEmitter()
+  const emitter = new EventEmitter<Event>()
+  // const emitter = new EventEmitter()
   const synchronize = (eventId: m.IQAccount['lastSyncEventId']) => {
     return Api.request<SyncEventResponse.RootObject>(Api.synchronizeEvent({
       ...Provider.withBaseUrl(s),

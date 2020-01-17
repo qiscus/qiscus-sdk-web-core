@@ -12,6 +12,10 @@ export const compose = <T>(msg: string, checker: (it: T) => boolean) => (item: T
 const getName = item => Object.keys(item).shift()
 const getMsg = (item, msg) => `\`${getName(item)}\` ${msg}`
 
+export const isRequired = (item: any) => {
+  const msg = getMsg(item, 'are required')
+  return compose(msg, every(is.not.null, is.not.undefined))
+}
 export const isReqString = (item: any) => {
   const msg = getMsg(item, 'are required and need to be string')
   return compose(

@@ -96,8 +96,7 @@ export const tap = <T> (
   })
 }
 
-const sleep = (time: number) =>
-  new Promise(resolve => setTimeout(resolve, time))
+const sleep = (time: number) => new Promise(res => setTimeout(res, time))
 export const bufferUntil = <T> (fn: () => boolean) => (
   stream: Stream<T>,
 ): Stream<T> => {

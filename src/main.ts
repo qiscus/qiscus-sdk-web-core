@@ -12,7 +12,22 @@ import { hookAdapterFactory, Hooks } from './hook'
 import * as model from './model'
 import * as Provider from './provider'
 import { storageFactory } from './storage'
-import { isArrayOfNumber, isArrayOfString, isOptBoolean, isOptCallback, isOptJson, isOptNumber, isOptString, isReqArrayOfStringOrNumber, isReqArrayString, isReqBoolean, isReqJson, isReqNumber, isReqString } from './utils/param-utils'
+import {
+  isArrayOfNumber,
+  isArrayOfString,
+  isOptBoolean,
+  isOptCallback,
+  isOptJson,
+  isOptNumber,
+  isOptString,
+  isReqArrayOfStringOrNumber,
+  isReqArrayString,
+  isReqBoolean,
+  isReqJson,
+  isReqNumber,
+  isReqString,
+  isRequired,
+} from './utils/param-utils'
 import {
   bufferUntil,
   process,
@@ -567,7 +582,7 @@ export default class Qiscus {
       .compose(bufferUntil(() => this.isLogin))
       .map(([_, page, showRemoved, showParticipant]) =>
         xs.fromPromise(
-          this.roomAdapter.getRoomInfo(roomIds.map(it => String(it)), uniqueIds,
+          this.roomAdapter.getRoomInfo(roomIds?.map(it => String(it)), uniqueIds,
             page, showRemoved,
             showParticipant),
         ),
@@ -807,7 +822,7 @@ export default class Qiscus {
       data: data,
       onUploadProgress(event: ProgressEvent) {
         const percentage = (event.loaded / event.total * 100).toFixed(2)
-        callback(void 0, percentage as any)
+        callback(void 0, Number(percentage))
       },
     }).then((resp: AxiosResponse<UploadResult>) => {
       const url = resp.data.results.file.url
@@ -897,62 +912,59 @@ export default class Qiscus {
     return this._onMessageRead$
       .compose(toEventSubscription_(handler))
   }
-  onUserTyping(handler: (
-    userId: string, roomId: number, isTyping: boolean) => void): Subscription {
-    return xs
-      .of(handler)
+  onUserTyping(
+    handler: (userId: string, roomId: number, isTyping: boolean) => void
+  ): Subscription {
+    return process(handler, isRequired({ handler }))
       .compose(bufferUntil(() => this.isLogin))
       .compose(toEventSubscription(this.realtimeAdapter.onTyping))
   }
   onUserOnlinePresence(
     handler: (userId: string, isOnline: boolean, lastSeen: Date) => void,
   ): Subscription {
-    return xs
-      .of(handler)
+    return process(handler)
       .compose(bufferUntil(() => this.isLogin))
       .compose(toEventSubscription(this.realtimeAdapter.onPresence))
   }
   onChatRoomCleared(handler: Callback<number>): Subscription {
-    return xs
-      .of(handler)
+    return process(handler)
       .compose(bufferUntil(() => this.isLogin))
       .compose(toEventSubscription(this.realtimeAdapter.onRoomCleared))
   }
   onConnected(handler: () => void): Subscription {
-    return xs
-      .of(handler)
+    return process(handler)
       .compose(bufferUntil(() => this.isLogin))
       .compose(toEventSubscription(this.realtimeAdapter.mqtt.onMqttConnected))
   }
   onReconnecting(handler: () => void): Subscription {
-    return xs
-      .of(handler)
+    return process(handler)
       .compose(bufferUntil(() => this.isLogin))
       .compose(
         toEventSubscription(this.realtimeAdapter.mqtt.onMqttReconnecting))
   }
   onDisconnected(handler: () => void): Subscription {
-    return xs
-      .of(handler)
+    return process(handler)
       .compose(bufferUntil(() => this.isLogin))
       .compose(
         toEventSubscription(this.realtimeAdapter.mqtt.onMqttDisconnected))
   }
   subscribeChatRoom(room: model.IQChatRoom): void {
-    xs.of([room])
+    process(room, isRequired({ room }))
       .compose(bufferUntil(() => this.isLogin))
-      .compose(
-        subscribeOnNext(([room]) => {
-          if (room.type ===
-            'channel') this.realtimeAdapter.mqtt.subscribeChannel(this.appId,
-              room.uniqueId)
-          else this.realtimeAdapter.mqtt.subscribeRoom(room.id)
-        }),
-      )
+      .map(it => [it])
+      .compose(subscribeOnNext(([room]) => {
+        if (room.type === 'channel') {
+          this.realtimeAdapter.mqtt
+            .subscribeChannel(this.appId, room.uniqueId)
+        } else {
+          this.realtimeAdapter.mqtt.subscribeRoom(room.id)
+        }
+      }))
   }
   unsubscribeChatRoom(room: model.IQChatRoom): void {
-    xs.of([room])
+    process(room, isRequired({ room }))
       .compose(bufferUntil(() => this.isLogin))
+      .map(it => [it])
       .compose(
         subscribeOnNext(([room]) => {
           if (room.type ===
@@ -963,8 +975,9 @@ export default class Qiscus {
       )
   }
   subscribeUserOnlinePresence(userId: string): void {
-    xs.of([userId])
+    process(userId, isReqString({ userId }))
       .compose(bufferUntil(() => this.isLogin))
+      .map(it => [it])
       .compose(
         subscribeOnNext(
           ([userId]) => this.realtimeAdapter.mqtt.subscribeUserPresence(
@@ -972,12 +985,11 @@ export default class Qiscus {
       )
   }
   unsubscribeUserOnlinePresence(userId: string): void {
-    xs.of([userId])
+    process(userId, isReqString({ userId }))
       .compose(bufferUntil(() => this.isLogin))
-      .compose(
-        subscribeOnNext(
-          ([userId]) => this.realtimeAdapter.mqtt.unsubscribeUserPresence(
-            userId)),
+      .map(it => [it])
+      .compose(subscribeOnNext(([userId]) =>
+          this.realtimeAdapter.mqtt.unsubscribeUserPresence(userId))
       )
   }
 }
