@@ -1,8 +1,8 @@
 import getSyncAdapter from './sync'
 import { Callback, Subscription } from '../defs'
-import xs, {Stream} from 'xstream'
+import xs from 'xstream'
 import getMqttAdapter from './mqtt'
-import { subscribeOnNext, share } from '../utils/stream'
+import { subscribeOnNext } from '../utils/stream'
 import * as model from '../model'
 import { getLogger } from './logger'
 import { Storage } from '../storage'
@@ -25,10 +25,11 @@ function fromSync<T extends any[]> (method: SyncMethod<T>) {
   })
 }
 
-function isChatRoom(data: model.IQChatRoom | number): data is model.IQChatRoom {
+function isChatRoom (data: model.IQChatRoom | number): data is model.IQChatRoom {
   return (data as model.IQChatRoom).id != null
 }
-function isNumber(data: model.IQChatRoom | number): data is number {
+
+function isNumber (data: model.IQChatRoom | number): data is number {
   return typeof (data as number) === 'number'
 }
 
@@ -43,11 +44,16 @@ export default function getRealtimeAdapter (
     logger: () => getLogger(storage),
   })
 
-  const newMessage$ = xs.merge(fromSync(sync.onNewMessage), fromSync(mqtt.onNewMessage))
-  const onMessageRead$ = xs.merge(fromSync(sync.onMessageRead), fromSync(mqtt.onMessageRead))
-  const onMessageDelivered$ = xs.merge(fromSync(sync.onMessageDelivered), fromSync(mqtt.onMessageDelivered))
-  const onMessageDeleted$ = xs.merge(fromSync(sync.onMessageDeleted), fromSync(mqtt.onMessageDeleted))
-  const onRoomCleared$ = xs.merge(fromSync(sync.onRoomCleared), fromSync(mqtt.onRoomDeleted))
+  const newMessage$ = xs.merge(fromSync(sync.onNewMessage),
+    fromSync(mqtt.onNewMessage))
+  const onMessageRead$ = xs.merge(fromSync(sync.onMessageRead),
+    fromSync(mqtt.onMessageRead))
+  const onMessageDelivered$ = xs.merge(fromSync(sync.onMessageDelivered),
+    fromSync(mqtt.onMessageDelivered))
+  const onMessageDeleted$ = xs.merge(fromSync(sync.onMessageDeleted),
+    fromSync(mqtt.onMessageDeleted))
+  const onRoomCleared$ = xs.merge(fromSync(sync.onRoomCleared),
+    fromSync(mqtt.onRoomDeleted))
 
   return {
     get mqtt () {
@@ -77,10 +83,10 @@ export default function getRealtimeAdapter (
       return newMessage$
         .map(([msg]) => msg)
     },
-    onMessageRead$() { return onMessageRead$.map(([it]) => it) },
-    onMessageDelivered$() { return onMessageDelivered$.map(([it]) => it) },
-    onMessageDeleted$() { return onMessageDeleted$.map(([it]) => it) },
-    onRoomCleared$() { return onRoomCleared$.map(([it]) => it) },
+    onMessageRead$ () { return onMessageRead$.map(([it]) => it) },
+    onMessageDelivered$ () { return onMessageDelivered$.map(([it]) => it) },
+    onMessageDeleted$ () { return onMessageDeleted$.map(([it]) => it) },
+    onRoomCleared$ () { return onRoomCleared$.map(([it]) => it) },
     onPresence (
       callback: (userId: string, isOnline: boolean, lastSeen: Date) => void,
     ): Subscription {

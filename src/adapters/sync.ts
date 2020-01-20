@@ -139,8 +139,8 @@ const synchronizeFactory = (
 
   return {
     get synchronize () { return synchronize },
-    get on () { return emitter.on },
-    get off () { return emitter.off },
+    get on () { return emitter.on.bind(emitter) },
+    get off () { return emitter.off.bind(emitter) },
     async run () {
       for await (let result of generator()) {
         try {
@@ -263,8 +263,8 @@ const synchronizeEventFactory = (
 
   return {
     get synchronize () { return synchronize },
-    get on () { return emitter.on },
-    get off () { return emitter.off },
+    get on () { return emitter.on.bind(emitter) },
+    get off () { return emitter.off.bind(emitter) },
     async run () {
       for await (let result of generator()) {
         try {

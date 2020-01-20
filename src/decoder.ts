@@ -193,5 +193,6 @@ export const message = <T extends MessageJson>(json: T): IQMessage => ({
   previousMessageId: json.comment_before_id,
   sender: user(json),
   status: json.status as IQMessage['status'],
+  // timestamp: new Date(json.unix_timestamp),
   timestamp: new Date(json.timestamp),
 })

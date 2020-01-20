@@ -36,7 +36,10 @@ const getMessageAdapter = (s: Storage) => ({
       roomId,
       after,
       limit,
-    })).then(resp => resp.results.comments.map(Decoder.message))
+    })).then(resp => resp.results.comments
+      .map(Decoder.message)
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+    )
   },
   deleteMessage (uniqueIds: string[]): Promise<model.IQMessage[]> {
     return Api.request<DeleteCommentsResponse.RootObject>(Api.deleteMessages({
