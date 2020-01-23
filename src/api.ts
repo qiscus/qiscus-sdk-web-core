@@ -390,6 +390,8 @@ export const deleteMessages: Request<{
   useCredentials,
   useParams(o => ({
     unique_ids: o.uniqueIds,
+    is_delete_for_everyone: true,
+    is_hard_delete: true,
   })),
 )
 

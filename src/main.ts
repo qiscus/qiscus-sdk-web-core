@@ -66,7 +66,7 @@ export default class Qiscus {
   private readonly _onMessageDelivered$ = this.realtimeAdapter.onMessageDelivered$()
     .map(this.hookAdapter.triggerBeforeReceived$)
     .flatten()
-  private readonly _onMessageDeleted$ = this.realtimeAdapter.onMessageDeleted$()
+  private readonly _onMessageDeleted$ = this.realtimeAdapter.onMessageDeleted$
     .map(this.hookAdapter.triggerBeforeReceived$)
     .flatten()
   private readonly _onRoomCleared$ = this.realtimeAdapter.onRoomCleared$()
@@ -791,8 +791,9 @@ export default class Qiscus {
       process(userId, isReqString({ userId })),
     )
       .compose(bufferUntil(() => this.isLogin))
-      .map(([isOnline, userId]) => xs.fromPromise(
-        this.realtimeAdapter.sendPresence(userId, isOnline) as any))
+      .map(([isOnline, userId]) =>
+        xs.fromPromise(Promise.resolve(this.realtimeAdapter.sendPresence(userId, isOnline)))
+      )
       .flatten()
       .compose(toCallbackOrPromise(callback))
   }
@@ -895,21 +896,31 @@ export default class Qiscus {
   }
 
   onMessageReceived(handler: (message: model.IQMessage) => void) {
-    return this._onMessageReceived$
-      .compose(toEventSubscription_(handler, (error) => {
-        this.loggerAdapter.log('Error when receiving message', error)
-      }))
+    return process(handler, isRequired({ handler }))
+      .compose(bufferUntil(() => this.isLogin))
+      .mapTo(this._onMessageReceived$)
+      .flatten()
+      .compose(toEventSubscription_(handler))
   }
   onMessageDeleted(handler: (message: model.IQMessage) => void): Subscription {
-    return this._onMessageDeleted$
+    return process(handler, isRequired({ handler }))
+      .compose(bufferUntil(() => this.isLogin))
+      .mapTo(this._onMessageDeleted$)
+      .flatten()
       .compose(toEventSubscription_(handler))
   }
   onMessageDelivered(handler: (message: model.IQMessage) => void): Subscription {
-    return this._onMessageDelivered$
+    return process(handler, isRequired({ handler }))
+      .compose(bufferUntil(() => this.isLogin))
+      .mapTo(this._onMessageDelivered$)
+      .flatten()
       .compose(toEventSubscription_(handler))
   }
   onMessageRead(handler: (message: model.IQMessage) => void): Subscription {
-    return this._onMessageRead$
+    return process(handler, isRequired({ handler }))
+      .compose(bufferUntil(() => this.isLogin))
+      .mapTo(this._onMessageRead$)
+      .flatten()
       .compose(toEventSubscription_(handler))
   }
   onUserTyping(
@@ -922,28 +933,30 @@ export default class Qiscus {
   onUserOnlinePresence(
     handler: (userId: string, isOnline: boolean, lastSeen: Date) => void,
   ): Subscription {
-    return process(handler)
+    return process(handler, isRequired({ handler }))
       .compose(bufferUntil(() => this.isLogin))
       .compose(toEventSubscription(this.realtimeAdapter.onPresence))
   }
   onChatRoomCleared(handler: Callback<number>): Subscription {
-    return process(handler)
+    return process(handler, isRequired({ handler }))
       .compose(bufferUntil(() => this.isLogin))
-      .compose(toEventSubscription(this.realtimeAdapter.onRoomCleared))
+      .mapTo(this._onRoomCleared$)
+      .flatten()
+      .compose(toEventSubscription_(handler))
   }
   onConnected(handler: () => void): Subscription {
-    return process(handler)
+    return process(handler, isRequired({ handler }))
       .compose(bufferUntil(() => this.isLogin))
       .compose(toEventSubscription(this.realtimeAdapter.mqtt.onMqttConnected))
   }
   onReconnecting(handler: () => void): Subscription {
-    return process(handler)
+    return process(handler, isRequired({ handler }))
       .compose(bufferUntil(() => this.isLogin))
       .compose(
         toEventSubscription(this.realtimeAdapter.mqtt.onMqttReconnecting))
   }
   onDisconnected(handler: () => void): Subscription {
-    return process(handler)
+    return process(handler, isRequired({ handler }))
       .compose(bufferUntil(() => this.isLogin))
       .compose(
         toEventSubscription(this.realtimeAdapter.mqtt.onMqttDisconnected))

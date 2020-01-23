@@ -165,6 +165,7 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
     },
     notificationHandler: _ => (data: string) => {
       const payload = JSON.parse(data) as MqttNotification
+
       if (payload.action_topic === 'delete_message') {
         const deletedMessagesData = payload.payload.data.deleted_messages
         deletedMessagesData.forEach(data => {
@@ -349,8 +350,11 @@ export default function getMqttAdapter (
       return () => emitter.off('mqtt::disconnected', callback)
     },
     onMessageDeleted (callback: (data: m.IQMessage) => void): () => void {
-      const handler = (msg: any) => {
-        const message = Decoder.message(msg)
+      const handler = (msg) => {
+        const message = Decoder.message({
+          room_id: msg.roomId,
+          unique_temp_id: msg.uniqueId,
+        } as any)
         callback(message)
       }
       emitter.on('message::deleted', handler)
