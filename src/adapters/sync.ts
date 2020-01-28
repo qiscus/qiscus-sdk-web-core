@@ -35,7 +35,8 @@ export default function getSyncAdapter (
 
   const getInterval = () => {
     if (o.shouldSync()) return o.s.getSyncInterval()
-    return 30000
+    // return 30000
+    return 1000
   }
 
   const sync = synchronizeFactory(
@@ -127,6 +128,7 @@ const synchronizeFactory = (
   async function * generator () {
     const interval = 100
     let accumulator = 0
+
     while (true) {
       accumulator += interval
       if (accumulator >= getInterval() && getEnableSync()) {

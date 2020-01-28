@@ -38,12 +38,14 @@ export default function getRealtimeAdapter (
   storage: Storage,
 ) {
   const mqtt = getMqttAdapter(storage)
+  const logger = getLogger(storage)
   const sync = getSyncAdapter({
     s: storage,
-    shouldSync: () => !mqtt.mqtt.connected,
-    logger: () => getLogger(storage),
+    shouldSync: () => !mqtt.mqtt?.connected ?? false,
+    logger: (...args: string[]) => logger.log(...args),
   })
 
+  // region emitter
   const newMessage$ = xs.merge(
     fromSync(sync.onNewMessage),
     fromSync(mqtt.onNewMessage),
@@ -60,13 +62,14 @@ export default function getRealtimeAdapter (
     fromSync(sync.onMessageDeleted),
     fromSync(mqtt.onMessageDeleted),
   )
-
   const onRoomCleared$ = xs.merge(
     fromSync(sync.onRoomCleared),
     fromSync(mqtt.onRoomDeleted),
   )
+  // endregion
 
   return {
+    sync: sync,
     get mqtt () {
       return mqtt
     },

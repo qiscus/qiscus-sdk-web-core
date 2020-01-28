@@ -14,9 +14,7 @@ export const request = <Resp extends unknown>(api: Api): Promise<Resp> => {
   }).then(resp => resp.data)
 }
 
-interface Request<O> {
-  (o: O): Api
-}
+type Request<O> = (o: O) => Api
 
 export type Api = {
   baseUrl?: string

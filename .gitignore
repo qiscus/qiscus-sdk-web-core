@@ -1,6 +1,9 @@
-node_modules/
-.vscode/
-.idea/
+/node_modules/
+/.vscode/
+/.idea/
 yarn-error.log
-dist/
-lib/
+
+/dist/
+/lib/
+/lib-esm/
+/types/

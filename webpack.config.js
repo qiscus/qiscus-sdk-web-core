@@ -1,5 +1,6 @@
 const path = require('path')
 const webpack = require('webpack')
+const forkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin')
 const pkg = require('./package')
 
 module.exports = env => {
@@ -19,35 +20,41 @@ module.exports = env => {
       library: 'QiscusSDK',
       libraryTarget: 'umd',
       libraryExport: 'default',
-      umdNamedDefine: true
+      umdNamedDefine: true,
     },
     module: {
-      rules: [{
-        test: /\.js$/,
-        use: 'babel-loader',
-        exclude: /(node_modules|bower_components)/
-      }, {
-        test: /\.ts$/,
-        use: [
-          'babel-loader',
-          // 'ts-loader'
-        ],
-        exclude: /(node_modules|bower_components)/
-      }]
+      rules: [
+        {
+          test: /\.js$/,
+          use: 'babel-loader',
+          exclude: /node_modules/,
+        }, {
+          test: /\.ts$/,
+          use: [
+            { loader: 'babel-loader' },
+            // {
+            //   loader: 'ts-loader', options: {
+            //     transpileOnly: true,
+            //   },
+            // },
+          ],
+          exclude: /node_modules/,
+        }],
     },
     resolve: {
-      extensions: ['.ts', '.js']
+      extensions: ['.ts', '.js'],
     },
     plugins: [
       new webpack.DefinePlugin({
         'global.GENTLY': false,
-        'process.env.VERSION': JSON.stringify(pkg.version)
-      })
+        'process.env.VERSION': JSON.stringify(pkg.version),
+      }),
+      new forkTsCheckerWebpackPlugin(),
     ],
     performance: {
       maxEntrypointSize: 512000,
-      maxAssetSize: 512000
-    }
+      maxAssetSize: 512000,
+    },
   }
 
   const cjsConfig = {
@@ -55,8 +62,8 @@ module.exports = env => {
     output: {
       ...baseConfig.output,
       libraryTarget: 'commonjs2',
-      filename: filename.replace('{module}', 'cjs')
-    }
+      filename: filename.replace('{module}', 'cjs'),
+    },
   }
 
   return [baseConfig, cjsConfig]

@@ -2,6 +2,7 @@
   "compilerOptions": {
     "checkJs": false,
     "declaration": true,
+    "sourceMap": true,
     "module": "commonjs",
     "target": "esnext",
     "outDir": "lib",
@@ -9,7 +10,6 @@
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
     "esModuleInterop": true,
-    "noEmit": true,
     "lib": [
       "dom",
       "es2015",
@@ -17,5 +17,11 @@
       "es2017"
     ],
     "baseUrl": "src"
-  }
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "**/*.test.ts"
+  ]
 }

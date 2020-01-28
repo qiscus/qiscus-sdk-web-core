@@ -272,7 +272,7 @@ export default function getMqttAdapter (
   const __mqtt_message_handler = (t, m) => {
     const message = m.toString()
     const func = matcher(t)
-    logger.log('message', t, m)
+    logger.log('message', t, message)
     if (func != null) func(message)
   }
   const __mqtt_error_handler = (err: Error) => {
