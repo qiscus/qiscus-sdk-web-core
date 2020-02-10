@@ -8,8 +8,7 @@ export function getLogger(s: Storage) {
     get isEnabled() { return isEnabled() },
     setEnable: (enable: boolean) => s.setDebugEnabled(enable),
     log: (...args: any[]) => {
-      if (isEnabled()) console.log('QiscusSDK:', ...args)
+      if (isEnabled()) console.log(`QiscusSDK [${s.getAppId()}]:`, ...args)
     }
-
   };
 }

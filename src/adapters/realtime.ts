@@ -1,3 +1,4 @@
+import If from '@ts-delight/if-expr.macro'
 import getSyncAdapter from './sync'
 import { Callback, Subscription } from '../defs'
 import xs from 'xstream'
@@ -35,15 +36,28 @@ function isNumber (data: model.IQChatRoom | number): data is number {
 
 export type RealtimeAdapter = ReturnType<typeof getRealtimeAdapter>
 export default function getRealtimeAdapter (
+  //region Params
   storage: Storage,
+  //endregion
 ) {
   const mqtt = getMqttAdapter(storage)
   const logger = getLogger(storage)
   const sync = getSyncAdapter({
     s: storage,
-    shouldSync: () => !mqtt.mqtt?.connected ?? false,
+    shouldSync () {
+      // if (mqtt.mqtt == null) return true
+      return mqtt.mqtt?.connected !== true
+    },
     logger: (...args: string[]) => logger.log(...args),
   })
+
+  // sync.onSynchronized(() => {
+    // logger.log(`mqtt connected state: ${mqtt.mqtt?.connected}`)
+    // logger.log(`mqtt reconnecting: ${mqtt.mqtt?.reconnecting}`)
+    // If(!mqtt.mqtt?.connected)
+    //   .thenDo(logger.log(`mqtt reconnecting to broker: ${mqtt.mqtt?.options['href']}`))
+    //   .then(mqtt.mqtt?.reconnect())()
+  // })
 
   // region emitter
   const newMessage$ = xs.merge(
@@ -72,6 +86,9 @@ export default function getRealtimeAdapter (
     sync: sync,
     get mqtt () {
       return mqtt
+    },
+    clear(): void {
+      mqtt.clear()
     },
     onMessageDeleted (callback: Callback<model.IQMessage>): Subscription {
       const subscription = onMessageDeleted$

@@ -159,7 +159,10 @@ export const toEventSubscription_ =
     (stream: Stream<T>) => {
       const subscription = stream.subscribe({
         next: data => handler(data),
-        error: err => onError?.(err),
+        error: err => {
+          console.log('on error', err)
+          onError?.(err)
+        }
       })
 
       return () => subscription.unsubscribe()

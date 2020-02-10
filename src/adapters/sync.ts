@@ -29,30 +29,29 @@ export default function getSyncAdapter (
   },
 ) {
   const emitter = new EventEmitter<IQSyncEvent>()
-  // const emitter = new EventEmitter()
-  const shouldSync = (): boolean =>
-    o.shouldSync() && o.s.getCurrentUser() != null
+  const enableSync = (): boolean => o.s.getCurrentUser() != null
 
-  const getInterval = () => {
+  const getInterval = (): number => {
     if (o.shouldSync()) return o.s.getSyncInterval()
-    // return 30000
-    return 1000
+    return o.s.getSyncIntervalWhenConnected()
   }
 
   const sync = synchronizeFactory(
     getInterval,
-    shouldSync,
+    enableSync,
     () => o.s.getLastMessageId(),
     o.logger,
     o.s,
   )
   sync.on('last-message-id.new', id => o.s.setLastMessageId(id))
-  sync.on('message.new', m => emitter.emit('message.new', m))
+  sync.on('message.new', m => {
+    emitter.emit('message.new', m)
+  })
   sync.run().catch(err => o.logger('got error when sync', err))
 
   const syncEvent = synchronizeEventFactory(
     getInterval,
-    shouldSync,
+    enableSync,
     () => o.s.getLastEventId(),
     o.logger,
     o.s,
@@ -91,6 +90,10 @@ export default function getSyncAdapter (
       emitter.on('room.cleared', callback)
       return () => emitter.off('room.cleared', callback)
     },
+    onSynchronized (callback: () => void): () => void {
+      sync.on('synchronized', callback)
+      return () => sync.off('synchronized', callback)
+    },
   }
 }
 
@@ -104,10 +107,10 @@ const synchronizeFactory = (
   interface Event {
     'last-message-id.new': (messageId: m.IQAccount['lastMessageId']) => void
     'message.new': (message: m.IQMessage) => void
+    'synchronized': () => void
   }
 
   const emitter = new EventEmitter<Event>()
-  // const emitter = new EventEmitter()
   const synchronize = (messageId: m.IQAccount['lastMessageId']): Promise<{
     lastMessageId: m.IQAccount['lastMessageId'],
     messages: m.IQMessage[],
@@ -119,14 +122,17 @@ const synchronizeFactory = (
       lastMessageId: messageId,
       limit: 20,
     })).then(resp => {
-      const messages = resp.results.comments.map(Decoder.synchronize)
-      const lastMessageId = resp.results.meta.last_received_comment_id
+      const messages = resp.results.comments.map(it => Decoder.message({
+        ...it,
+        room_type: it.chat_type,
+      }))
+      const lastMessageId = resp.results.meta.last_received_comment_id ?? 0
       return { lastMessageId, messages, interval: getInterval() }
     })
   }
 
   async function * generator () {
-    const interval = 100
+    const interval = s.getAccSyncInterval()
     let accumulator = 0
 
     while (true) {
@@ -145,12 +151,18 @@ const synchronizeFactory = (
     get off () { return emitter.off.bind(emitter) },
     async run () {
       for await (let result of generator()) {
+        emitter.emit('synchronized')
         try {
+          logger('synchronize id:', String(result.lastMessageId))
           const messageId = result.lastMessageId
           const messages = result.messages
           if (messageId > getId()) {
             emitter.emit('last-message-id.new', messageId)
-            messages.forEach(m => emitter.emit('message.new', m))
+            messages
+              .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+              .forEach(m => {
+              emitter.emit('message.new', m)
+            })
           }
         } catch (e) {
           logger('error when sync', e.message)
@@ -188,7 +200,7 @@ const synchronizeEventFactory = (
       const lastId = events
         .map(it => it.id)
         .sort((a, b) => a - b)
-        .pop()
+        .pop() ?? 0
 
       //region Delivered
       const messageDelivered = events.filter(
@@ -251,8 +263,9 @@ const synchronizeEventFactory = (
   }
 
   async function * generator () {
-    const interval = 100
+    const interval = s.getAccSyncInterval()
     let accumulator = 0
+    // console.log('sync', accumulator, getInterval(), getEnableSync(), s.getAccSyncInterval())
     while (true) {
       accumulator += interval
       if (accumulator >= getInterval() && getEnableSync()) {
@@ -270,6 +283,7 @@ const synchronizeEventFactory = (
     async run () {
       for await (let result of generator()) {
         try {
+          logger('syncrhonize event id:', String(result.lastId))
           const eventId = result.lastId
           if (eventId > getId()) {
             emitter.emit('last-event-id.new', eventId)
@@ -284,7 +298,7 @@ const synchronizeEventFactory = (
               it => it.forEach(room => emitter.emit('room.cleared', room)))
           }
         } catch (e) {
-          logger('error when sync event', e.message)
+          logger('error when sync event', e)
         }
       }
     },
@@ -293,6 +307,72 @@ const synchronizeEventFactory = (
 
 // region Response type
 export declare module SyncResponse {
+
+    export interface Extras {
+    }
+
+    export interface Payload {
+    }
+
+    export interface Avatar {
+        url: string;
+    }
+
+    export interface UserAvatar {
+        avatar: Avatar;
+    }
+
+    export interface Comment {
+        chat_type: string;
+        comment_before_id: number;
+        comment_before_id_str: string;
+        disable_link_preview: boolean;
+        email: string;
+        extras: Extras;
+        id: number;
+        id_str: string;
+        is_deleted: boolean;
+        is_public_channel: boolean;
+        message: string;
+        payload: Payload;
+        room_avatar: string;
+        room_id: number;
+        room_id_str: string;
+        room_name: string;
+        status: string;
+        timestamp: string;
+        topic_id: number;
+        topic_id_str: string;
+        type: string;
+        unique_temp_id: string;
+        unix_nano_timestamp: number;
+        unix_timestamp: number;
+        user_avatar: UserAvatar;
+        user_avatar_url: string;
+        user_id: number;
+        user_id_str: string;
+        username: string;
+    }
+
+    export interface Meta {
+        last_received_comment_id: number;
+        need_clear: boolean;
+    }
+
+    export interface Results {
+        comments: Comment[];
+        meta: Meta;
+    }
+
+    export interface RootObject {
+        results: Results;
+        status: number;
+    }
+
+}
+
+
+export declare module _SyncResponse {
   export interface Meta {
     last_received_comment_id: number;
     need_clear: boolean;

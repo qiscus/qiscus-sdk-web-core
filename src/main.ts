@@ -2,6 +2,7 @@ import If from '@ts-delight/if-expr.macro'
 import axios, { AxiosResponse } from 'axios'
 import { atom } from 'derivable'
 import xs from 'xstream'
+import xsConcat from 'xstream/extra/concat'
 import { getLogger } from './adapters/logger'
 import getMessageAdapter from './adapters/message'
 import getRealtimeAdapter from './adapters/realtime'
@@ -38,6 +39,8 @@ import {
   toEventSubscription_,
 } from './utils/stream'
 
+import flattenConcurrently from 'xstream/extra/flattenConcurrently'
+
 export default class Qiscus {
   private static _instance: Qiscus = null
 
@@ -54,24 +57,24 @@ export default class Qiscus {
   private readonly _customHeaders = atom<{ [key: string]: string }>(null)
 
   private readonly _onMessageReceived$ = this.realtimeAdapter.onNewMessage$()
-    .map(this.hookAdapter.triggerBeforeReceived$)
-    .flatten()
+    .map(it => this.hookAdapter.triggerBeforeReceived$(it))
+    .compose(flattenConcurrently)
     .compose(tap(message =>
       If(this.currentUser.id !== message.sender.id)
         .then(this.messageAdapter.markAsDelivered(message.chatRoomId, message.id))()
     ))
   private readonly _onMessageRead$ = this.realtimeAdapter.onMessageRead$()
     .map(this.hookAdapter.triggerBeforeReceived$)
-    .flatten()
+    .compose(flattenConcurrently)
   private readonly _onMessageDelivered$ = this.realtimeAdapter.onMessageDelivered$()
     .map(this.hookAdapter.triggerBeforeReceived$)
-    .flatten()
+    .compose(flattenConcurrently)
   private readonly _onMessageDeleted$ = this.realtimeAdapter.onMessageDeleted$
     .map(this.hookAdapter.triggerBeforeReceived$)
-    .flatten()
+    .compose(flattenConcurrently)
   private readonly _onRoomCleared$ = this.realtimeAdapter.onRoomCleared$()
     .map(this.hookAdapter.triggerBeforeReceived$)
-    .flatten()
+    .compose(flattenConcurrently)
   // endregion
 
   public static get instance(): Qiscus {
@@ -168,7 +171,7 @@ export default class Qiscus {
           } as { name: string, avatarUrl: string, extras: any }),
         ),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(
         tap(() => {
           this.realtimeAdapter.mqtt.conneck()
@@ -188,7 +191,7 @@ export default class Qiscus {
       )
       .compose(bufferUntil(() => this.isLogin))
       .map(([userId]) => xs.fromPromise(this.userAdapter.blockUser(userId)))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -196,8 +199,13 @@ export default class Qiscus {
     // this method should clear currentUser and token
     return xs
       .combine(process(callback, isOptCallback({ callback })))
-      .map(() => xs.fromPromise(Promise.resolve(this.userAdapter.clear())))
-      .flatten()
+      .map(() => xs.fromPromise(Promise.all([
+        Promise.resolve(this.publishOnlinePresence(false)),
+        Promise.resolve(this.userAdapter.clear()),
+        Promise.resolve(this.realtimeAdapter.clear()),
+      ])))
+      .compose(flattenConcurrently)
+      .map(() => undefined)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -211,7 +219,7 @@ export default class Qiscus {
       )
       .compose(bufferUntil(() => this.isLogin))
       .map(([userId]) => xs.fromPromise(this.userAdapter.unblockUser(userId)))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -234,7 +242,7 @@ export default class Qiscus {
         xs.fromPromise(
           this.userAdapter.updateUser(username, avatarUrl, extras as any)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(tap((user: model.IQAccount) => {
         const currentUser = this.storage.getCurrentUser()
         this.storage.setCurrentUser({
@@ -259,7 +267,7 @@ export default class Qiscus {
       .compose(bufferUntil(() => this.isLogin))
       .map(([page, limit]) => xs.fromPromise(
         this.userAdapter.getBlockedUser(page, limit)))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -280,7 +288,7 @@ export default class Qiscus {
       .map(([search, page, limit]) =>
         xs.fromPromise(this.userAdapter.getUserList(search, page, limit)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -288,7 +296,7 @@ export default class Qiscus {
     return xs
       .combine(process(callback, isOptCallback({ callback })))
       .map(() => xs.fromPromise(this.userAdapter.getNonce()))
-      .flatten()
+      .compose(flattenConcurrently)
       .map(nonce => nonce)
       .compose(toCallbackOrPromise(callback))
   }
@@ -298,7 +306,7 @@ export default class Qiscus {
       .combine(process(callback, isOptCallback({ callback })))
       .compose(bufferUntil(() => this.isLogin))
       .map(() => xs.fromPromise(this.userAdapter.getUserData()))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -318,7 +326,7 @@ export default class Qiscus {
         xs.fromPromise(
           this.userAdapter.registerDeviceToken(token, isDevelopment)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -338,7 +346,7 @@ export default class Qiscus {
         xs.fromPromise(
           this.userAdapter.unregisterDeviceToken(token, isDevelopment)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -362,7 +370,7 @@ export default class Qiscus {
         xs.fromPromise(
           this.roomAdapter.updateRoom(roomId, name, avatarUrl, extras as any)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -377,7 +385,7 @@ export default class Qiscus {
       )
       .map(([token]) => xs.fromPromise(
         this.userAdapter.setUserFromIdentityToken(token)))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -392,7 +400,7 @@ export default class Qiscus {
       )
       .map(
         ([uniqueId]) => xs.fromPromise(this.roomAdapter.getChannel(uniqueId)))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
   // -------------------------------------------------------
@@ -410,7 +418,7 @@ export default class Qiscus {
       .compose(bufferUntil(() => this.isLogin))
       .map(([userId, extras]) => xs.fromPromise(
         this.roomAdapter.chatUser(userId, extras as any)))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -428,7 +436,7 @@ export default class Qiscus {
       .compose(bufferUntil(() => this.isLogin))
       .map(([roomId, userIds]) => xs.fromPromise(
         this.roomAdapter.addParticipants(roomId, userIds)))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -447,7 +455,7 @@ export default class Qiscus {
       .map(([roomId, userIds]) =>
         xs.fromPromise(this.roomAdapter.removeParticipants(roomId, userIds)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -462,7 +470,7 @@ export default class Qiscus {
       )
       .compose(bufferUntil(() => this.isLogin))
       .map(([roomIds]) => xs.fromPromise(this.roomAdapter.clearRoom(roomIds)))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -487,7 +495,7 @@ export default class Qiscus {
           this.roomAdapter.createGroup(name, userIds, avatarUrl,
             extras as any)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -512,7 +520,7 @@ export default class Qiscus {
           this.roomAdapter.getChannel(uniqueId, name, avatarUrl,
             extras as any)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -536,7 +544,7 @@ export default class Qiscus {
         xs.fromPromise(
           this.roomAdapter.getParticipantList(roomId, page, limit, sorting)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -587,7 +595,7 @@ export default class Qiscus {
             showParticipant),
         ),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -615,7 +623,7 @@ export default class Qiscus {
             page, limit),
         ),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -629,7 +637,7 @@ export default class Qiscus {
       )
       .compose(bufferUntil(() => this.isLogin))
       .map(([roomId]) => xs.fromPromise(this.roomAdapter.getRoom(roomId)))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback) as any)
   }
 
@@ -638,7 +646,7 @@ export default class Qiscus {
       .combine(process(callback, isOptCallback({ callback })))
       .compose(bufferUntil(() => this.isLogin))
       .map(() => xs.fromPromise(this.roomAdapter.getUnreadCount()))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
   // ------------------------------------------------------
@@ -660,10 +668,10 @@ export default class Qiscus {
         roomId,
         this.hookAdapter.trigger(Hooks.MESSAGE_BEFORE_SENT,
           message) as Promise<typeof message>])))
-      .flatten()
+      .compose(flattenConcurrently)
       .map(([roomId, message]) => xs.fromPromise(
         this.messageAdapter.sendMessage(roomId, message)))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -682,7 +690,7 @@ export default class Qiscus {
       .map(([roomId, messageId]) =>
         xs.fromPromise(this.messageAdapter.markAsDelivered(roomId, messageId)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -701,7 +709,7 @@ export default class Qiscus {
       .map(([roomId, messageId]) =>
         xs.fromPromise(this.messageAdapter.markAsRead(roomId, messageId)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -718,7 +726,7 @@ export default class Qiscus {
       .map(([messageUniqueIds]) =>
         xs.fromPromise(this.messageAdapter.deleteMessage(messageUniqueIds)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -740,7 +748,7 @@ export default class Qiscus {
         xs.fromPromise(
           this.messageAdapter.getMessages(roomId, messageId, limit, false)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -762,7 +770,7 @@ export default class Qiscus {
         xs.fromPromise(
           this.messageAdapter.getMessages(roomId, messageId, limit, true)),
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
   // -------------------------------------------------------
@@ -780,7 +788,7 @@ export default class Qiscus {
       .map(([roomId, userId, data]) => xs.fromPromise(
         this.realtimeAdapter.mqtt.publishCustomEvent(roomId, userId,
           data) as any))
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -794,7 +802,7 @@ export default class Qiscus {
       .map(([isOnline, userId]) =>
         xs.fromPromise(Promise.resolve(this.realtimeAdapter.sendPresence(userId, isOnline)))
       )
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
   publishTyping(roomId: number, isTyping?: boolean): void {
@@ -899,28 +907,28 @@ export default class Qiscus {
     return process(handler, isRequired({ handler }))
       .compose(bufferUntil(() => this.isLogin))
       .mapTo(this._onMessageReceived$)
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toEventSubscription_(handler))
   }
   onMessageDeleted(handler: (message: model.IQMessage) => void): Subscription {
     return process(handler, isRequired({ handler }))
       .compose(bufferUntil(() => this.isLogin))
       .mapTo(this._onMessageDeleted$)
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toEventSubscription_(handler))
   }
   onMessageDelivered(handler: (message: model.IQMessage) => void): Subscription {
     return process(handler, isRequired({ handler }))
       .compose(bufferUntil(() => this.isLogin))
       .mapTo(this._onMessageDelivered$)
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toEventSubscription_(handler))
   }
   onMessageRead(handler: (message: model.IQMessage) => void): Subscription {
     return process(handler, isRequired({ handler }))
       .compose(bufferUntil(() => this.isLogin))
       .mapTo(this._onMessageRead$)
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toEventSubscription_(handler))
   }
   onUserTyping(
@@ -941,7 +949,7 @@ export default class Qiscus {
     return process(handler, isRequired({ handler }))
       .compose(bufferUntil(() => this.isLogin))
       .mapTo(this._onRoomCleared$)
-      .flatten()
+      .compose(flattenConcurrently)
       .compose(toEventSubscription_(handler))
   }
   onConnected(handler: () => void): Subscription {
@@ -991,11 +999,9 @@ export default class Qiscus {
     process(userId, isReqString({ userId }))
       .compose(bufferUntil(() => this.isLogin))
       .map(it => [it])
-      .compose(
-        subscribeOnNext(
-          ([userId]) => this.realtimeAdapter.mqtt.subscribeUserPresence(
-            userId)),
-      )
+      .compose(subscribeOnNext(([userId]) =>
+        this.realtimeAdapter.mqtt.subscribeUserPresence(userId)
+      ))
   }
   unsubscribeUserOnlinePresence(userId: string): void {
     process(userId, isReqString({ userId }))

@@ -2,6 +2,18 @@ import { IQAccount, IQChatRoom, IQMessage } from './model'
 
 export type Storage = ReturnType<typeof storageFactory>
 
+export const listStorageFactory = <T extends unknown>() => {
+  const storage = new Map<string, T>()
+  return {
+    getOrSet(id: string, valueIfNull: T) {
+      if (!storage.has(id)) storage.set(id, valueIfNull)
+      return storage.get(id)
+    },
+    [Symbol.iterator]: storage[Symbol.iterator]
+  }
+}
+export type ListStorageFactory = ReturnType<typeof listStorageFactory>
+
 export const storageFactory = () => {
   const storage = new Map<string, any>()
   const makeSetter = <T>(name: string) => (value: T): void => {
@@ -30,8 +42,14 @@ export const storageFactory = () => {
 
     getSyncInterval: makeGetter<number>('sync-interval', 5000),
     setSyncInterval: makeSetter<number>('sync-interval'),
+    getSyncIntervalWhenConnected:
+      makeGetter<number>('sync-interval-when-connected', 30000),
+    setSyncIntervalWhenConnected:
+      makeSetter<number>('sync-interval-when-connected'),
     getVersion: makeGetter<string>('version'),
     setVersion: makeSetter<string>('version'),
+    getAccSyncInterval: makeGetter<number>('acc-sync-interval', 1000),
+    setAccSyncInterval: makeSetter<number>('acc-sync-interval'),
 
     getDebugEnabled: makeGetter<boolean>('is-debug-enabled', false),
     setDebugEnabled: makeSetter<boolean>('is-debug-enabled'),

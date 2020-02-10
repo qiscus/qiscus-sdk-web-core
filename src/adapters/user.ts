@@ -38,8 +38,8 @@ const getUserAdapter = (s: Storage) => ({
       })
   },
   clear () {
-    s.setCurrentUser(null)
-    s.setToken(null)
+    s.setCurrentUser(undefined)
+    s.setToken(undefined)
   },
   blockUser (userId: string): Promise<model.IQUser> {
     const apiConfig = Api.blockUser({
