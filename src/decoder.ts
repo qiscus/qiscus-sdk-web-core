@@ -75,7 +75,7 @@ function isJson2 (json: UserJson1 | UserJson2): json is UserJson2 {
 export function user (json: UserJson1): IQUser
 export function user (json: UserJson2): IQUser
 export function user (json: UserJson1 | UserJson2): IQUser {
-  let avatarUrl: string
+  let avatarUrl: string | undefined = undefined
   if (isJson1(json)) avatarUrl = json.user_avatar_url
   if (isJson2(json)) avatarUrl = json.avatar_url
   return {
@@ -115,7 +115,7 @@ interface RoomJson {
   id_str: string
   is_public_channel: boolean
   is_removed: boolean
-  last_comment: MessageJson
+  last_comment?: MessageJson
   options: string
   raw_room_name: string
   room_name: string
@@ -137,7 +137,7 @@ export const room = <T extends RoomJson> (json: T): IQChatRoom => ({
   extras: tryCatch(() => JSON.parse(json.options), json.options),
   avatarUrl: json.avatar_url,
   uniqueId: json.unique_id,
-  lastMessage: tryCatch(() => message(json.last_comment), void 0),
+  lastMessage: json.last_comment ? message(json.last_comment) : undefined,
   id: json.id,
 })
 

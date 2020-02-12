@@ -1,5 +1,4 @@
 import xs, { Stream } from 'xstream'
-import { tap } from './utils/stream'
 
 export const Hooks = {
   MESSAGE_BEFORE_SENT: 'message::before-sent',

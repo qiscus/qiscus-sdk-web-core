@@ -2,9 +2,13 @@ import { Atom, Derivable, Lens } from 'derivable'
 import { PostCommentResponse } from './adapters/message'
 import * as model from './model'
 
-export type IQCallback<T> = (response: T, error?: Error) => void
+export const isChatRoom = <T extends unknown>(data: T | model.IQChatRoom): data is model.IQChatRoom => {
+  return (data as model.IQChatRoom).id != null
+}
 
-export type IQProgressListener = (error?: Error, progress?: number, url?: string) => void
+export type IQCallback<T> = (response?: T, error?: Error) => void
+
+export type IQProgressListener<O = string> = (error?: Error, progress?: number, url?: O) => void
 
 export interface Callback<T1> {
   (data1: T1): void

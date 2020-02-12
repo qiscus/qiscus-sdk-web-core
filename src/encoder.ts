@@ -13,7 +13,7 @@ export const loginOrRegister = (o: loginOrRegisterParams) => ({
 export const verifyIdentityToken = (o: { identityToken: string }) => ({
   identity_token: o.identityToken,
 })
-export const patchProfile = (u: IQUser) => ({
+export const patchProfile = (u: Partial<IQUser>) => ({
   name: u.name,
   avatar_url: u.avatarUrl,
   extras: u.extras,

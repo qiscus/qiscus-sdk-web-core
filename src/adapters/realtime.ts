@@ -1,4 +1,3 @@
-import If from '@ts-delight/if-expr.macro'
 import getSyncAdapter from './sync'
 import { Callback, Subscription } from '../defs'
 import xs from 'xstream'
@@ -13,7 +12,7 @@ export type SyncMethod<T extends any[]> = (
 ) => Subscription;
 
 function fromSync<T extends any[]> (method: SyncMethod<T>) {
-  let subscription: Subscription = null
+  let subscription: Subscription
   return xs.create<T>({
     start (listener) {
       subscription = method((...data) => {
@@ -50,14 +49,6 @@ export default function getRealtimeAdapter (
     },
     logger: (...args: string[]) => logger.log(...args),
   })
-
-  // sync.onSynchronized(() => {
-    // logger.log(`mqtt connected state: ${mqtt.mqtt?.connected}`)
-    // logger.log(`mqtt reconnecting: ${mqtt.mqtt?.reconnecting}`)
-    // If(!mqtt.mqtt?.connected)
-    //   .thenDo(logger.log(`mqtt reconnecting to broker: ${mqtt.mqtt?.options['href']}`))
-    //   .then(mqtt.mqtt?.reconnect())()
-  // })
 
   // region emitter
   const newMessage$ = xs.merge(

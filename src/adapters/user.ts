@@ -38,7 +38,9 @@ const getUserAdapter = (s: Storage) => ({
       })
   },
   clear () {
+    // @ts-ignore
     s.setCurrentUser(undefined)
+    // @ts-ignore
     s.setToken(undefined)
   },
   blockUser (userId: string): Promise<model.IQUser> {

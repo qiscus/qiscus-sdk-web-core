@@ -1,4 +1,3 @@
-import { atom, lens } from 'derivable'
 import * as model from '../model'
 import * as Api from '../api'
 import * as Provider from '../provider'
@@ -51,12 +50,12 @@ const getRoomAdapter = (s: Storage) => ({
         it => it.id === resp.results.room.last_comment_id),
     }))
   },
-  clearRoom (uniqueIds: string[]): Promise<model.IQChatRoom[]> {
+  clearRoom (uniqueIds: string[]): Promise<void> {
     return Api.request<ClearRoomResponse.RootObject>(Api.clearRooms({
       ...Provider.withBaseUrl(s),
       ...Provider.withCredentials(s),
       uniqueIds,
-    })).then(resp => resp.results.rooms.map(Decoder.room))
+    })).then(() => undefined as void)
   },
   createGroup (
     name: model.IQChatRoom['name'],
@@ -100,9 +99,9 @@ const getRoomAdapter = (s: Storage) => ({
   },
   getParticipantList (
     uniqueId: string,
-    page?: number | null,
+    page?: number,
     limit?: number,
-    sorting?: 'asc' | 'desc' | null,
+    sorting?: 'asc' | 'desc',
   ): Promise<model.IQParticipant[]> {
     return Api.request<GetParticipantResponse.RootObject>(
       Api.getRoomParticipants({
@@ -126,7 +125,7 @@ const getRoomAdapter = (s: Storage) => ({
     }))
   },
   getRoomInfo (
-    roomIds?: string[],
+    roomIds?: number[],
     roomUniqueIds?: string[],
     page?: number,
     showRemoved: boolean = false,
@@ -139,7 +138,8 @@ const getRoomAdapter = (s: Storage) => ({
       showRemoved,
       roomIds,
       roomUniqueIds,
-    } as any)).then(resp => resp.results.rooms_info
+      page,
+    })).then(resp => resp.results.rooms_info
       .map(Decoder.room),
     )
   },

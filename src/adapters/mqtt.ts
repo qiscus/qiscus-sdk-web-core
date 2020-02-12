@@ -1,8 +1,8 @@
-import xs from 'xstream'
 import { match, when } from '../utils/match'
 import axios from 'axios'
 import debounce from 'lodash.debounce'
 import { EventEmitter } from 'pietile-eventemitter'
+// @ts-ignore
 import connect from 'mqtt/lib/connect'
 import { IClientPublishOptions, MqttClient } from 'mqtt'
 import { Callback, Subscription } from '../defs'
@@ -10,7 +10,7 @@ import * as m from '../model'
 import * as Decoder from '../decoder'
 import { getLogger } from './logger'
 import { Storage } from '../storage'
-import { tryCatch, wrapP } from '../utils/try-catch'
+import { tryCatch, wrapP, getOrThrow } from '../utils/try-catch'
 
 const reNewMessage = /^([\w]+)\/c/i
 const reNotification = /^([\w]+)\/n/i
@@ -151,9 +151,7 @@ type _MqttClient = MqttClient & {
 
 const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
   return {
-    channelMessageHandler: topic => data => {
-      const topicData = reChannelMessage.exec(topic)
-      const channelUniqueId = topicData[2]
+    channelMessageHandler: _ => data => {
       const message = tryCatch(
         () => Decoder.message(JSON.parse(data)),
         data,
@@ -163,7 +161,10 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
     },
     customEventHandler: topic => data => {
       const topicData = reCustomEvent.exec(topic)
-      const roomId = parseInt(topicData[1])
+      const roomId = parseInt(getOrThrow<string>(
+        topicData?.[1],
+        '`roomId` are null on customEventHandler'
+      ))
       const payload = JSON.parse(data)
       emitter.emit('custom-event', { roomId, payload })
     },
@@ -190,7 +191,8 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
     onlineHandler: topic => data => {
       const topicData = reOnlineStatus.exec(topic)
       const payload = data.split(':')
-      const userId = topicData[1]
+      // const userId = topicData?.[1] ?? ''
+      const userId = getOrThrow<string>(topicData?.[1], '`userId` are null on onlineHandler')
       const isOnline = Number(payload[0]) === 1
       const lastSeen = new Date(Number(payload[1]))
       emitter.emit('user::presence', { userId, isOnline, lastSeen })
@@ -198,8 +200,8 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
     deliveredHandler: topic => data => {
       const topicData = reDelivery.exec(topic)
       const payload = data.split(':')
-      const roomId = parseInt(topicData[1], 10)
-      const userId = topicData[3]
+      const roomId = parseInt(getOrThrow<string>(topicData?.[1], '`roomId` are null on deliveredHandler'), 10)
+      const userId = getOrThrow<string>(topicData?.[3], '`userId` are null on deliveredHandler')
       const messageId = payload[0]
       const messageUniqueId = payload[1]
       emitter.emit('message::delivered', {
@@ -218,8 +220,8 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
     },
     readHandler: topic => data => {
       const topicData = reRead.exec(topic)
-      const roomId = parseInt(topicData[1], 10)
-      const userId = topicData[3]
+      const roomId = parseInt(getOrThrow<string>(topicData?.[1], '`roomId` are null on readHandler'), 10)
+      const userId = getOrThrow<string>(topicData?.[3], '`userId` are null on readHandler')
       const payload = data.split(':')
       const messageId = payload[0]
       const messageUniqueId = payload[1]
@@ -232,8 +234,8 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
     },
     typingHandler: topic => data => {
       const topicData = reTyping.exec(topic)
-      const roomId = parseInt(topicData[1], 10)
-      const userId = topicData[3]
+      const roomId = parseInt(getOrThrow<string>(topicData?.[1], '`roomId` are null on typingHandler'), 10)
+      const userId = getOrThrow<string>(topicData?.[3], '`userId` are null on typingHandler')
       const isTyping = Number(data) === 1
       emitter.emit('user::typing', { roomId, userId, isTyping })
     },
@@ -243,7 +245,7 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
 export default function getMqttAdapter(
   s: Storage,
 ) {
-  let mqtt: _MqttClient | null = null
+  let mqtt: _MqttClient | undefined = undefined
   let cacheUrl: string = s.getBrokerUrl()
   const emitter = new EventEmitter<Events>()
   const handler = getMqttHandler(emitter)
@@ -273,7 +275,7 @@ export default function getMqttAdapter(
   const __mqtt_connected_handler = () => emitter.emit('mqtt::connected')
   const __mqtt_reconnect_handler = () => emitter.emit('mqtt::reconnecting')
   const __mqtt_closed_handler = () => emitter.emit('mqtt::close')
-  const __mqtt_message_handler = (t, m) => {
+  const __mqtt_message_handler = (t: string, m: string) => {
     const message = m.toString()
     const func = matcher(t)
     logger.log('message', t, message)
@@ -289,7 +291,7 @@ export default function getMqttAdapter(
     if (mqtt != null) {
       mqtt?.removeAllListeners()
       mqtt?.end(true)
-      mqtt = null
+      mqtt = undefined
     }
     const lastWill = `u/${s.getCurrentUser().id}/s`
     const opts = {
@@ -386,7 +388,7 @@ export default function getMqttAdapter(
       return () => emitter.off('mqtt::disconnected', callback)
     },
     onMessageDeleted(callback: (data: m.IQMessage) => void): () => void {
-      const handler = (msg) => {
+      const handler = (msg: { roomId: number; uniqueId: string }) => {
         const message = Decoder.message({
           room_id: msg.roomId,
           unique_temp_id: msg.uniqueId,
@@ -482,12 +484,12 @@ export default function getMqttAdapter(
     },
     subscribeUser(userToken: string): Subscription {
       mqtt
-        .subscribe(`${userToken}/c`)
-        .subscribe(`${userToken}/n`)
+        ?.subscribe(`${userToken}/c`)
+        ?.subscribe(`${userToken}/n`)
       return () =>
         mqtt
-          .unsubscribe(`${userToken}/c`)
-          .unsubscribe(`${userToken}/n`)
+          ?.unsubscribe(`${userToken}/c`)
+          ?.unsubscribe(`${userToken}/n`)
     },
     subscribeUserPresence(userId: string): void {
       mqtt?.subscribe(`u/${userId}/s`)

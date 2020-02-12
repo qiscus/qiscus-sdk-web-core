@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Taken from https://github.com/FGRibreau/match-when/blob/master/match.js
 // @ts-ignore
 // import Symbol from "es6-symbol";
