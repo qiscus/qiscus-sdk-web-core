@@ -18,6 +18,6 @@ export const wrapP = <T>(promise: Promise<T>) =>
   promise.then(res => [res, null]).catch(err => [null, err])
 
 export const getOrThrow = <T>(item: T | null | undefined, msg: string): T => {
-  if (item != undefined) return item
+  if (item != null) return item
   else throw new Error(msg)
 }

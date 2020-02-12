@@ -7,8 +7,8 @@ import {
 } from './model'
 import { tryCatch } from './utils/try-catch'
 
-export const loginOrRegister = <T extends Record<string, any>> (
-  json: T,
+export const loginOrRegister = <T extends Record<string, any>>(
+  json: T
 ): IQAccount => ({
   id: json.email,
   avatarUrl: json.avatar_url,
@@ -34,7 +34,9 @@ interface AccountJson {
   username: string
 }
 
-export const account = <T extends AccountJson> (json: T): [IQAccount, AccountJson['token']] => [
+export const account = <T extends AccountJson>(
+  json: T
+): [IQAccount, AccountJson['token']] => [
   {
     name: json.username,
     avatarUrl: json.avatar_url,
@@ -64,17 +66,17 @@ export interface UserJson2 {
   username: string
 }
 
-function isJson1 (json: UserJson1 | UserJson2): json is UserJson1 {
-  return ((json as UserJson1).user_id != null)
+function isJson1(json: UserJson1 | UserJson2): json is UserJson1 {
+  return (json as UserJson1).user_id != null
 }
 
-function isJson2 (json: UserJson1 | UserJson2): json is UserJson2 {
-  return ((json as UserJson2).email != null)
+function isJson2(json: UserJson1 | UserJson2): json is UserJson2 {
+  return (json as UserJson2).email != null
 }
 
-export function user (json: UserJson1): IQUser
-export function user (json: UserJson2): IQUser
-export function user (json: UserJson1 | UserJson2): IQUser {
+export function user(json: UserJson1): IQUser
+export function user(json: UserJson2): IQUser
+export function user(json: UserJson1 | UserJson2): IQUser {
   let avatarUrl: string | undefined = undefined
   if (isJson1(json)) avatarUrl = json.user_avatar_url
   if (isJson2(json)) avatarUrl = json.avatar_url
@@ -99,7 +101,9 @@ interface ParticipantJson {
   username: string
 }
 
-export const participant = <T extends ParticipantJson> (json: T): IQParticipant => ({
+export const participant = <T extends ParticipantJson>(
+  json: T
+): IQParticipant => ({
   lastMessageReceivedId: json.last_comment_received_id,
   lastMessageReadId: json.last_comment_read_id,
   id: json.email,
@@ -128,7 +132,7 @@ const getRoomType = (type: string, isChannel: boolean): IQChatRoom['type'] => {
   if (isChannel && type === 'group') return 'channel'
   return type as IQChatRoom['type']
 }
-export const room = <T extends RoomJson> (json: T): IQChatRoom => ({
+export const room = <T extends RoomJson>(json: T): IQChatRoom => ({
   unreadCount: json.unread_count,
   type: getRoomType(json.chat_type, json.is_public_channel),
   totalParticipants: json.participants?.length ?? 0,
@@ -171,7 +175,7 @@ export interface MessageJson {
   username: string
 }
 
-export const message = <T extends MessageJson> (json: T): IQMessage => ({
+export const message = <T extends MessageJson>(json: T): IQMessage => ({
   extras: json.extras as IQMessage['extras'],
   payload: json.payload as IQMessage['payload'],
   type: json.type as IQMessage['type'],

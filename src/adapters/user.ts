@@ -12,10 +12,10 @@ type NonceResponse = {
 export type UserAdapter = ReturnType<typeof getUserAdapter>
 
 const getUserAdapter = (s: Storage) => ({
-  login (
+  login(
     userId: string,
     userKey: string,
-    { avatarUrl, extras, name }: IQUserExtraProps,
+    { avatarUrl, extras, name }: IQUserExtraProps
   ): Promise<model.IQAccount> {
     const apiConfig = Api.loginOrRegister({
       ...Provider.withBaseUrl(s),
@@ -27,34 +27,34 @@ const getUserAdapter = (s: Storage) => ({
       avatarUrl,
     })
 
-    return Api.request<UserResponse.RootObject>(apiConfig)
-      .then(resp => {
-        const [account, token_] = Decoder.account(resp.results.user)
-        s.setCurrentUser(account)
-        s.setToken(token_)
-        s.setLastMessageId(account.lastMessageId)
-        s.setLastEventId(account.lastSyncEventId)
-        return account
-      })
+    return Api.request<UserResponse.RootObject>(apiConfig).then(resp => {
+      const [account, token_] = Decoder.account(resp.results.user)
+      s.setCurrentUser(account)
+      s.setToken(token_)
+      s.setLastMessageId(account.lastMessageId)
+      s.setLastEventId(account.lastSyncEventId)
+      return account
+    })
   },
-  clear () {
+  clear() {
     // @ts-ignore
     s.setCurrentUser(undefined)
     // @ts-ignore
     s.setToken(undefined)
   },
-  blockUser (userId: string): Promise<model.IQUser> {
+  blockUser(userId: string): Promise<model.IQUser> {
     const apiConfig = Api.blockUser({
       ...Provider.withBaseUrl(s),
       ...Provider.withCredentials(s),
       userId: userId,
     })
-    return Api.request<BlockUserResponse.RootObject>(apiConfig)
-      .then(resp => Decoder.user(resp.results.user))
+    return Api.request<BlockUserResponse.RootObject>(apiConfig).then(resp =>
+      Decoder.user(resp.results.user)
+    )
   },
-  getBlockedUser (
+  getBlockedUser(
     page: number = 1,
-    limit: number = 20,
+    limit: number = 20
   ): Promise<model.IQUser[]> {
     const apiConfig = Api.getBlockedUsers({
       ...Provider.withBaseUrl(s),
@@ -62,94 +62,111 @@ const getUserAdapter = (s: Storage) => ({
       limit,
       page,
     })
-    return Api.request<BlockedUserListResponse.RootObject>(apiConfig)
-      .then(resp => resp.results.users.map(Decoder.user))
+    return Api.request<BlockedUserListResponse.RootObject>(
+      apiConfig
+    ).then(resp => resp.results.users.map(Decoder.user))
   },
-  getUserList (
+  getUserList(
     query: string = '',
     page: number = 1,
-    limit: number = 20,
+    limit: number = 20
   ): Promise<model.IQUser[]> {
-    return Api.request<UserListResponse.RootObject>(Api.getUserList({
-      ...Provider.withBaseUrl(s),
-      ...Provider.withCredentials(s),
-      query,
-      page,
-      limit,
-    })).then(resp => resp.results.users.map(it => Decoder.user(it as any)))
+    return Api.request<UserListResponse.RootObject>(
+      Api.getUserList({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        query,
+        page,
+        limit,
+      })
+    ).then(resp => resp.results.users.map(it => Decoder.user(it as any)))
   },
-  unblockUser (userId: string): Promise<model.IQUser> {
-    return Api.request<BlockUserResponse.RootObject>(Api.unblockUser({
-      ...Provider.withBaseUrl(s),
-      ...Provider.withCredentials(s),
-      userId,
-    })).then(resp => Decoder.user(resp.results.user))
+  unblockUser(userId: string): Promise<model.IQUser> {
+    return Api.request<BlockUserResponse.RootObject>(
+      Api.unblockUser({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        userId,
+      })
+    ).then(resp => Decoder.user(resp.results.user))
   },
-  setUserFromIdentityToken (identityToken: string): Promise<model.IQAccount> {
-    return Api.request<UserResponse.RootObject>(Api.verifyIdentityToken({
-      ...Provider.withBaseUrl(s),
-      ...Provider.withHeaders(s),
-      identityToken,
-    })).then(resp => {
+  setUserFromIdentityToken(identityToken: string): Promise<model.IQAccount> {
+    return Api.request<UserResponse.RootObject>(
+      Api.verifyIdentityToken({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withHeaders(s),
+        identityToken,
+      })
+    ).then(resp => {
       const [account, token] = Decoder.account(resp.results.user)
       s.setCurrentUser(account)
       s.setToken(token)
       return account
     })
   },
-  updateUser (
+  updateUser(
     name?: model.IQAccount['name'],
     avatarUrl?: model.IQAccount['avatarUrl'],
-    extras?: model.IQAccount['extras'],
+    extras?: model.IQAccount['extras']
   ): Promise<model.IQAccount> {
-    return Api.request<UserResponse.RootObject>(Api.patchProfile({
-      ...Provider.withBaseUrl(s),
-      ...Provider.withCredentials(s),
-      name,
-      avatarUrl,
-      extras,
-      id: s.getCurrentUser().id,
-    })).then(resp => {
+    return Api.request<UserResponse.RootObject>(
+      Api.patchProfile({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        name,
+        avatarUrl,
+        extras,
+        id: s.getCurrentUser().id,
+      })
+    ).then(resp => {
       const [account] = Decoder.account(resp.results.user)
       return account
     })
   },
-  getNonce (): Promise<string> {
-    return Api.request<NonceResponse>(Api.getNonce({
-      ...Provider.withBaseUrl(s),
-      ...Provider.withHeaders(s),
-    })).then(resp => resp.results.nonce)
+  getNonce(): Promise<string> {
+    return Api.request<NonceResponse>(
+      Api.getNonce({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withHeaders(s),
+      })
+    ).then(resp => resp.results.nonce)
   },
-  getUserData (): Promise<model.IQAccount> {
-    return Api.request<UserResponse.RootObject>(Api.getProfile({
-      ...Provider.withBaseUrl(s),
-      ...Provider.withCredentials(s),
-    })).then(resp => {
+  getUserData(): Promise<model.IQAccount> {
+    return Api.request<UserResponse.RootObject>(
+      Api.getProfile({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+      })
+    ).then(resp => {
       const [account] = Decoder.account(resp.results.user)
       return account
     })
   },
-  registerDeviceToken (
+  registerDeviceToken(
     deviceToken: string,
-    isDevelopment: boolean = false,
+    isDevelopment: boolean = false
   ): Promise<boolean> {
-    return Api.request<DeviceTokenResponse.RootObject>(Api.setDeviceToken({
-      ...Provider.withBaseUrl(s),
-      ...Provider.withCredentials(s),
-      isDevelopment,
-      deviceToken,
-    })).then(resp => resp.results.changed)
+    return Api.request<DeviceTokenResponse.RootObject>(
+      Api.setDeviceToken({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        isDevelopment,
+        deviceToken,
+      })
+    ).then(resp => resp.results.changed)
   },
-  unregisterDeviceToken (
+  unregisterDeviceToken(
     deviceToken: string,
-    isDevelopment: boolean = false,
+    isDevelopment: boolean = false
   ): Promise<boolean> {
-    return Api.request<DeviceTokenResponse.RootObject>(Api.removeDeviceToken({
-      ...Provider.withBaseUrl(s),
-      ...Provider.withCredentials(s),
-      deviceToken,
-      isDevelopment,
-    })).then(resp => resp.results.changed)
+    return Api.request<DeviceTokenResponse.RootObject>(
+      Api.removeDeviceToken({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        deviceToken,
+        isDevelopment,
+      })
+    ).then(resp => resp.results.changed)
   },
 })
 

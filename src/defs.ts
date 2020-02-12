@@ -2,13 +2,19 @@ import { Atom, Derivable, Lens } from 'derivable'
 import { PostCommentResponse } from './adapters/message'
 import * as model from './model'
 
-export const isChatRoom = <T extends unknown>(data: T | model.IQChatRoom): data is model.IQChatRoom => {
+export const isChatRoom = <T extends unknown>(
+  data: T | model.IQChatRoom
+): data is model.IQChatRoom => {
   return (data as model.IQChatRoom).id != null
 }
 
 export type IQCallback<T> = (response?: T, error?: Error) => void
 
-export type IQProgressListener<O = string> = (error?: Error, progress?: number, url?: O) => void
+export type IQProgressListener<O = string> = (
+  error?: Error,
+  progress?: number,
+  url?: O
+) => void
 
 export interface Callback<T1> {
   (data1: T1): void
@@ -32,7 +38,9 @@ export interface IQiscus {
   onMessageDeleted(handler: (message: IQMessage) => void): Subscription
   onMessageDelivered(handler: (message: IQMessage) => void): Subscription
   onMessageRead(handler: (message: IQMessage) => void): Subscription
-  onUserTyping(handler: (userId: string, roomId: number, isTyping: boolean) => void): Subscription
+  onUserTyping(
+    handler: (userId: string, roomId: number, isTyping: boolean) => void
+  ): Subscription
   onUserOnlinePresence(
     handler: (userId: string, isOnline: boolean, lastSeen: Date) => void
   ): Subscription
@@ -55,9 +63,18 @@ export interface IQiscus {
     extras: object,
     callback: IQCallback<IQUser>
   ): void | Promise<IQUser>
-  setUserWithIdentityToken(token: string, callback?: IQCallback<IQUser>): void | Promise<IQUser>
-  blockUser(userId: string, callback?: IQCallback<IQUser>): void | Promise<IQUser>
-  unblockUser(userId: string, callback?: IQCallback<IQUser>): void | Promise<IQUser>
+  setUserWithIdentityToken(
+    token: string,
+    callback?: IQCallback<IQUser>
+  ): void | Promise<IQUser>
+  blockUser(
+    userId: string,
+    callback?: IQCallback<IQUser>
+  ): void | Promise<IQUser>
+  unblockUser(
+    userId: string,
+    callback?: IQCallback<IQUser>
+  ): void | Promise<IQUser>
   getBlockedUsers(
     page?: number,
     limit?: number,
@@ -82,7 +99,11 @@ export interface IQiscus {
   clearUser(callback?: IQCallback<void>): void
 
   // from RoomAdapter ----------
-  chatUser(userId: string, extras: object, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
+  chatUser(
+    userId: string,
+    extras: object,
+    callback?: IQCallback<IQRoom>
+  ): void | Promise<IQRoom>
   createGroupChat(
     name: string,
     userIds: string[],
@@ -97,7 +118,10 @@ export interface IQiscus {
     extras: object,
     callback?: IQCallback<IQRoom>
   ): void | Promise<IQRoom>
-  getChannel(uniqueId: string, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
+  getChannel(
+    uniqueId: string,
+    callback?: IQCallback<IQRoom>
+  ): void | Promise<IQRoom>
   updateChatRoom(
     roomId: number,
     name: string,
@@ -115,7 +139,10 @@ export interface IQiscus {
     userIds: string[],
     callback?: IQCallback<IQParticipant[]>
   ): void | Promise<IQParticipant[] | string[]>
-  getChatRoomWithMessages(roomId: number, callback?: IQCallback<IQRoom>): void | Promise<IQRoom>
+  getChatRoomWithMessages(
+    roomId: number,
+    callback?: IQCallback<IQRoom>
+  ): void | Promise<IQRoom>
   getChatRooms(
     roomIds: number[],
     page?: number,
@@ -230,18 +257,18 @@ export interface IQUserAdapter {
     userId: string,
     userKey: string,
     extra: IQUserExtraProps
-  ): Promise<IQUser>;
-  clear(): void;
-  updateUser(name: string, avatarUrl: string, extras: string): Promise<IQUser>;
-  getNonce(): Promise<QNonce>;
-  setUserFromIdentityToken(token: string): Promise<IQUser>;
-  getUserList(query: string, page?: number, limit?: number): Promise<IQUser[]>;
-  getBlockedUser(page?: number, limit?: number): Promise<IQUser[]>;
-  blockUser(userId: string): Promise<IQUser>;
-  unblockUser(userId: string): Promise<IQUser>;
-  getUserData(): Promise<IQUser>;
-  registerDeviceToken(token: string, isDevelopment: boolean): Promise<boolean>;
-  unregisterDeviceToken(token: string, isDevelopment: boolean): Promise<boolean>;
+  ): Promise<IQUser>
+  clear(): void
+  updateUser(name: string, avatarUrl: string, extras: string): Promise<IQUser>
+  getNonce(): Promise<QNonce>
+  setUserFromIdentityToken(token: string): Promise<IQUser>
+  getUserList(query: string, page?: number, limit?: number): Promise<IQUser[]>
+  getBlockedUser(page?: number, limit?: number): Promise<IQUser[]>
+  blockUser(userId: string): Promise<IQUser>
+  unblockUser(userId: string): Promise<IQUser>
+  getUserData(): Promise<IQUser>
+  registerDeviceToken(token: string, isDevelopment: boolean): Promise<boolean>
+  unregisterDeviceToken(token: string, isDevelopment: boolean): Promise<boolean>
 
   readonly token: Derivable<string>
   readonly currentUser: Derivable<IQUser>
@@ -292,7 +319,12 @@ export interface IQRoomAdapter {
     limit?: number
   ): Promise<IQRoom[]>
   getRoom(roomId: number): Promise<IQRoom>
-  getChannel(uniqueId: string, name?: string, avatarUrl?: string, extras?: string): Promise<IQRoom>
+  getChannel(
+    uniqueId: string,
+    name?: string,
+    avatarUrl?: string,
+    extras?: string
+  ): Promise<IQRoom>
   updateRoom(
     roomId: number,
     name?: string | null,
@@ -304,10 +336,21 @@ export interface IQRoomAdapter {
     offset?: number | null,
     sorting?: 'asc' | 'desc' | null
   ): Promise<IQParticipant[]>
-  createGroup(name: string, userIds: string[], avatarUrl?: string, extras?: string): Promise<IQRoom>
-  removeParticipants(roomId: number, participantIds: string[]): Promise<IQParticipant[]>
+  createGroup(
+    name: string,
+    userIds: string[],
+    avatarUrl?: string,
+    extras?: string
+  ): Promise<IQRoom>
+  removeParticipants(
+    roomId: number,
+    participantIds: string[]
+  ): Promise<IQParticipant[]>
 
-  addParticipants(roomId: number, participantIds: string[]): Promise<IQParticipant[]>
+  addParticipants(
+    roomId: number,
+    participantIds: string[]
+  ): Promise<IQParticipant[]>
 
   getRoomInfo(
     roomId?: number[],

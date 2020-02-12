@@ -9,7 +9,7 @@ export const listStorageFactory = <T extends unknown>() => {
       if (!storage.has(id)) storage.set(id, valueIfNull)
       return storage.get(id)
     },
-    [Symbol.iterator]: storage[Symbol.iterator]
+    [Symbol.iterator]: storage[Symbol.iterator],
   }
 }
 export type ListStorageFactory = ReturnType<typeof listStorageFactory>
@@ -42,10 +42,13 @@ export const storageFactory = () => {
 
     getSyncInterval: makeGetter<number>('sync-interval', 5000),
     setSyncInterval: makeSetter<number>('sync-interval'),
-    getSyncIntervalWhenConnected:
-      makeGetter<number>('sync-interval-when-connected', 30000),
-    setSyncIntervalWhenConnected:
-      makeSetter<number>('sync-interval-when-connected'),
+    getSyncIntervalWhenConnected: makeGetter<number>(
+      'sync-interval-when-connected',
+      30000
+    ),
+    setSyncIntervalWhenConnected: makeSetter<number>(
+      'sync-interval-when-connected'
+    ),
     getVersion: makeGetter<string>('version'),
     setVersion: makeSetter<string>('version'),
     getAccSyncInterval: makeGetter<number>('acc-sync-interval', 1000),

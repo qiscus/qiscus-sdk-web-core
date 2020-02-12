@@ -1,4 +1,3 @@
-
 export interface IQUser {
   id: string
   name: string

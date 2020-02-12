@@ -3,7 +3,9 @@ import { IQUser, IQChatRoom, IQMessage } from './model'
 import * as Encode from './encoder'
 import { tryCatch } from './utils/try-catch'
 
-export const request = <Resp extends unknown>(api: Partial<Api>): Promise<Resp> => {
+export const request = <Resp extends unknown>(
+  api: Partial<Api>
+): Promise<Resp> => {
   return axios({
     method: api.method,
     baseURL: api.baseUrl,
@@ -48,8 +50,14 @@ const useHeaders: FnHeaders = () => o => ({
 type FnParams = <O>(fn: (o: O) => Json<any>) => ApiRequest<O>
 const useParams: FnParams = fn => o => ({ params: fn(o) })
 
-type FnUrl = (method: Api['method']) => <O extends Partial<Api>>(url: Api['url']) => ApiRequest<O>
-const useUrl: FnUrl = method => url => o => ({ method, url, baseUrl: o.baseUrl })
+type FnUrl = (
+  method: Api['method']
+) => <O extends Partial<Api>>(url: Api['url']) => ApiRequest<O>
+const useUrl: FnUrl = method => url => o => ({
+  method,
+  url,
+  baseUrl: o.baseUrl,
+})
 const useGetUrl = useUrl('get')
 const usePostUrl = useUrl('post')
 const usePatchUrl = useUrl('patch')
@@ -64,10 +72,10 @@ const useBody: useBody = mapper => o => ({
 
 type compose = <O>(...fns: Array<ApiRequest<O>>) => (o: O) => Api
 const compose: compose = (...fns) => o => {
-  const { method, url, headers, params, body, baseUrl } = fns.reduce(
+  const { method, url, headers, params, body, baseUrl } = (fns.reduce(
     (acc, fn) => ({ ...acc, ...fn(o) }),
     o
-  ) as unknown as Api
+  ) as unknown) as Api
 
   return { method, url, headers, params, body, baseUrl }
 }
@@ -80,41 +88,49 @@ export type loginOrRegisterParams = {
   deviceToken?: string
   extras?: Record<string, unknown>
 }
-export const loginOrRegister: ApiRequest<loginOrRegisterParams & withHeaders> = compose(
+export const loginOrRegister: ApiRequest<loginOrRegisterParams &
+  withHeaders> = compose(
   usePostUrl('/login_or_register'),
   useHeaders(),
-  useBody(Encode.loginOrRegister),
+  useBody(Encode.loginOrRegister)
 )
 
 export const getNonce: ApiRequest<withHeaders> = compose(
   usePostUrl('/auth/nonce'),
-  useHeaders(),
+  useHeaders()
 )
 
-export const verifyIdentityToken: ApiRequest<{ identityToken: string } & withHeaders> = compose(
+export const verifyIdentityToken: ApiRequest<{
+  identityToken: string
+} & withHeaders> = compose(
   usePostUrl('/auth/verify_identity_token'),
   useHeaders(),
-  useBody(Encode.verifyIdentityToken),
+  useBody(Encode.verifyIdentityToken)
 )
 
 export const getProfile: ApiRequest<withCredentials> = compose(
   useGetUrl('/my_profile'),
-  useHeaders(),
+  useHeaders()
 )
-export const patchProfile: ApiRequest<Partial<IQUser> & withCredentials> = compose(
+export const patchProfile: ApiRequest<Partial<IQUser> &
+  withCredentials> = compose(
   usePatchUrl('/my_profile'),
   useCredentials(),
-  useBody((o) => Encode.patchProfile(o)),
+  useBody(o => Encode.patchProfile(o))
 )
 
-export const getUserList: ApiRequest<{ page?: number; limit?: number; query?: string } & withCredentials> = compose(
+export const getUserList: ApiRequest<{
+  page?: number
+  limit?: number
+  query?: string
+} & withCredentials> = compose(
   useGetUrl('get_user_list'),
   useCredentials(),
   useParams(o => ({
     page: o.page,
     limit: o.limit,
     query: o.query,
-  })),
+  }))
 )
 
 export const blockUser: ApiRequest<{
@@ -124,7 +140,7 @@ export const blockUser: ApiRequest<{
   useCredentials(),
   useBody(o => ({
     user_email: o.userId,
-  })),
+  }))
 )
 
 export const unblockUser: ApiRequest<{
@@ -132,26 +148,26 @@ export const unblockUser: ApiRequest<{
 } & withCredentials> = compose(
   usePostUrl('/unblock_user'),
   useCredentials(),
-  useBody((o) => ({
+  useBody(o => ({
     user_email: o.userId,
-  })),
+  }))
 )
 
 export const getBlockedUsers: ApiRequest<{
-  page?: number,
+  page?: number
   limit?: number
 } & withCredentials> = compose(
   useGetUrl('/get_blocked_users'),
   useCredentials(),
-  useParams((o) => ({
+  useParams(o => ({
     page: String(o.page),
     limit: String(o.limit),
-  })),
+  }))
 )
 
 export const getTotalUnreadCount: ApiRequest<{} & withCredentials> = compose(
   useGetUrl('/total_unread_count'),
-  useCredentials(),
+  useCredentials()
 )
 
 export const createRoom: ApiRequest<{
@@ -167,7 +183,7 @@ export const createRoom: ApiRequest<{
     participants: it.userIds,
     avatar_url: it.avatarUrl,
     options: tryCatch(() => JSON.stringify(it.extras), ''),
-  })),
+  }))
 )
 
 export const getOrCreateRoomWithTarget: ApiRequest<{
@@ -179,7 +195,7 @@ export const getOrCreateRoomWithTarget: ApiRequest<{
   useBody(o => ({
     emails: o.userIds,
     options: o.extras,
-  })),
+  }))
 )
 
 export const getOrCreateRoomWithUniqueId: ApiRequest<{
@@ -192,19 +208,21 @@ export const getOrCreateRoomWithUniqueId: ApiRequest<{
   useCredentials(),
   useBody(o => ({
     unique_id: o.uniqueId,
-  })),
+  }))
 )
 
-export const getRoomById: ApiRequest<{ id: IQChatRoom['id'] } & withCredentials> = compose(
+export const getRoomById: ApiRequest<{
+  id: IQChatRoom['id']
+} & withCredentials> = compose(
   useGetUrl('/get_room_by_id'),
   useCredentials(),
-  useParams(o => ({ id: o.id })),
+  useParams(o => ({ id: o.id }))
 )
 
 export const updateRoom: ApiRequest<{
-  id: IQChatRoom['id'],
-  name?: IQChatRoom['name'],
-  avatarUrl?: IQChatRoom['avatarUrl'],
+  id: IQChatRoom['id']
+  name?: IQChatRoom['name']
+  avatarUrl?: IQChatRoom['avatarUrl']
   extras?: IQChatRoom['extras']
 } & withCredentials> = compose(
   usePostUrl('/update_room'),
@@ -214,16 +232,16 @@ export const updateRoom: ApiRequest<{
     room_name: o.name,
     avatar_url: o.avatarUrl,
     options: o.extras,
-  })),
+  }))
 )
 
 export const getUserRooms: ApiRequest<{
-  page?: number,
-  limit?: number,
-  type?: IQChatRoom['type'],
-  showParticipants?: boolean,
-  showRemoved?: boolean,
-  showEmpty?: boolean,
+  page?: number
+  limit?: number
+  type?: IQChatRoom['type']
+  showParticipants?: boolean
+  showRemoved?: boolean
+  showEmpty?: boolean
 } & withCredentials> = compose(
   useGetUrl('/user_rooms'),
   useCredentials(),
@@ -234,15 +252,15 @@ export const getUserRooms: ApiRequest<{
     show_removed: o.showRemoved ?? false,
     room_type: o.type ?? 'all',
     show_empty: o.showEmpty ?? false,
-  })),
+  }))
 )
 
 export const getRoomInfo: ApiRequest<{
-  roomIds?: IQChatRoom['id'][],
-  roomUniqueIds?: IQChatRoom['uniqueId'][],
-  showParticipants?: boolean,
-  showRemoved?: boolean,
-  page?: number,
+  roomIds?: IQChatRoom['id'][]
+  roomUniqueIds?: IQChatRoom['uniqueId'][]
+  showParticipants?: boolean
+  showRemoved?: boolean
+  page?: number
 } & withCredentials> = compose(
   usePostUrl('/rooms_info'),
   useCredentials(),
@@ -251,13 +269,13 @@ export const getRoomInfo: ApiRequest<{
     room_unique_id: o.roomUniqueIds,
     show_participants: o.showParticipants,
     show_removed: o.showRemoved,
-  })),
+  }))
 )
 
 export const getRoomParticipants: ApiRequest<{
-  uniqueId: IQChatRoom['uniqueId'],
-  page?: number,
-  limit?: number,
+  uniqueId: IQChatRoom['uniqueId']
+  page?: number
+  limit?: number
   sorting?: 'asc' | 'desc'
 } & withCredentials> = compose(
   useGetUrl('/room_participants'),
@@ -265,40 +283,40 @@ export const getRoomParticipants: ApiRequest<{
   useParams(o => ({
     room_unique_id: o.uniqueId,
     sorting: o.sorting ?? 'asc',
-  })),
+  }))
 )
 
 export const addRoomParticipants: ApiRequest<{
-  id: IQChatRoom['id'],
-  userIds: IQUser['id'][],
+  id: IQChatRoom['id']
+  userIds: IQUser['id'][]
 } & withCredentials> = compose(
   usePostUrl('/add_room_participants'),
   useCredentials(),
   useBody(o => ({
     room_id: o.id.toString(),
     emails: o.userIds,
-  })),
+  }))
 )
 
 export const removeRoomParticipants: ApiRequest<{
-  id: IQChatRoom['id'],
-  userIds: IQUser['id'][],
+  id: IQChatRoom['id']
+  userIds: IQUser['id'][]
 } & withCredentials> = compose(
   usePostUrl('/remove_room_participants'),
   useCredentials(),
   useBody(o => ({
     room_id: o.id.toString(),
     emails: o.userIds,
-  })),
+  }))
 )
 
 export const postComment: ApiRequest<{
-  roomId: IQChatRoom['id'],
-  text: IQMessage['text'],
-  uniqueId: IQMessage['uniqueId'],
-  type: IQMessage['type'],
-  payload?: IQMessage['payload'],
-  extras?: IQMessage['extras'],
+  roomId: IQChatRoom['id']
+  text: IQMessage['text']
+  uniqueId: IQMessage['uniqueId']
+  type: IQMessage['type']
+  payload?: IQMessage['payload']
+  extras?: IQMessage['extras']
 } & withCredentials> = compose(
   usePostUrl('/post_comment'),
   useCredentials(),
@@ -309,13 +327,13 @@ export const postComment: ApiRequest<{
     type: o.type,
     payload: o.payload,
     extras: o.extras,
-  })),
+  }))
 )
 export const getComment: ApiRequest<{
-  roomId: IQChatRoom['id'],
-  lastMessageId: IQMessage['id'],
-  after?: boolean,
-  limit?: number,
+  roomId: IQChatRoom['id']
+  lastMessageId: IQMessage['id']
+  after?: boolean
+  limit?: number
 } & withCredentials> = compose(
   useGetUrl('/load_comments'),
   useCredentials(),
@@ -324,12 +342,12 @@ export const getComment: ApiRequest<{
     last_comment_id: o.lastMessageId,
     after: o.after,
     limit: o.limit,
-  })),
+  }))
 )
 export const updateCommentStatus: ApiRequest<{
-  roomId: IQChatRoom['id'],
-  lastReadId?: IQMessage['id'],
-  lastReceivedId?: IQMessage['id'],
+  roomId: IQChatRoom['id']
+  lastReadId?: IQMessage['id']
+  lastReceivedId?: IQMessage['id']
 } & withCredentials> = compose(
   usePostUrl('/update_comment_status'),
   useCredentials(),
@@ -337,12 +355,12 @@ export const updateCommentStatus: ApiRequest<{
     room_id: o.roomId.toString(),
     last_comment_read_id: o.lastReadId?.toString(),
     last_comment_received_id: o.lastReceivedId?.toString(),
-  })),
+  }))
 )
 export const searchMessages: ApiRequest<{
-  query: string,
-  roomId?: IQChatRoom['id'],
-  page?: number,
+  query: string
+  roomId?: IQChatRoom['id']
+  page?: number
 } & withCredentials> = compose(
   usePostUrl('/search_messages'),
   useCredentials(),
@@ -350,11 +368,11 @@ export const searchMessages: ApiRequest<{
     query: o.query,
     room_id: o.roomId,
     page: o.page,
-  })),
+  }))
 )
 
 export const deleteMessages: ApiRequest<{
-  uniqueIds: IQMessage['uniqueId'][],
+  uniqueIds: IQMessage['uniqueId'][]
 } & withCredentials> = compose(
   useDeleteUrl('/delete_messages'),
   useCredentials(),
@@ -362,7 +380,7 @@ export const deleteMessages: ApiRequest<{
     unique_ids: o.uniqueIds,
     is_delete_for_everyone: true,
     is_hard_delete: true,
-  })),
+  }))
 )
 
 export const clearRooms: ApiRequest<{
@@ -372,12 +390,12 @@ export const clearRooms: ApiRequest<{
   useCredentials(),
   useParams(o => ({
     room_channel_ids: o.uniqueIds,
-  })),
+  }))
 )
 
 export const setDeviceToken: ApiRequest<{
-  deviceToken: string,
-  isDevelopment?: boolean,
+  deviceToken: string
+  isDevelopment?: boolean
 } & withCredentials> = compose(
   usePostUrl('/set_user_device_token'),
   useCredentials(),
@@ -385,11 +403,11 @@ export const setDeviceToken: ApiRequest<{
     device_token: o.deviceToken,
     device_platform: 'rn',
     is_development: o.isDevelopment ?? false,
-  })),
+  }))
 )
 export const removeDeviceToken: ApiRequest<{
-  deviceToken: string,
-  isDevelopment?: boolean,
+  deviceToken: string
+  isDevelopment?: boolean
 } & withCredentials> = compose(
   usePostUrl('/remove_user_device_token'),
   useCredentials(),
@@ -397,27 +415,27 @@ export const removeDeviceToken: ApiRequest<{
     device_token: o.deviceToken,
     device_platform: 'rn',
     is_development: o.isDevelopment ?? false,
-  })),
+  }))
 )
 
 export const synchronize: ApiRequest<{
-  lastMessageId?: IQMessage['id'],
-  limit?: number,
+  lastMessageId?: IQMessage['id']
+  limit?: number
 } & withCredentials> = compose(
   useGetUrl('/sync'),
   useCredentials(),
   useParams(o => ({
     last_received_comment_id: o.lastMessageId ?? 0,
     limit: o.limit,
-  })),
+  }))
 )
 
 export const synchronizeEvent: ApiRequest<{
-  lastEventId?: string,
+  lastEventId?: string
 } & withCredentials> = compose(
   useGetUrl('/sync_event'),
   useCredentials(),
   useParams(o => ({
     start_event_id: o.lastEventId ?? 0,
-  })),
+  }))
 )

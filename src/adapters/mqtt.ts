@@ -23,125 +23,126 @@ const reCustomEvent = /^r\/[\w]+\/[\w]+\/e$/i
 
 // region Type
 export type MqttMessage = {
-  id: number;
-  comment_before_id: number;
-  message: string;
-  username: string;
-  email: string;
-  user_avatar: string;
-  timestamp: string;
-  unix_timestamp: number;
-  created_at: Date;
-  room_id: number;
-  room_name: string;
-  topic_id: number;
-  unique_temp_id: string;
-  disable_link_preview: boolean;
-  chat_type: string;
-  comment_before_id_str: string;
-  extras: object;
-  is_public_channel: boolean;
-  payload: object;
-  raw_room_name: string;
-  room_avatar: string;
-  room_id_str: string;
-  room_options: string;
-  room_type: string;
-  status: string;
-  topic_id_str: string;
-  type: string;
-  unix_nano_timestamp: number;
-  user_avatar_url: string;
-  user_id: number;
-  user_id_str: string;
-};
+  id: number
+  comment_before_id: number
+  message: string
+  username: string
+  email: string
+  user_avatar: string
+  timestamp: string
+  unix_timestamp: number
+  created_at: Date
+  room_id: number
+  room_name: string
+  topic_id: number
+  unique_temp_id: string
+  disable_link_preview: boolean
+  chat_type: string
+  comment_before_id_str: string
+  extras: object
+  is_public_channel: boolean
+  payload: object
+  raw_room_name: string
+  room_avatar: string
+  room_id_str: string
+  room_options: string
+  room_type: string
+  status: string
+  topic_id_str: string
+  type: string
+  unix_nano_timestamp: number
+  user_avatar_url: string
+  user_id: number
+  user_id_str: string
+}
 export type MqttNotification = {
-  id: number;
-  timestamp: number;
-  action_topic: string;
+  id: number
+  timestamp: number
+  action_topic: string
   payload: {
     actor: {
-      id: string;
-      email: string;
-      name: string;
-    };
+      id: string
+      email: string
+      name: string
+    }
     data: {
       deleted_messages: [
         {
-          message_unique_ids: string[];
-          room_id: string;
+          message_unique_ids: string[]
+          room_id: string
         }
-      ];
-      is_hard_delete: boolean;
+      ]
+      is_hard_delete: boolean
       deleted_rooms: [
         {
-          avatar_url: string;
-          chat_type: string;
-          id: number;
-          id_str: string;
-          options: object;
-          raw_room_name: string;
-          room_name: string;
-          unique_id: string;
-          last_comment: object;
+          avatar_url: string
+          chat_type: string
+          id: number
+          id_str: string
+          options: object
+          raw_room_name: string
+          room_name: string
+          unique_id: string
+          last_comment: object
         }
-      ];
-    };
-  };
-};
+      ]
+    }
+  }
+}
 export type MqttMessageReceived = {
-  message: MqttMessage;
-};
+  message: MqttMessage
+}
 export type MqttMessageDelivery = {
-  roomId: number;
-  userId: string;
-  messageId: string;
-  messageUniqueId: string;
-};
+  roomId: number
+  userId: string
+  messageId: string
+  messageUniqueId: string
+}
 export type MqttUserPresence = {
-  userId: string;
-  isOnline: boolean;
-  lastSeen: Date;
-};
+  userId: string
+  isOnline: boolean
+  lastSeen: Date
+}
 export type MqttUserTyping = {
-  isTyping: boolean;
-  userId: string;
-  roomId: number;
-};
-export type MqttCustomEvent = { roomId: number; payload: any };
+  isTyping: boolean
+  userId: string
+  roomId: number
+}
+export type MqttCustomEvent = { roomId: number; payload: any }
 
 interface Events {
-  'message::received': (message: m.IQMessage) => void;
-  'message::delivered': (message: MqttMessageDelivery) => void;
-  'message::read': (message: MqttMessageDelivery) => void;
-  'message::deleted': (data: { roomId: number; uniqueId: string }) => void;
-  'room::cleared': (roomId: number) => void;
-  'user::typing': (data: MqttUserTyping) => void;
-  'user::presence': (data: MqttUserPresence) => void;
-  'channel-message::new': (
-    message: { message: m.IQMessage, channelUniqueId: string },
-  ) => void;
-  'custom-event': (payload: MqttCustomEvent) => void;
-  'mqtt::connected': () => void;
-  'mqtt::disconnected': () => void;
-  'mqtt::reconnecting': () => void;
-  'mqtt::error': (err: string) => void;
+  'message::received': (message: m.IQMessage) => void
+  'message::delivered': (message: MqttMessageDelivery) => void
+  'message::read': (message: MqttMessageDelivery) => void
+  'message::deleted': (data: { roomId: number; uniqueId: string }) => void
+  'room::cleared': (roomId: number) => void
+  'user::typing': (data: MqttUserTyping) => void
+  'user::presence': (data: MqttUserPresence) => void
+  'channel-message::new': (message: {
+    message: m.IQMessage
+    channelUniqueId: string
+  }) => void
+  'custom-event': (payload: MqttCustomEvent) => void
+  'mqtt::connected': () => void
+  'mqtt::disconnected': () => void
+  'mqtt::reconnecting': () => void
+  'mqtt::error': (err: string) => void
   'mqtt::close': () => void
 }
 
 interface MQTTHandler {
-  (topic: string): (data: any) => void;
+  (topic: string): (data: any) => void
 }
 
 interface IQMqttHandler {
-  newMessage: MQTTHandler;
-  notificationHandler: MQTTHandler;
-  typingHandler: MQTTHandler;
-  deliveredHandler: MQTTHandler;
-  readHandler: MQTTHandler;
-  onlineHandler: MQTTHandler;
-  channelMessageHandler: MQTTHandler;
-  customEventHandler: MQTTHandler;
+  newMessage: MQTTHandler
+  notificationHandler: MQTTHandler
+  typingHandler: MQTTHandler
+  deliveredHandler: MQTTHandler
+  readHandler: MQTTHandler
+  onlineHandler: MQTTHandler
+  channelMessageHandler: MQTTHandler
+  customEventHandler: MQTTHandler
 }
 
 type _MqttClient = MqttClient & {
@@ -155,16 +156,18 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
       const message = tryCatch(
         () => Decoder.message(JSON.parse(data)),
         data,
-        (error) => console.log('error when parsing data', error),
+        error => console.log('error when parsing data', error)
       )
       emitter.emit('message::received', message)
     },
     customEventHandler: topic => data => {
       const topicData = reCustomEvent.exec(topic)
-      const roomId = parseInt(getOrThrow<string>(
-        topicData?.[1],
-        '`roomId` are null on customEventHandler'
-      ))
+      const roomId = parseInt(
+        getOrThrow<string>(
+          topicData?.[1],
+          '`roomId` are null on customEventHandler'
+        )
+      )
       const payload = JSON.parse(data)
       emitter.emit('custom-event', { roomId, payload })
     },
@@ -192,7 +195,10 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
       const topicData = reOnlineStatus.exec(topic)
       const payload = data.split(':')
       // const userId = topicData?.[1] ?? ''
-      const userId = getOrThrow<string>(topicData?.[1], '`userId` are null on onlineHandler')
+      const userId = getOrThrow<string>(
+        topicData?.[1],
+        '`userId` are null on onlineHandler'
+      )
       const isOnline = Number(payload[0]) === 1
       const lastSeen = new Date(Number(payload[1]))
       emitter.emit('user::presence', { userId, isOnline, lastSeen })
@@ -200,8 +206,17 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
     deliveredHandler: topic => data => {
       const topicData = reDelivery.exec(topic)
       const payload = data.split(':')
-      const roomId = parseInt(getOrThrow<string>(topicData?.[1], '`roomId` are null on deliveredHandler'), 10)
-      const userId = getOrThrow<string>(topicData?.[3], '`userId` are null on deliveredHandler')
+      const roomId = parseInt(
+        getOrThrow<string>(
+          topicData?.[1],
+          '`roomId` are null on deliveredHandler'
+        ),
+        10
+      )
+      const userId = getOrThrow<string>(
+        topicData?.[3],
+        '`userId` are null on deliveredHandler'
+      )
       const messageId = payload[0]
       const messageUniqueId = payload[1]
       emitter.emit('message::delivered', {
@@ -214,14 +229,20 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
     newMessage: _ => data => {
       const message: m.IQMessage = tryCatch(
         () => Decoder.message(JSON.parse(data)),
-        data,
+        data
       )
       emitter.emit('message::received', message)
     },
     readHandler: topic => data => {
       const topicData = reRead.exec(topic)
-      const roomId = parseInt(getOrThrow<string>(topicData?.[1], '`roomId` are null on readHandler'), 10)
-      const userId = getOrThrow<string>(topicData?.[3], '`userId` are null on readHandler')
+      const roomId = parseInt(
+        getOrThrow<string>(topicData?.[1], '`roomId` are null on readHandler'),
+        10
+      )
+      const userId = getOrThrow<string>(
+        topicData?.[3],
+        '`userId` are null on readHandler'
+      )
       const payload = data.split(':')
       const messageId = payload[0]
       const messageUniqueId = payload[1]
@@ -234,17 +255,24 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
     },
     typingHandler: topic => data => {
       const topicData = reTyping.exec(topic)
-      const roomId = parseInt(getOrThrow<string>(topicData?.[1], '`roomId` are null on typingHandler'), 10)
-      const userId = getOrThrow<string>(topicData?.[3], '`userId` are null on typingHandler')
+      const roomId = parseInt(
+        getOrThrow<string>(
+          topicData?.[1],
+          '`roomId` are null on typingHandler'
+        ),
+        10
+      )
+      const userId = getOrThrow<string>(
+        topicData?.[3],
+        '`userId` are null on typingHandler'
+      )
       const isTyping = Number(data) === 1
       emitter.emit('user::typing', { roomId, userId, isTyping })
     },
   }
 }
 
-export default function getMqttAdapter(
-  s: Storage,
-) {
+export default function getMqttAdapter(s: Storage) {
   let mqtt: _MqttClient | undefined = undefined
   let cacheUrl: string = s.getBrokerUrl()
   const emitter = new EventEmitter<Events>()
@@ -264,13 +292,15 @@ export default function getMqttAdapter(
     [when()]: (topic: string) => (message: any) =>
       logger.log('topic not handled', topic, message),
   })
-  const getMqttNode = () => axios.get(s.getBrokerLbUrl())
-    .then(it => it.data)
-    .then(res => {
-      const url = res.data.url
-      const port = res.data.wss_port
-      return `wss://${url}:${port}/mqtt`
-    })
+  const getMqttNode = () =>
+    axios
+      .get(s.getBrokerLbUrl())
+      .then(it => it.data)
+      .then(res => {
+        const url = res.data.url
+        const port = res.data.wss_port
+        return `wss://${url}:${port}/mqtt`
+      })
 
   const __mqtt_connected_handler = () => emitter.emit('mqtt::connected')
   const __mqtt_reconnect_handler = () => emitter.emit('mqtt::reconnecting')
@@ -320,31 +350,35 @@ export default function getMqttAdapter(
 
   cacheUrl = s.getBrokerUrl()
 
-  emitter.on('mqtt::close', debounce(async () => {
-    if (s.getCurrentUser() == null) return
-    if (!s.getBrokerLbEnabled()) return
+  emitter.on(
+    'mqtt::close',
+    debounce(async () => {
+      if (s.getCurrentUser() == null) return
+      if (!s.getBrokerLbEnabled()) return
 
-    if (intervalId !== -1) {
-      clearInterval(intervalId)
-      intervalId = -1
-    }
+      if (intervalId !== -1) {
+        clearInterval(intervalId)
+        intervalId = -1
+      }
 
-    // TODO: Need a better way to get all subscribed topics
-    const topics = Object.keys((mqtt as any)._resubscribeTopics)
-    const [url, err] = await wrapP(getMqttNode())
-    if (err) {
-      logger.log(
-        `cannot get new brokerUrl, using old url instead (${cacheUrl})`)
-      mqtt = __mqtt_conneck(cacheUrl)
-    } else {
-      cacheUrl = url
-      logger.log(`connecting to new broker url ${url}`)
-      mqtt = __mqtt_conneck(url)
-    }
-    logger.log(`resubscribe to old topics ${topics}`)
-    topics.forEach(t => mqtt?.subscribe(t))
-  }, 300))
-  emitter.on('custom-event', (data) => {
+      // TODO: Need a better way to get all subscribed topics
+      const topics = Object.keys((mqtt as any)._resubscribeTopics)
+      const [url, err] = await wrapP(getMqttNode())
+      if (err) {
+        logger.log(
+          `cannot get new brokerUrl, using old url instead (${cacheUrl})`
+        )
+        mqtt = __mqtt_conneck(cacheUrl)
+      } else {
+        cacheUrl = url
+        logger.log(`connecting to new broker url ${url}`)
+        mqtt = __mqtt_conneck(url)
+      }
+      logger.log(`resubscribe to old topics ${topics}`)
+      topics.forEach(t => mqtt?.subscribe(t))
+    }, 300)
+  )
+  emitter.on('custom-event', data => {
     const roomId = data.roomId
     if (subscribedCustomEventTopics.has(roomId)) {
       const callback = subscribedCustomEventTopics.get(roomId)
@@ -355,7 +389,7 @@ export default function getMqttAdapter(
   function sendPresence(
     mqttClient: MqttClient | undefined,
     userId: string,
-    isOnline: boolean,
+    isOnline: boolean
   ) {
     const status = isOnline ? '1' : '0'
     mqttClient?.publish(`u/${userId}/s`, status, {
@@ -364,12 +398,15 @@ export default function getMqttAdapter(
   }
 
   return {
-    get mqtt() { return mqtt },
+    get mqtt() {
+      return mqtt
+    },
     clear() {
       // sendPresence(mqtt, userId, false)
       clearInterval(intervalId)
-      Object.keys(mqtt?._resubscribeTopics ?? {})
-        .forEach(it => mqtt?.unsubscribe(it))
+      Object.keys(mqtt?._resubscribeTopics ?? {}).forEach(it =>
+        mqtt?.unsubscribe(it)
+      )
       mqtt?.end()
     },
     conneck() {
@@ -435,7 +472,7 @@ export default function getMqttAdapter(
       return () => emitter.off('room::cleared', callback)
     },
     onUserPresence(
-      callback: (userId: string, isOnline: boolean, lastSeen: Date) => void,
+      callback: (userId: string, isOnline: boolean, lastSeen: Date) => void
     ): () => void {
       const handler = (data: MqttUserPresence) => {
         callback(data.userId, data.isOnline, data.lastSeen)
@@ -444,7 +481,7 @@ export default function getMqttAdapter(
       return () => emitter.off('user::presence', handler)
     },
     onUserTyping(
-      callback: (userId: string, roomId: number, isTyping: boolean) => void,
+      callback: (userId: string, roomId: number, isTyping: boolean) => void
     ): () => void {
       const handler = (data: MqttUserTyping) => {
         callback(data.userId, data.roomId, data.isTyping)
@@ -477,19 +514,13 @@ export default function getMqttAdapter(
       sendPresence(mqtt, userId, isOnline)
     },
     sendTyping(roomId: number, userId: string, isTyping: boolean): void {
-      const payload = isTyping
-        ? '1'
-        : '0'
+      const payload = isTyping ? '1' : '0'
       mqtt?.publish(`r/${roomId}/${roomId}/${userId}/t`, payload)
     },
     subscribeUser(userToken: string): Subscription {
-      mqtt
-        ?.subscribe(`${userToken}/c`)
-        ?.subscribe(`${userToken}/n`)
+      mqtt?.subscribe(`${userToken}/c`)?.subscribe(`${userToken}/n`)
       return () =>
-        mqtt
-          ?.unsubscribe(`${userToken}/c`)
-          ?.unsubscribe(`${userToken}/n`)
+        mqtt?.unsubscribe(`${userToken}/c`)?.unsubscribe(`${userToken}/n`)
     },
     subscribeUserPresence(userId: string): void {
       mqtt?.subscribe(`u/${userId}/s`)
