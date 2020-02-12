@@ -7,3 +7,6 @@ yarn-error.log
 /lib/
 /lib-esm/
 /types/
+/src/**/*.js
+/src/**/*.d.ts
+/src/**/*.js.map
