@@ -2,11 +2,11 @@
   "include": ["src", "types", "test"],
   "compilerOptions": {
     "target": "es5",
-    "module": "esnext",
+    "module": "CommonJS",
     "lib": ["dom", "esnext"],
     "declaration": true,
     "sourceMap": true,
-    "rootDir": "./",
+    "rootDir": "./src",
     "outDir": "lib",
     "strict": true,
     "noImplicitAny": true,
@@ -24,7 +24,7 @@
     "paths": {
       "*": ["src/*", "node_modules/*"]
     },
-    "jsx": "react",
+    "declarationDir": "./typings",
     "esModuleInterop": true
   }
 }

@@ -265,7 +265,7 @@ export const getRoomInfo: ApiRequest<{
   usePostUrl('/rooms_info'),
   useCredentials(),
   useBody(o => ({
-    room_id: o.roomIds,
+    room_id: o.roomIds?.map(it => it.toString()),
     room_unique_id: o.roomUniqueIds,
     show_participants: o.showParticipants,
     show_removed: o.showRemoved,

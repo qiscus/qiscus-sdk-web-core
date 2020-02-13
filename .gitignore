@@ -3,6 +3,7 @@
 /.idea/
 yarn-error.log
 
+/typings/
 /dist/
 /lib/
 /lib-esm/

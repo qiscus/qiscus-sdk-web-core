@@ -66,5 +66,6 @@ module.exports = env => {
     },
   }
 
-  return [baseConfig, cjsConfig]
+  // return [baseConfig, cjsConfig]
+  return baseConfig
 }

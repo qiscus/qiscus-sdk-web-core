@@ -3,17 +3,17 @@
   "version": "3.0.0-alpha.1",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
-  "main": "dist/index.js",
-  "typings": "dist/index.d.ts",
-  "module": "dist/qiscussdk.esm.js",
-  "browser": "dist/qiscussdk.umd.production.js",
+  "main": "lib/index.js",
+  "typings": "typings/index.d.ts",
+  "module": "lib-esm/index.js",
+  "browser": "dist/qiscus-sdk-javascript.umd.min.js",
   "files": [
     "dist"
   ],
   "scripts": {
     "serve": "serve dist -l 1234",
-    "clean": "rimraf dist",
-    "build": "npm-run-all build:lib:cjs build:lib:esm build:bundle",
+    "clean": "rimraf dist lib lib-esm",
+    "build": "npm-run-all clean build:lib:cjs build:lib:esm build:bundle",
     "build:lib:cjs": "tsc --build tsconfig.json",
     "build:lib:esm": "tsc -m es2015 --outDir lib-esm",
     "build:bundle": "webpack --env.production --env.target=web"
@@ -27,9 +27,9 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.7.4",
-    "core-js": "^3.4.7",
     "@sindresorhus/is": "^2.0.0",
-    "axios": "^0.19.0",
+    "axios": "^0.19.2",
+    "core-js": "^3.4.7",
     "cuid": "^2.1.6",
     "derivable": "^2.0.0-beta.3",
     "es6-symbol": "^3.1.3",
