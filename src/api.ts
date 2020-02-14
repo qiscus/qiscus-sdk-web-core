@@ -231,7 +231,7 @@ export const updateRoom: ApiRequest<{
     id: String(o.id),
     room_name: o.name,
     avatar_url: o.avatarUrl,
-    options: o.extras,
+    options: tryCatch(() => JSON.stringify(o.extras), null),
   }))
 )
 
