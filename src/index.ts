@@ -118,7 +118,7 @@ export default class Qiscus {
     appId: string,
     syncInterval: number = 5000,
     callback: IQCallback<model.IQUser>
-  ): void | Promise<model.IQUser> {
+  ): void {
     this.setupWithCustomServer(
       appId,
       undefined,
@@ -127,15 +127,6 @@ export default class Qiscus {
       syncInterval,
       callback
     )
-    return xs
-      .combine(
-        process(appId, isReqString({ appId })),
-        process(syncInterval, isReqNumber({ syncInterval })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .map(([appId, syncInterval]) => xs.fromPromise(this.setupAdapter.setup(appId, syncInterval)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
   }
 
   setupWithCustomServer(
@@ -145,7 +136,7 @@ export default class Qiscus {
     brokerLbUrl: string = this.storage.getBrokerLbUrl(),
     syncInterval: number = 5000,
     callback: IQCallback<model.IQUser>
-  ): void | Promise<model.IQUser> {
+  ): void {
     const defaultBaseUrl = this.storage.getBaseUrl()
     const defaultBrokerUrl = this.storage.getBrokerUrl()
     const defaultBrokerLbUrl = this.storage.getBrokerLbUrl()
@@ -179,7 +170,7 @@ export default class Qiscus {
     this.storage.setVersion('3-alpha')
     this.storage.setSyncInterval(5000)
 
-    return xs
+    xs
       .combine(
         process(appId, isReqString({ appId })),
         process(baseUrl, isReqString({ baseUrl })),

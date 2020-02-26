@@ -445,10 +445,10 @@ export const synchronizeEvent: ApiRequest<{
 )
 
 //##############################################################################################
-export const setup: ApiRequest<{
-  appId: string
-  syncInterval: number
-} & withHeaders> = compose(useGetUrl('/api/v2/sdk/config'), useHeaders())
+// export const setup: ApiRequest<{
+//   appId: string
+//   syncInterval: number
+// } & withHeaders> = compose(useGetUrl('/config'), useHeaders())
 
 export const setupWithCustomServer: ApiRequest<{
   appId: string
@@ -456,5 +456,5 @@ export const setupWithCustomServer: ApiRequest<{
   brokerUrl: string
   brokerLbUrl: string
   syncInterval: number
-} & withHeaders> = compose(useGetUrl('/api/v2/sdk/config'), useHeaders())
+} & withHeaders> = compose(useGetUrl('/config'), useHeaders())
 //##############################################################################################

@@ -4,15 +4,15 @@ import * as model from '../model'
 import * as Provider from '../provider'
 
 const getSetupAdapter = (s: Storage) => ({
-  setup(appId: string, syncInterval: number): Promise<model.IQUser> {
-    const apiConfig = Api.setup({
-      ...Provider.withBaseUrl(s),
-      ...Provider.withHeaders(s),
-      appId,
-      syncInterval,
-    })
-    return Api.request<GetSetupAppConfig.RootObject>(apiConfig).then()
-  },
+  // setup(appId: string, syncInterval: number): Promise<model.IQUser> {
+  //   const apiConfig = Api.setup({
+  //     ...Provider.withBaseUrl(s),
+  //     ...Provider.withHeaders(s),
+  //     appId,
+  //     syncInterval,
+  //   })
+  //   return Api.request<GetSetupAppConfig.RootObject>(apiConfig).then()
+  // },
 
   setupWithCustomServer(
     appId: string,
@@ -30,7 +30,9 @@ const getSetupAdapter = (s: Storage) => ({
       brokerLbUrl,
       syncInterval,
     })
-    return Api.request<GetSetupAppConfig.RootObject>(apiConfig).then()
+    return Api.request<GetSetupAppConfig.RootObject>(apiConfig).catch(
+      err => err
+    )
   },
 })
 
