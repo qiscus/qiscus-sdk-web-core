@@ -6,6 +6,7 @@ import getMessageAdapter from './adapters/message'
 import getRealtimeAdapter from './adapters/realtime'
 import getRoomAdapter from './adapters/room'
 import getUserAdapter from './adapters/user'
+import getSetupAdapter from './adapters/setup'
 import {
   Callback,
   IQCallback,
@@ -56,6 +57,7 @@ export default class Qiscus {
   // region Property
   private readonly hookAdapter = hookAdapterFactory()
   private readonly userAdapter = getUserAdapter(this.storage)
+  private readonly setupAdapter = getSetupAdapter(this.storage)
   private readonly realtimeAdapter = getRealtimeAdapter(this.storage)
   private readonly loggerAdapter = getLogger(this.storage)
   private readonly roomAdapter = getRoomAdapter(this.storage)
@@ -111,14 +113,29 @@ export default class Qiscus {
   }
   // endregion
 
-  setup(appId: string, syncInterval: number = 5000): void {
+  // Setup Adapter ----------------------------------------
+  setup(
+    appId: string,
+    syncInterval: number = 5000,
+    callback: IQCallback<model.IQUser>
+  ): void | Promise<model.IQUser> {
     this.setupWithCustomServer(
       appId,
       undefined,
       undefined,
       undefined,
-      syncInterval
+      syncInterval,
+      callback
     )
+    return xs
+      .combine(
+        process(appId, isReqString({ appId })),
+        process(syncInterval, isReqNumber({ syncInterval })),
+        process(callback, isOptCallback({ callback }))
+      )
+      .map(([appId, syncInterval]) => xs.fromPromise(this.setupAdapter.setup(appId, syncInterval)))
+      .compose(flattenConcurrently)
+      .compose(toCallbackOrPromise(callback))
   }
 
   setupWithCustomServer(
@@ -126,8 +143,9 @@ export default class Qiscus {
     baseUrl: string = this.storage.getBaseUrl(),
     brokerUrl: string = this.storage.getBrokerUrl(),
     brokerLbUrl: string = this.storage.getBrokerLbUrl(),
-    syncInterval: number = 5000
-  ): void {
+    syncInterval: number = 5000,
+    callback: IQCallback<model.IQUser>
+  ): void | Promise<model.IQUser> {
     const defaultBaseUrl = this.storage.getBaseUrl()
     const defaultBrokerUrl = this.storage.getBrokerUrl()
     const defaultBrokerLbUrl = this.storage.getBrokerLbUrl()
@@ -160,11 +178,37 @@ export default class Qiscus {
     this.storage.setDebugEnabled(false)
     this.storage.setVersion('3-alpha')
     this.storage.setSyncInterval(5000)
+
+    return xs
+      .combine(
+        process(appId, isReqString({ appId })),
+        process(baseUrl, isReqString({ baseUrl })),
+        process(brokerUrl, isReqString({ brokerUrl })),
+        process(brokerLbUrl, isReqString({ brokerLbUrl })),
+        process(syncInterval, isReqNumber({ syncInterval })),
+        process(callback, isOptCallback({ callback }))
+      )
+      .map(([
+        appId,
+        baseUrl,
+        brokerUrl,
+        brokerLbUrl,
+        syncInterval
+      ]) => xs.fromPromise(this.setupAdapter.setupWithCustomServer(
+        appId,
+        baseUrl,
+        brokerUrl,
+        brokerLbUrl,
+        syncInterval
+      )))
+      .compose(flattenConcurrently)
+      .compose(toCallbackOrPromise(callback))
   }
 
   setCustomHeader(headers: Record<string, string>): void {
     this._customHeaders.set(headers)
   }
+  // End Of Setup Adapter ----------------------------------
 
   // User Adapter ------------------------------------------
   setUser(
@@ -442,7 +486,7 @@ export default class Qiscus {
       .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
-  // -------------------------------------------------------
+  // End Of User Adapter -----------------------------------
 
   // Room Adapter ------------------------------------------
   chatUser(
@@ -703,7 +747,7 @@ export default class Qiscus {
       .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
-  // ------------------------------------------------------
+  // End Of Room Adapter ----------------------------------
 
   // Message Adapter --------------------------------------
   sendMessage(
@@ -837,7 +881,7 @@ export default class Qiscus {
       .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
-  // -------------------------------------------------------
+  // End of Message Adapter --------------------------------
 
   // Misc --------------------------------------------------
   publishCustomEvent(
@@ -878,6 +922,7 @@ export default class Qiscus {
       .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
+
   publishTyping(roomId: number, isTyping?: boolean): void {
     this.realtimeAdapter.sendTyping(
       roomId,
@@ -894,6 +939,7 @@ export default class Qiscus {
     this.realtimeAdapter.mqtt.unsubscribeCustomEvent(roomId)
   }
 
+  //##############################################################################################
   upload(file: File, callback?: IQProgressListener): void {
     const data = new FormData()
     data.append('file', file)
@@ -916,6 +962,7 @@ export default class Qiscus {
       })
       .catch(error => callback?.(error))
   }
+  //##############################################################################################
 
   hasSetupUser(callback: IQCallback<boolean>): void | Promise<boolean> {
     return xs

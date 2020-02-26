@@ -26,12 +26,14 @@ export type Api = {
   headers?: Record<string, string>
   body?: Record<string, unknown>
 }
+
 export type withHeaders = {
   headers: {
     'qiscus-sdk-app-id': string
     'qiscus-sdk-version': string
   }
 }
+
 export type withCredentials = {
   headers: {
     'qiscus-sdk-token': string
@@ -88,6 +90,7 @@ export type loginOrRegisterParams = {
   deviceToken?: string
   extras?: Record<string, unknown>
 }
+
 export const loginOrRegister: ApiRequest<loginOrRegisterParams &
   withHeaders> = compose(
   usePostUrl('/login_or_register'),
@@ -112,6 +115,7 @@ export const getProfile: ApiRequest<withCredentials> = compose(
   useGetUrl('/my_profile'),
   useHeaders()
 )
+
 export const patchProfile: ApiRequest<Partial<IQUser> &
   withCredentials> = compose(
   usePatchUrl('/my_profile'),
@@ -231,7 +235,7 @@ export const updateRoom: ApiRequest<{
     id: String(o.id),
     room_name: o.name,
     avatar_url: o.avatarUrl,
-    options: tryCatch(() => JSON.stringify(o.extras), null),
+    options: o.extras,
   }))
 )
 
@@ -439,3 +443,18 @@ export const synchronizeEvent: ApiRequest<{
     start_event_id: o.lastEventId ?? 0,
   }))
 )
+
+//##############################################################################################
+export const setup: ApiRequest<{
+  appId: string
+  syncInterval: number
+} & withHeaders> = compose(useGetUrl('/api/v2/sdk/config'), useHeaders())
+
+export const setupWithCustomServer: ApiRequest<{
+  appId: string
+  baseUrl: string
+  brokerUrl: string
+  brokerLbUrl: string
+  syncInterval: number
+} & withHeaders> = compose(useGetUrl('/api/v2/sdk/config'), useHeaders())
+//##############################################################################################
