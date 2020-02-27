@@ -42,15 +42,15 @@ const getUserAdapter = (s: Storage) => ({
     // @ts-ignore
     s.setToken(undefined)
   },
-  blockUser(userId: string): void | any | Promise<model.IQUser> {
+  blockUser(userId: string): Promise<model.IQUser> {
     const apiConfig = Api.blockUser({
       ...Provider.withBaseUrl(s),
       ...Provider.withCredentials(s),
       userId: userId,
     })
-    return Api.request<BlockUserResponse.RootObject>(apiConfig)
-      .then(resp => Decoder.user(resp.results.user))
-      .then(apiConfig => console.log(apiConfig))
+    return Api.request<BlockUserResponse.RootObject>(apiConfig).then(resp =>
+      Decoder.user(resp.results.user)
+    )
   },
   getBlockedUser(
     page: number = 1,

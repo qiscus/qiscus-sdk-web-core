@@ -1,10 +1,9 @@
 import { Storage } from '../storage'
 import * as Api from '../api'
-import * as model from '../model'
 import * as Provider from '../provider'
 
 const getSetupAdapter = (s: Storage) => ({
-  setupWithCustomServer(): any | Promise<model.IQUser> {
+  setupWithCustomServer() {
     const apiConfig = Api.getConfig({
       ...Provider.withBaseUrl(s),
       ...Provider.withHeaders(s),
@@ -30,6 +29,5 @@ declare module GetSetupAppConfig {
 
   export interface RootObject {
     result: Results
-    status: number
   }
 }
