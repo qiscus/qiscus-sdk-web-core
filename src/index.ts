@@ -117,7 +117,7 @@ export default class Qiscus {
   setup(
     appId: string,
     syncInterval: number = 5000,
-    callback: IQCallback<model.IQUser>
+    callback: void
   ): void {
     this.setupWithCustomServer(
       appId,
@@ -135,7 +135,7 @@ export default class Qiscus {
     brokerUrl: string = this.storage.getBrokerUrl(),
     brokerLbUrl: string = this.storage.getBrokerLbUrl(),
     syncInterval: number = 5000,
-    callback: IQCallback<model.IQUser>
+    callback: void | IQCallback<model.IQUser>
   ): void {
     const defaultBaseUrl = this.storage.getBaseUrl()
     const defaultBrokerUrl = this.storage.getBrokerUrl()
@@ -179,21 +179,11 @@ export default class Qiscus {
         process(syncInterval, isReqNumber({ syncInterval })),
         process(callback, isOptCallback({ callback }))
       )
-      .map(([
-        appId,
-        baseUrl,
-        brokerUrl,
-        brokerLbUrl,
-        syncInterval
-      ]) => xs.fromPromise(this.setupAdapter.setupWithCustomServer(
-        appId,
-        baseUrl,
-        brokerUrl,
-        brokerLbUrl,
-        syncInterval
-      )))
+      .map(() => xs.fromPromise(this.setupAdapter.setupWithCustomServer()))
       .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .compose(toCallbackOrPromise())
+      // .then(err => console.log(err))
+      console.log(defaultBaseUrl);
   }
 
   setCustomHeader(headers: Record<string, string>): void {
@@ -241,7 +231,7 @@ export default class Qiscus {
   blockUser(
     userId: string,
     callback: IQCallback<model.IQUser>
-  ): void | Promise<model.IQUser> {
+  ): void | any | Promise<model.IQUser> {
     return xs
       .combine(
         process(userId, isReqString({ userId })),
@@ -250,7 +240,7 @@ export default class Qiscus {
       .compose(bufferUntil(() => this.isLogin))
       .map(([userId]) => xs.fromPromise(this.userAdapter.blockUser(userId)))
       .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      // .compose(toCallbackOrPromise(callback))
   }
 
   clearUser(callback: IQCallback<void>): void | Promise<void> {

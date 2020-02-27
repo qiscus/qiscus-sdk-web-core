@@ -4,35 +4,12 @@ import * as model from '../model'
 import * as Provider from '../provider'
 
 const getSetupAdapter = (s: Storage) => ({
-  // setup(appId: string, syncInterval: number): Promise<model.IQUser> {
-  //   const apiConfig = Api.setup({
-  //     ...Provider.withBaseUrl(s),
-  //     ...Provider.withHeaders(s),
-  //     appId,
-  //     syncInterval,
-  //   })
-  //   return Api.request<GetSetupAppConfig.RootObject>(apiConfig).then()
-  // },
-
-  setupWithCustomServer(
-    appId: string,
-    baseUrl: string,
-    brokerUrl: string,
-    brokerLbUrl: string,
-    syncInterval: number
-  ): Promise<model.IQUser> {
-    const apiConfig = Api.setupWithCustomServer({
+  setupWithCustomServer(): any | Promise<model.IQUser> {
+    const apiConfig = Api.getConfig({
       ...Provider.withBaseUrl(s),
       ...Provider.withHeaders(s),
-      appId,
-      baseUrl,
-      brokerUrl,
-      brokerLbUrl,
-      syncInterval,
     })
-    return Api.request<GetSetupAppConfig.RootObject>(apiConfig).catch(
-      err => err
-    )
+    return Api.request<GetSetupAppConfig.RootObject>(apiConfig)
   },
 })
 
@@ -53,5 +30,6 @@ declare module GetSetupAppConfig {
 
   export interface RootObject {
     result: Results
+    status: number
   }
 }

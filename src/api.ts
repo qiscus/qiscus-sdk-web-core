@@ -235,7 +235,7 @@ export const updateRoom: ApiRequest<{
     id: String(o.id),
     room_name: o.name,
     avatar_url: o.avatarUrl,
-    options: o.extras,
+    options: tryCatch(() => JSON.stringify(o.extras), null),
   }))
 )
 
@@ -445,16 +445,8 @@ export const synchronizeEvent: ApiRequest<{
 )
 
 //##############################################################################################
-// export const setup: ApiRequest<{
-//   appId: string
-//   syncInterval: number
-// } & withHeaders> = compose(useGetUrl('/config'), useHeaders())
-
-export const setupWithCustomServer: ApiRequest<{
-  appId: string
-  baseUrl: string
-  brokerUrl: string
-  brokerLbUrl: string
-  syncInterval: number
-} & withHeaders> = compose(useGetUrl('/config'), useHeaders())
+export const getConfig: ApiRequest<withHeaders> = compose(
+  useGetUrl('/config'),
+  useHeaders()
+)
 //##############################################################################################
