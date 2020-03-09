@@ -1,5 +1,5 @@
 {
-  "name": "qiscus-sdk-core",
+  "name": "qiscus-web-sdk-core",
   "version": "2.9.5",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
@@ -65,6 +65,7 @@
     "lodash.throttle": "^4.1.1",
     "mitt": "^1.2.0",
     "mqtt": "^3.0.0",
+    "qiscus-sdk-core": "^2.9.5",
     "superagent": "^3.6.3"
   },
   "babel": {

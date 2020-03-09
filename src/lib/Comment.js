@@ -2,12 +2,13 @@ import { format } from 'date-fns'
 import { escapeHTML } from './utils.js'
 
 class Comment {
-  constructor (comment) {
+  constructor(comment) {
     this.id = comment.id
     this.before_id = comment.comment_before_id
     this.message = escapeHTML(comment.message)
     this.username_as = comment.username_as || comment.username
     this.username_real = comment.username_real || comment.email
+    this.user_extras = comment.user_extras // ===================================== ==> EDITED added
     this.date = format(comment.timestamp, 'YYYY-MM-DD')
     this.time = format(comment.timestamp, 'HH:mm')
     this.timestamp = comment.timestamp
@@ -17,6 +18,7 @@ class Comment {
     this.isChannel = comment.is_public_channel
     this.unix_timestamp = comment.unix_timestamp
     this.extras = comment.extras
+
     /* comment status */
     this.is_deleted = comment.is_deleted
     this.isPending = false
@@ -30,7 +32,9 @@ class Comment {
 
     // manage comment type
     if (comment.type === 'reply') {
-      comment.payload.replied_comment_message = escapeHTML(comment.payload.replied_comment_message)
+      comment.payload.replied_comment_message = escapeHTML(
+        comment.payload.replied_comment_message
+      )
       comment.payload.text = escapeHTML(comment.payload.text)
     }
 
@@ -51,37 +55,40 @@ class Comment {
       this.markAsRead()
     }
   }
-  isAttachment (message) {
+  isAttachment(message) {
     return message.substring(0, '[file]'.length) === '[file]'
   }
-  isImageAttachment (message) {
-    return this.isAttachment(message) && message.match(/\.(jpg|jpeg|gif|png)/i) != null
+  isImageAttachment(message) {
+    return (
+      this.isAttachment(message) &&
+      message.match(/\.(jpg|jpeg|gif|png)/i) != null
+    )
   }
-  attachUniqueId (uniqueId) {
+  attachUniqueId(uniqueId) {
     this.unique_id = uniqueId
   }
-  getAttachmentURI (message) {
+  getAttachmentURI(message) {
     if (!this.isAttachment(message)) return
     const messageLength = message.length
     const beginIndex = '[file]'.length
     const endIndex = messageLength - '[/file]'.length
     return message.substring(beginIndex, endIndex).trim()
   }
-  setAttachment (attachment) {
+  setAttachment(attachment) {
     this.attachment = attachment
   }
-  markAsPending () {
+  markAsPending() {
     this.isPending = true
     this.isDelivered = false
     this.status = 'pending'
   }
-  markAsSent () {
+  markAsSent() {
     this.isSent = true
     this.isPending = false
     this.isFailed = false
     this.status = 'sent'
   }
-  markAsDelivered ({ actor, activeActorId } = {}) {
+  markAsDelivered({ actor, activeActorId } = {}) {
     if (actor === activeActorId) return
     if (this.isRead || this.status === 'read') return
     this.isSent = true
@@ -89,7 +96,7 @@ class Comment {
     this.isDelivered = true
     this.status = 'delivered'
   }
-  markAsRead ({ actor, activeActorId } = {}) {
+  markAsRead({ actor, activeActorId } = {}) {
     if (actor === activeActorId) return
     this.isPending = false
     this.isSent = true
@@ -97,14 +104,14 @@ class Comment {
     this.isRead = true
     this.status = 'read'
   }
-  markAsFailed () {
+  markAsFailed() {
     this.isFailed = true
     this.isPending = false
     this.isStatus = 'failed'
   }
   // usually called when there's new comment with the same id
   // we just need to update its content
-  update (data) {
+  update(data) {
     // update properties that usually change
     this.id = data.id
     this.before_id = data.comment_before_id
@@ -115,7 +122,9 @@ class Comment {
 
     // manage comment type
     if (data.type === 'reply') {
-      this.payload.replied_comment_message = escapeHTML(data.payload.replied_comment_message)
+      this.payload.replied_comment_message = escapeHTML(
+        data.payload.replied_comment_message
+      )
       this.payload.text = escapeHTML(data.payload.text)
     }
 
