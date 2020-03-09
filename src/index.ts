@@ -180,6 +180,15 @@ export default class Qiscus {
     )
       .map(() => xs.fromPromise(this.setupAdapter.setupWithCustomServer()))
       .compose(flattenConcurrently)
+      .compose(
+        tap(() => {
+          this.storage.setAppId(appId)
+          this.storage.setBaseUrl(baseUrl)
+          this.storage.setBrokerUrl(brokerUrl)
+          this.storage.setBrokerLbUrl(brokerLbUrl)
+          this.storage.setSyncInterval(syncInterval)
+        })
+      )
       .compose(toCallbackOrPromise())
   }
 
@@ -917,7 +926,6 @@ export default class Qiscus {
     this.realtimeAdapter.mqtt.unsubscribeCustomEvent(roomId)
   }
 
-  //##############################################################################################
   upload(file: File, callback?: IQProgressListener): void {
     const data = new FormData()
     data.append('file', file)
@@ -940,7 +948,6 @@ export default class Qiscus {
       })
       .catch(error => callback?.(error))
   }
-  //##############################################################################################
 
   hasSetupUser(callback: IQCallback<boolean>): void | Promise<boolean> {
     return xs
