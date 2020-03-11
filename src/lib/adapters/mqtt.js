@@ -6,18 +6,23 @@ import debounce from 'lodash.debounce'
 import { wrapP } from '../util'
 
 export default class MqttAdapter {
-  constructor (url, core, { brokerLbUrl, enableLb }) {
+  constructor(url, core, { brokerLbUrl, enableLb }) {
     const emitter = mitt()
 
     const matcher = match({
-      [when(this.reNewMessage)]: topic => this.newMessageHandler.bind(this, topic),
-      [when(this.reNotification)]: topic => this.notificationHandler.bind(this, topic),
-      [when(this.reTyping)]: topic => this.typingHandler.bind(this, topic),
-      [when(this.reDelivery)]: topic => this.deliveryReceiptHandler.bind(this, topic),
-      [when(this.reRead)]: topic => this.readReceiptHandler.bind(this, topic),
-      [when(this.reOnlineStatus)]: topic => this.onlinePresenceHandler.bind(this, topic),
-      [when(this.reChannelMessage)]: topic => this.channelMessageHandler.bind(this, topic),
-      [when()]: topic => this.logger('topic not handled', topic)
+      [when(this.reNewMessage)]: (topic) =>
+        this.newMessageHandler.bind(this, topic),
+      [when(this.reNotification)]: (topic) =>
+        this.notificationHandler.bind(this, topic),
+      [when(this.reTyping)]: (topic) => this.typingHandler.bind(this, topic),
+      [when(this.reDelivery)]: (topic) =>
+        this.deliveryReceiptHandler.bind(this, topic),
+      [when(this.reRead)]: (topic) => this.readReceiptHandler.bind(this, topic),
+      [when(this.reOnlineStatus)]: (topic) =>
+        this.onlinePresenceHandler.bind(this, topic),
+      [when(this.reChannelMessage)]: (topic) =>
+        this.channelMessageHandler.bind(this, topic),
+      [when()]: (topic) => this.logger('topic not handled', topic)
     })
 
     const __mqtt_connected_handler = () => {
@@ -35,12 +40,12 @@ export default class MqttAdapter {
       this.logger('message', t, m)
       if (func != null) func(message)
     }
-    const __mqtt_error_handler = err => {
+    const __mqtt_error_handler = (err) => {
       if (err && err.message === 'client disconnecting') return
       emitter.emit('error', err.message)
       this.logger('error', err.message)
     }
-    const __mqtt_conneck = brokerUrl => {
+    const __mqtt_conneck = (brokerUrl) => {
       if (this.mqtt != null) {
         this.mqtt.removeAllListeners()
         this.mqtt = null
@@ -86,7 +91,9 @@ export default class MqttAdapter {
         const topics = Object.keys(this.mqtt._resubscribeTopics)
         const [url, err] = await wrapP(this.getMqttNode())
         if (err) {
-          this.logger(`cannot get new brokerURL, using old url instead (${this.cacheRealtimeURL})`)
+          this.logger(
+            `cannot get new brokerURL, using old url instead (${this.cacheRealtimeURL})`
+          )
           this.mqtt = __mqtt_conneck(this.cacheRealtimeURL)
         } else {
           this.cacheRealtimeURL = url
@@ -94,90 +101,86 @@ export default class MqttAdapter {
           this.mqtt = __mqtt_conneck(url)
         }
         this.logger(`resubscribe to old topics ${topics}`)
-        topics.forEach(topic => this.mqtt.subscribe(topic))
+        topics.forEach((topic) => this.mqtt.subscribe(topic))
       }, 300)
     )
   }
 
-  async getMqttNode () {
+  async getMqttNode() {
     const res = await request.get(this.brokerLbUrl)
     const url = res.body.data.url
     const port = res.body.data.wss_port
     return `wss://${url}:${port}/mqtt`
   }
 
-  get connected () {
+  get connected() {
     return this.mqtt.connected
   }
 
-  subscribe (...args) {
+  subscribe(...args) {
     this.mqtt.subscribe(...args)
   }
 
-  unsubscribe (...args) {
+  unsubscribe(...args) {
     this.logger('unsubscribe from', args)
     this.mqtt.unsubscribe(...args)
   }
 
-  publish (topic, payload, options = {}) {
+  publish(topic, payload, options = {}) {
     return this.mqtt.publish(topic, payload.toString(), options)
   }
 
-  emit (...args) {
+  emit(...args) {
     this.emitter.emit(...args)
   }
 
-  on (...args) {
+  on(...args) {
     this.emitter.on(...args)
   }
 
-  get logger () {
+  get logger() {
     if (!this.core.debugMQTTMode) return this.noop
     return console.log.bind(console, 'QRealtime ->')
   }
 
-  disconnect () {
-    this.unsubscribe(Object.keys(this.mqtt._resubscribeTopics))
-  }
-
   // #region regexp
-  get reNewMessage () {
+  get reNewMessage() {
     return /^(.+)\/c$/i
   }
-  get reNotification () {
+  get reNotification() {
     return /^(.+)\/n$/i
   }
-  get reTyping () {
+  get reTyping() {
     return /^r\/([\d]+)\/([\d]+)\/(.+)\/t$/i
   }
-  get reDelivery () {
+  get reDelivery() {
     return /^r\/([\d]+)\/([\d]+)\/(.+)\/d$/i
   }
-  get reRead () {
+  get reRead() {
     return /^r\/([\d]+)\/([\d]+)\/(.+)\/r$/i
   }
-  get reOnlineStatus () {
+  get reOnlineStatus() {
     return /^u\/(.+)\/s$/i
   }
-  get reChannelMessage () {
+  get reChannelMessage() {
     return /^(.+)\/(.+)\/c$/i
   }
   // #endregion
 
-  noop () {}
+  noop() {}
 
-  newMessageHandler (topic, message) {
+  newMessageHandler(topic, message) {
     message = JSON.parse(message)
     this.logger('on:new-message', message)
     this.emit('new-message', message)
   }
 
-  notificationHandler (topic, message) {
+  notificationHandler(topic, message) {
     this.logger('on:notification', message)
     message = JSON.parse(message)
     const data = message.payload.data
     if ('deleted_messages' in data) {
-      data.deleted_messages.forEach(message => {
+      data.deleted_messages.forEach((message) => {
         this.emit('comment-deleted', {
           roomId: message.room_id,
           commentUniqueIds: message.message_unique_ids,
@@ -188,13 +191,13 @@ export default class MqttAdapter {
     }
 
     if ('deleted_rooms' in data) {
-      data.deleted_rooms.forEach(room => {
+      data.deleted_rooms.forEach((room) => {
         this.emit('room-cleared', room)
       })
     }
   }
 
-  typingHandler (t, message) {
+  typingHandler(t, message) {
     this.logger('on:typing', t)
     // r/{roomId}/{roomId}/{userId}/t
     const topic = t.match(this.reTyping)
@@ -213,7 +216,9 @@ export default class MqttAdapter {
     // it should be handled in the UI not core
     if (this.core.selected == null) return
     if (message === '1' && roomId === this.core.selected.id) {
-      const actor = this.core.selected.participants.find(it => it.email === userId)
+      const actor = this.core.selected.participants.find(
+        (it) => it.email === userId
+      )
       if (actor == null) return
       const displayName = actor.username
       this.core.isTypingStatus = `${displayName} is typing ...`
@@ -222,7 +227,7 @@ export default class MqttAdapter {
     }
   }
 
-  deliveryReceiptHandler (t, message) {
+  deliveryReceiptHandler(t, message) {
     this.logger('on:delivered', t, message)
     // r/{roomId}/{roomId}/{userId}/d
     const topic = t.match(this.reDelivery)
@@ -238,7 +243,7 @@ export default class MqttAdapter {
     })
   }
 
-  readReceiptHandler (t, message) {
+  readReceiptHandler(t, message) {
     this.logger('on:read', t, message)
     // r/{roomId}/{roomId}/{userId}/r
     const topic = t.match(this.reRead)
@@ -254,8 +259,8 @@ export default class MqttAdapter {
     })
   }
 
-  onlinePresenceHandler (topic, message) {
-    this.logger('on:online-presence', topic)
+  onlinePresenceHandler(topic, message) {
+    this.logger('on:online-presence', topic, message)
     // u/guest-1002/s
     const topicData = this.reOnlineStatus.exec(topic)
     const userId = topicData[1]
@@ -263,17 +268,17 @@ export default class MqttAdapter {
     this.emit('presence', { message, userId })
   }
 
-  channelMessageHandler (topic, message) {
+  channelMessageHandler(topic, message) {
     this.logger('on:channel-message', topic, message)
     this.emit('new-message', JSON.parse(message))
   }
 
   // #region old-methods
-  subscribeChannel (appId, uniqueId) {
+  subscribeChannel(appId, uniqueId) {
     this.subscribe(`${appId}/${uniqueId}/c`)
   }
 
-  subscribeRoom (roomId) {
+  subscribeRoom(roomId) {
     if (this.core.selected == null) return
     roomId = roomId || this.core.selected.id
     this.subscribe(`r/${roomId}/${roomId}/+/t`)
@@ -281,7 +286,7 @@ export default class MqttAdapter {
     this.subscribe(`r/${roomId}/${roomId}/+/r`)
   }
 
-  unsubscribeRoom (roomId) {
+  unsubscribeRoom(roomId) {
     if (this.core.selected == null) return
     roomId = roomId || this.core.selected.id
     this.unsubscribe(`r/${roomId}/${roomId}/+/t`)
@@ -289,40 +294,47 @@ export default class MqttAdapter {
     this.unsubscribe(`r/${roomId}/${roomId}/+/r`)
   }
 
-  get subscribeTyping () {
+  get subscribeTyping() {
     return this.subscribeRoom.bind(this)
   }
 
-  get unsubscribeTyping () {
+  get unsubscribeTyping() {
     return this.unsubscribeRoom.bind(this)
   }
 
-  subscribeUserChannel () {
+  subscribeUserChannel() {
     this.subscribe(`${this.core.userData.token}/c`)
     this.subscribe(`${this.core.userData.token}/n`)
   }
 
-  publishPresence (userId) {
-    this.publish(`u/${userId}/s`, 1, { retain: true })
+  publishPresence(userId, isOnline = true) {
+    isOnline
+      ? this.publish(`u/${userId}/s`, 1, { retain: true })
+      : this.publish(`u/${userId}/s`, 0, { retain: true })
   }
 
-  subscribeUserPresence (userId) {
+  disconnect() {
+    this.publishPresence(this.core.userData.email, false), // ===================================== ==> EDITED added
+      this.unsubscribe(Object.keys(this.mqtt._resubscribeTopics))
+  }
+
+  subscribeUserPresence(userId) {
     this.subscribe(`u/${userId}/s`)
   }
 
-  unsubscribeUserPresence (userId) {
+  unsubscribeUserPresence(userId) {
     this.unsubscribe(`u/${userId}/s`)
   }
 
-  get subscribeRoomPresence () {
+  get subscribeRoomPresence() {
     return this.subscribeUserPresence.bind(this)
   }
 
-  get unsubscribeRoomPresence () {
+  get unsubscribeRoomPresence() {
     return this.unsubscribeUserPresence.bind(this)
   }
 
-  publishTyping (status) {
+  publishTyping(status) {
     if (this.core.selected == null) return
     const roomId = this.core.selected.id
     const userId = this.core.user_id
