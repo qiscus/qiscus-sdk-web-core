@@ -1039,12 +1039,14 @@ class QiscusSDK {
   }
 
   updateProfile(user) {
-    return this.userAdapter.updateProfile(user).then(
-      (res) => {
+    return this.userAdapter
+      .updateProfile(user)
+      .then((res) => {
         this.events.emit('profile-updated', user)
-      },
-      (err) => console.log(err)
-    )
+        this.userData = res
+        return Promise.resolve(res)
+      },(err) => console.log(err))
+      // .then(resp => this.userData = resp)
   }
 
   getNonce() {
@@ -1096,7 +1098,6 @@ class QiscusSDK {
     payload,
     extras
   ) {
-    console.log('EXTRAS FROM sendComment at index.js => ', extras)
     const self = this
     // set extra data, etc
     if (self.options.prePostCommentCallback) {
