@@ -314,7 +314,7 @@ export default class MqttAdapter {
   }
 
   disconnect() {
-    this.publishPresence(this.core.userData.email, false), // ===================================== ==> EDITED added
+    this.publishPresence(this.core.userData.email, false),
       this.unsubscribe(Object.keys(this.mqtt._resubscribeTopics))
   }
 

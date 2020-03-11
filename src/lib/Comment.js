@@ -8,7 +8,7 @@ class Comment {
     this.message = escapeHTML(comment.message)
     this.username_as = comment.username_as || comment.username
     this.username_real = comment.username_real || comment.email
-    this.user_extras = comment.user_extras // ===================================== ==> EDITED added
+    this.user_extras = comment.user_extras
     this.date = format(comment.timestamp, 'YYYY-MM-DD')
     this.time = format(comment.timestamp, 'HH:mm')
     this.timestamp = comment.timestamp

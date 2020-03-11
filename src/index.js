@@ -446,8 +446,8 @@ class QiscusSDK {
       if (this.presensePublisherId != null && this.presensePublisherId !== -1) {
         clearInterval(this.presensePublisherId)
       }
-      this.presensePublisherId = // ================================ ==> EDITED from setInterval 3500
-        (setTimeout(() => this.realtimeAdapter.publishPresence(this.user_id, true)), // ========> ==> EDITED add true param
+      this.presensePublisherId = 
+        (setTimeout(() => this.realtimeAdapter.publishPresence(this.user_id, true)), 
         0)
 
       // if (this.sync === "http" || this.sync === "both") this.activateSync();
@@ -695,7 +695,7 @@ class QiscusSDK {
     this.events.emit('login-success', data)
   }
 
-  publishOnlinePresence(val) { // ==================================== ==> EDITED added function
+  publishOnlinePresence(val) { 
     this.realtimeAdapter.publishPresence(this.user_id, val)
   }
 
@@ -1046,7 +1046,6 @@ class QiscusSDK {
         this.userData = res
         return Promise.resolve(res)
       },(err) => console.log(err))
-      // .then(resp => this.userData = resp)
   }
 
   getNonce() {
@@ -1118,7 +1117,7 @@ class QiscusSDK {
       username_as: this.username,
       username_real: this.user_id,
       user_avatar_url: this.userData.avatar_url,
-      user_extras: this.userData.user_extras, // ============================= ==> EDITED
+      user_extras: this.userData.user_extras, 
       id: Math.round(Math.random() * 10e6),
       type: type || 'text',
       timestamp: format(new Date()),
