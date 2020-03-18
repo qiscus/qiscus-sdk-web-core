@@ -114,17 +114,18 @@ export default class Qiscus {
   // endregion
 
   // Setup Adapter ----------------------------------------
-  setup(
-    appId: string,
-    syncInterval: number = 5000,
-    callback: IQCallback<void>
-  ): void {
+  setup(appId: string, syncInterval: number = 5000, callback: void): void {
     this.setupWithCustomServer(
       appId,
       undefined,
       undefined,
       undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
       syncInterval,
+      undefined,
       callback
     )
   }
@@ -132,61 +133,134 @@ export default class Qiscus {
   setupWithCustomServer(
     appId: string,
     baseUrl: string = this.storage.getBaseUrl(),
-    brokerUrl: string = this.storage.getBrokerUrl(),
     brokerLbUrl: string = this.storage.getBrokerLbUrl(),
-    syncInterval: number = 5000,
-    callback: IQCallback<void>
+    brokerUrl: string = this.storage.getBrokerUrl(),
+    enableEventReport: boolean = this.storage.getEnableEventReport(),
+    enableRealtime: boolean = this.storage.getEnableRealtime(),
+    enableRealtimeCheck: boolean = this.storage.getEnableRealtimeCheck(),
+    extras: string = this.storage.getExtras(),
+    syncInterval: number = this.storage.getSyncInterval(),
+    syncOnConnect: number = this.storage.getSyncOnConnect(),
+    callback: void
   ): void {
-    const defaultBaseUrl = this.storage.getBaseUrl()
-    const defaultBrokerUrl = this.storage.getBrokerUrl()
-    const defaultBrokerLbUrl = this.storage.getBrokerLbUrl()
-
-    // We need to disable realtime load balancing if user are using custom server
-    // and did not provide a brokerLbUrl
-    const isDifferentBaseUrl = baseUrl !== defaultBaseUrl
-    const isDifferentBrokerUrl = brokerUrl !== defaultBrokerUrl
-    const isDifferentBrokerLbUrl = brokerLbUrl !== defaultBrokerLbUrl
-    // disable realtime lb if user change baseUrl or mqttUrl but did not change
-    // broker lb url
-    if (
-      (isDifferentBaseUrl || isDifferentBrokerUrl) &&
-      !isDifferentBrokerLbUrl
-    ) {
-      this.loggerAdapter.log(
-        '' +
-          'force disable load balancing for realtime server, because ' +
-          '`baseUrl` or `brokerUrl` get changed but ' +
-          'did not provide `brokerLbURL`'
-      )
-      this.storage.setBrokerLbEnabled(false)
-    }
-
     this.storage.setAppId(appId)
-    this.storage.setBaseUrl(baseUrl)
-    this.storage.setBrokerUrl(brokerUrl)
-    this.storage.setBrokerLbUrl(brokerLbUrl)
-    this.storage.setSyncInterval(syncInterval)
-    this.storage.setDebugEnabled(false)
-    this.storage.setVersion('3-alpha')
-    this.storage.setSyncInterval(5000)
+
+    // this.storage.setBaseUrl(baseUrl)
+    // this.storage.setBrokerLbUrl(brokerLbUrl)
+    // this.storage.setBrokerUrl(brokerUrl)
+    // this.storage.setEnableEventReport(enableEventReport)
+    // this.storage.setEnableRealtime(enableRealtime)
+    // this.storage.setEnableRealtimeCheck(enableRealtimeCheck)
+    // this.storage.setExtras(extras)
+    // this.storage.setSyncInterval(syncInterval)
+    // this.storage.setSyncOnConnect(syncOnConnect)
+
+    // this.storage.setDebugEnabled(false)
+    // this.storage.setVersion('3-alpha')
+    // this.storage.setSyncInterval(5000)
 
     xs.combine(
       process(appId, isReqString({ appId })),
       process(baseUrl, isReqString({ baseUrl })),
-      process(brokerUrl, isReqString({ brokerUrl })),
       process(brokerLbUrl, isReqString({ brokerLbUrl })),
+      process(brokerUrl, isReqString({ brokerUrl })),
+      process(enableEventReport, isReqBoolean({ enableEventReport })),
+      process(enableRealtime, isReqBoolean({ enableRealtime })),
+      process(enableRealtimeCheck, isReqBoolean({ enableRealtimeCheck })),
+      process(extras, isReqString({ extras })),
       process(syncInterval, isReqNumber({ syncInterval })),
+      process(syncOnConnect, isReqNumber({ syncOnConnect })),
       process(callback, isOptCallback({ callback }))
     )
       .map(() => xs.fromPromise(this.setupAdapter.setupWithCustomServer()))
       .compose(flattenConcurrently)
       .compose(
         tap(() => {
+          const defaultBaseUrl = this.storage.getBaseUrl()
+          const defaultBrokerLbUrl = this.storage.getBrokerLbUrl()
+          const defaultBrokerUrl = this.storage.getBrokerUrl()
+          const defaultEnableEventReport = this.storage.getEnableEventReport()
+          const defaultEnableRealtime = this.storage.getEnableRealtime()
+          const defaultEnableRealtimeCheck = this.storage.getEnableRealtimeCheck()
+          const defaultExtras = this.storage.getExtras()
+          const defaultSyncInterval = this.storage.getSyncInterval()
+          const defaultSyncOnConnect = this.storage.getSyncOnConnect()
+
+          // We need to disable realtime load balancing if user are using custom server & did not provide a brokerLbUrl
+          const isDifferentBaseUrl = baseUrl !== defaultBaseUrl
+          const isDifferentBrokerUrl = brokerUrl !== defaultBrokerUrl
+          const isDifferentBrokerLbUrl = brokerLbUrl !== defaultBrokerLbUrl
+          // disable realtime lb if user change baseUrl or mqttUrl but did not change broker lb url
+          if (
+            (isDifferentBaseUrl || isDifferentBrokerUrl) &&
+            !isDifferentBrokerLbUrl
+          ) {
+            this.loggerAdapter.log(
+              '' +
+                'force disable load balancing for realtime server, because ' +
+                '`baseUrl` or `brokerUrl` get changed but ' +
+                'did not provide `brokerLbURL`'
+            )
+            this.storage.setBrokerLbEnabled(false)
+          }
+
           this.storage.setAppId(appId)
-          this.storage.setBaseUrl(baseUrl)
-          this.storage.setBrokerUrl(brokerUrl)
-          this.storage.setBrokerLbUrl(brokerLbUrl)
-          this.storage.setSyncInterval(syncInterval)
+
+          // ===== TEST ===== //
+          const serverCall1 = this.setupAdapter.setupWithCustomServer()
+          this.loggerAdapter.log('test1 = ', serverCall1)
+
+          const serverCall2 = serverCall1.then(resp => resp)
+          this.loggerAdapter.log('test2 (resp) = ', serverCall2)
+
+          const serverCall3 = serverCall1.then(resp => resp.results.sync_interval)
+          this.loggerAdapter.log('test3 (resp.results.sync_interval) = ', serverCall3)
+
+          if (baseUrl !== defaultBaseUrl) {
+            this.storage.setBaseUrl(defaultBaseUrl)
+            // this.storage.setBaseUrl(serverBaseUrl)
+          }
+
+          if (brokerLbUrl !== defaultBrokerLbUrl) {
+            this.storage.setBrokerLbUrl(defaultBrokerLbUrl)
+          }
+
+          if (brokerUrl !== defaultBrokerUrl) {
+            this.storage.setBrokerUrl(defaultBrokerUrl)
+          }
+
+          if (enableEventReport !== defaultEnableEventReport) {
+            this.storage.setEnableEventReport(defaultEnableEventReport)
+          }
+
+          if (enableRealtime !== defaultEnableRealtime) {
+            this.storage.setEnableRealtime(defaultEnableRealtime)
+          }
+
+          if (enableRealtimeCheck !== defaultEnableRealtimeCheck) {
+            this.storage.setEnableRealtimeCheck(defaultEnableRealtimeCheck)
+          }
+
+          if (extras !== defaultExtras) {
+            this.storage.setExtras(defaultExtras)
+          }
+
+          if (syncInterval !== defaultSyncInterval) {
+            this.storage.setSyncInterval(defaultSyncInterval)
+          }
+
+          if (syncOnConnect !== defaultSyncOnConnect) {
+            this.storage.setSyncOnConnect(defaultSyncOnConnect)
+          }
+
+          // this.storage.setBrokerLbUrl(brokerLbUrl)
+          // this.storage.setBrokerUrl(brokerUrl)
+          // this.storage.setEnableEventReport(enableEventReport)
+          // this.storage.setEnableRealtime(enableRealtime)
+          // this.storage.setEnableRealtimeCheck(enableRealtimeCheck)
+          // this.storage.setExtras(extras)
+          // this.storage.setSyncInterval(syncInterval)
+          // this.storage.setSyncOnConnect(syncOnConnect)
         })
       )
       .compose(toCallbackOrPromise())

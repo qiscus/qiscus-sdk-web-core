@@ -16,18 +16,19 @@ export default getSetupAdapter
 
 // Response type
 declare module GetSetupAppConfig {
-  export interface Results {
+  export interface Result {
     base_url: string
     broker_lb_url: string
     broker_url: string
     enable_event_report: boolean
+    enable_realtime: boolean
+    enable_realtime_check: boolean
     extras: string
     sync_interval: number
-    enable_realtime: boolean
     sync_on_connect: number
   }
 
   export interface RootObject {
-    result: Results
+    results: Result
   }
 }

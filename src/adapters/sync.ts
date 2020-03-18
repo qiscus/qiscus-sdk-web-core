@@ -31,7 +31,7 @@ export default function getSyncAdapter(o: {
 
   const getInterval = (): number => {
     if (o.shouldSync()) return o.s.getSyncInterval()
-    return o.s.getSyncIntervalWhenConnected()
+    return o.s.getSyncOnConnect()
   }
 
   const sync = synchronizeFactory(

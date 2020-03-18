@@ -34,25 +34,32 @@ export const storageFactory = () => {
     getBaseUrl: makeGetter<string>('base-url', defaultBaseURL),
     setBaseUrl: makeSetter<string>('base-url'),
 
-    getBrokerUrl: makeGetter<string>('broker-url', defaultBrokerUrl),
-    setBrokerUrl: makeSetter<string>('broker-url'),
-
     getBrokerLbUrl: makeGetter<string>('broker-lb-url', defaultBrokerLbUrl),
     setBrokerLbUrl: makeSetter<string>('broker-lb-url'),
 
-    getUploadUrl: makeGetter<string>('upload-url', defaultUploadUrl),
-    setUploadUrl: makeSetter<string>('upload-url'),
+    getBrokerUrl: makeGetter<string>('broker-url', defaultBrokerUrl),
+    setBrokerUrl: makeSetter<string>('broker-url'),
+
+    getEnableEventReport: makeGetter<boolean>('enable-event-report', false), // ======= ==>EDITED added
+    setEnableEventReport: makeSetter<boolean>('enable-event-report'),
+
+    getEnableRealtime: makeGetter<boolean>('enable-realtime', true), // ======= ==>EDITED added
+    setEnableRealtime: makeSetter<boolean>('enable-realtime'),
+
+    getEnableRealtimeCheck: makeGetter<boolean>('enable-realtime-check', true), // ======= ==>EDITED added
+    setEnableRealtimeCheck: makeSetter<boolean>('enable-realtime-check'),
+
+    getExtras: makeGetter<string>('extras', ''), // ======= ==>EDITED added
+    setExtras: makeSetter<string>('extras'),
 
     getSyncInterval: makeGetter<number>('sync-interval', 5000),
     setSyncInterval: makeSetter<number>('sync-interval'),
 
-    getSyncIntervalWhenConnected: makeGetter<number>(
-      'sync-interval-when-connected',
-      30000
-    ),
-    setSyncIntervalWhenConnected: makeSetter<number>(
-      'sync-interval-when-connected'
-    ),
+    getSyncOnConnect: makeGetter<number>('sync-on-connect', 30000),
+    setSyncOnConnect: makeSetter<number>('sync-on-connect'),
+
+    getUploadUrl: makeGetter<string>('upload-url', defaultUploadUrl),
+    setUploadUrl: makeSetter<string>('upload-url'),
 
     getVersion: makeGetter<string>('version'),
     setVersion: makeSetter<string>('version'),
