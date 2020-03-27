@@ -118,6 +118,7 @@ export default class MqttAdapter {
   }
 
   subscribe(...args) {
+    this.logger('subscribe to', args)
     this.mqtt.subscribe(...args)
   }
 
