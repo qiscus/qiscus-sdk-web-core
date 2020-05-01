@@ -6,7 +6,7 @@ import debounce from 'lodash.debounce'
 import { wrapP } from '../util'
 
 export default class MqttAdapter {
-  constructor(url, core, { brokerLbUrl, enableLb }) {
+  constructor(url, core, login, { brokerLbUrl, enableLb }) {
     const emitter = mitt()
 
     const matcher = match({
@@ -22,7 +22,7 @@ export default class MqttAdapter {
         this.onlinePresenceHandler.bind(this, topic),
       [when(this.reChannelMessage)]: (topic) =>
         this.channelMessageHandler.bind(this, topic),
-      [when()]: (topic) => this.logger('topic not handled', topic)
+      [when()]: (topic) => this.logger('topic not handled', topic),
     })
 
     const __mqtt_connected_handler = () => {
@@ -54,8 +54,8 @@ export default class MqttAdapter {
         will: {
           topic: `u/${core.userData.email}/s`,
           payload: 0,
-          retain: true
-        }
+          retain: true,
+        },
       }
 
       const mqtt = connect(brokerUrl, opts)
@@ -79,14 +79,14 @@ export default class MqttAdapter {
       core: { value: core },
       emitter: { value: emitter },
       mqtt: { value: mqtt, writable: true },
-      brokerLbUrl: { value: brokerLbUrl }
+      brokerLbUrl: { value: brokerLbUrl },
     })
 
     // handle load balencer
     emitter.on(
       'close',
       debounce(async () => {
-        if (!enableLb) return
+        if (!enableLb && !login) return
         this.willConnectToRealtime = true
         const topics = Object.keys(this.mqtt._resubscribeTopics)
         const [url, err] = await wrapP(this.getMqttNode())
@@ -114,21 +114,49 @@ export default class MqttAdapter {
   }
 
   get connected() {
+    if (this.mqtt == null) return false
     return this.mqtt.connected
   }
 
+  subscribtionBuffer = []
   subscribe(...args) {
     this.logger('subscribe to', args)
-    this.mqtt.subscribe(...args)
+    this.subscribtionBuffer.push(args)
+    if (this.mqtt != null) {
+      do {
+        const subs = this.subscribtionBuffer.shift()
+        if (subs != null) this.mqtt.subscribe(...args)
+      } while (this.subscribtionBuffer.length > 0)
+    }
   }
 
+  unsubscribtionBuffer = []
   unsubscribe(...args) {
     this.logger('unsubscribe from', args)
-    this.mqtt.unsubscribe(...args)
+    this.unsubscribtionBuffer.push(args)
+    if (this.mqtt != null) {
+      do {
+        const subs = this.unsubscribtionBuffer.shift()
+        if (subs != null) {
+          this.mqtt.unsubscribe(...subs)
+        }
+      } while (this.unsubscribtionBuffer.length > 0)
+    }
   }
 
+  publishBuffer = []
   publish(topic, payload, options = {}) {
-    return this.mqtt.publish(topic, payload.toString(), options)
+    this.publishBuffer.push({ topic, payload, options })
+    do {
+      const data = this.publishBuffer.shift()
+      if (data != null) {
+        return this.mqtt.publish(
+          data.topic,
+          data.payload.toString(),
+          data.options
+        )
+      }
+    } while (this.publishBuffer.length > 0)
   }
 
   emit(...args) {
@@ -186,7 +214,7 @@ export default class MqttAdapter {
           roomId: message.room_id,
           commentUniqueIds: message.message_unique_ids,
           isForEveryone: true,
-          isHard: true
+          isHard: true,
         })
       })
     }
@@ -210,7 +238,7 @@ export default class MqttAdapter {
     this.emit('typing', {
       message,
       userId,
-      roomId
+      roomId,
     })
 
     // TODO: Don't allow side-effect
@@ -240,7 +268,7 @@ export default class MqttAdapter {
     this.emit('message-delivered', {
       commentId,
       commentUniqueId,
-      userId
+      userId,
     })
   }
 
@@ -256,7 +284,7 @@ export default class MqttAdapter {
     this.emit('message-read', {
       commentId,
       commentUniqueId,
-      userId
+      userId,
     })
   }
 

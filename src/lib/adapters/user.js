@@ -20,7 +20,7 @@ export default class User {
       unique_temp_id: uniqueId,
       type: type,
       payload: payload,
-      extras
+      extras,
     }).then((res) => {
       if (res.body.status !== 200) return Promise.reject(res)
       return Promise.resolve(res.body.results.comment)
@@ -30,14 +30,14 @@ export default class User {
   updateCommentStatus = throttle(
     (roomId, lastReadCommentId, lastReceivedCommentId) => {
       const body = {
-        room_id: roomId
+        room_id: roomId,
       }
       if (lastReadCommentId) body.last_comment_read_id = lastReadCommentId
       if (lastReceivedCommentId) {
         body.last_comment_received_id = lastReceivedCommentId
       }
 
-      return this.HTTPAdapter.post('api/v2/mobile/update_comment_status', body)
+      return this.HTTPAdapter.post('api/v2/sdk/update_comment_status', body)
     },
     300
   )
@@ -60,7 +60,7 @@ export default class User {
     const body = {
       query: params.query || null,
       room_id: params.room_id || null,
-      last_comment_id: params.last_comment_id || null
+      last_comment_id: params.last_comment_id || null,
     }
     return this.HTTPAdapter.post('api/v2/sdk/search_messages', body).then(
       (res) => res.body.results.comments
@@ -71,7 +71,7 @@ export default class User {
     const body = {
       name: params.name || null,
       avatar_url: params.avatar_url || null,
-      extras: params.extras ? JSON.stringify(params.extras) : null
+      extras: params.extras ? JSON.stringify(params.extras) : null,
     }
     return this.HTTPAdapter.patch('api/v2/sdk/my_profile', body).then(
       (res) => res.body.results.user
@@ -80,7 +80,7 @@ export default class User {
 
   uploadFile(file) {
     const body = {
-      file: file
+      file: file,
     }
     return this.HTTPAdapter.post(`api/v2/sdk/upload`, body).then(
       (res) => res.body
@@ -90,13 +90,13 @@ export default class User {
   getRoomsInfo(opts) {
     const body = {
       show_participants: true,
-      show_removed: false
+      show_removed: false,
     }
     if (opts.room_ids) body.room_id = opts.room_ids
     if (opts.room_unique_ids) body.room_unique_id = opts.room_unique_ids
     if (opts.show_participants) body.show_participants = opts.show_participants
     if (opts.show_removed) body.show_removed = opts.show_removed
-    return this.HTTPAdapter.post_json(`api/v2/mobile/rooms_info`, body).then(
+    return this.HTTPAdapter.post_json(`api/v2/sdk/rooms_info`, body).then(
       (res) => res.body
     )
   }
@@ -128,7 +128,7 @@ export default class User {
     const body = {
       unique_ids: commentUniqueIds,
       is_delete_for_everyone: isForEveryone,
-      is_hard_delete: isHard
+      is_hard_delete: isHard,
     }
     return this.HTTPAdapter.del(`api/v2/sdk/delete_messages`, body).then(
       (res) => res.body
@@ -137,7 +137,7 @@ export default class User {
 
   clearRoomMessages(roomIds) {
     const body = {
-      room_channel_ids: roomIds
+      room_channel_ids: roomIds,
     }
     return this.HTTPAdapter.del(`api/v2/sdk/clear_room_messages`, body).then(
       (res) => res.body
@@ -151,7 +151,7 @@ export default class User {
   }
 
   getBlockedUser(page = 1, limit = 20) {
-    const url = `api/v2/mobile/get_blocked_users?page=${page}&limit=${limit}`
+    const url = `api/v2/sdk/get_blocked_users?page=${page}&limit=${limit}`
     return this.HTTPAdapter.get(url).then((res) => {
       if (res.body.status !== 200) return Promise.reject(res)
       return Promise.resolve(res.body.results.blocked_users)
@@ -161,10 +161,10 @@ export default class User {
   blockUser(email) {
     if (!email) throw new Error('email is required')
     let params = {
-      user_email: email
+      user_email: email,
     }
 
-    return this.HTTPAdapter.post(`api/v2/mobile/block_user`, params).then(
+    return this.HTTPAdapter.post(`api/v2/sdk/block_user`, params).then(
       (res) => {
         if (res.body.status !== 200) return Promise.reject(res)
         return Promise.resolve(res.body.results.user)
@@ -175,10 +175,10 @@ export default class User {
   unblockUser(email) {
     if (!email) throw new Error('email is required')
     const params = {
-      user_email: email
+      user_email: email,
     }
 
-    return this.HTTPAdapter.post(`api/v2/mobile/unblock_user`, params).then(
+    return this.HTTPAdapter.post(`api/v2/sdk/unblock_user`, params).then(
       (res) => {
         if (res.body.status !== 200) return Promise.reject(res)
         return Promise.resolve(res.body.results.user)
@@ -189,6 +189,19 @@ export default class User {
   getProfile() {
     return this.HTTPAdapter.get(`api/v2/sdk/my_profile`).then(
       (res) => res.body.results.user
+    )
+  }
+
+  getUserPresences(email) {
+    let params = {
+      user_ids: email,
+    }
+
+    return this.HTTPAdapter.post_json(`api/v2/sdk/users/status`, params).then(
+      (res) => {
+        if (res.body.status !== 200) return Promise.reject(res)
+        return Promise.resolve(res.body.results.user_status)
+      }
     )
   }
 }

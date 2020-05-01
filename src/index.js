@@ -16,7 +16,7 @@ import { GroupChatBuilder } from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
-
+// helper for setup publishOnlinePresence status
 let setBackToOnline
 
 /**
@@ -46,6 +46,10 @@ class QiscusSDK {
     this.uploadURL = `${this.baseURL}/api/v2/sdk/upload`
     this.mqttURL = 'wss://mqtt.qiscus.com:1886/mqtt'
     this.brokerLbUrl = 'https://realtime.qiscus.com'
+    this.syncOnConnect = 10000
+    this.enableEventReport = false
+    this.enableRealtime = true
+    this.enableRealtimeCheck = true
     this.HTTPAdapter = null
     this.realtimeAdapter = null
     this.customEventAdapter = null
@@ -89,7 +93,7 @@ class QiscusSDK {
    * @param {any} config - Qiscus SDK Configurations
    * @return {void}
    */
-  init(config) {
+  async init(config) {
     // set AppID
     if (!config.AppId) throw new Error('Please provide valid AppId')
     this.AppId = config.AppId
@@ -139,10 +143,82 @@ class QiscusSDK {
     if (config.syncInterval != null) this.syncInterval = config.syncInterval
     this._customHeader = {}
 
+    // set appConfig
+    this.HTTPAdapter = new HttpAdapter({
+      baseURL: this.baseURL,
+      AppId: this.AppId,
+      userId: this.user_id,
+      version: this.version,
+      getCustomHeader: () => this._customHeader,
+    })
+
+    /**
+     * @callback SetterCallback
+     * @param {string | number} value
+     * @return void
+     */
+    /**
+     * @typedef {string | number | boolean | null} Parameter
+     */
+    /**
+     *
+     * @param {Parameter} fromUser
+     * @param {Parameter} fromServer
+     * @param {Parameter} defaultValue
+     * @return {Parameter}
+     */
+
+    const setterHelper = (fromUser, fromServer, defaultValue) => {
+      if (fromServer == '') {
+        if (fromUser != null) {
+          if (typeof fromUser !== 'string') return fromUser
+          if (fromUser.length > 0) return fromUser
+        }
+      }
+      if (fromServer != null) {
+        if (fromServer.length > 0) return fromServer
+        if (typeof fromServer !== 'string') return fromServer
+      }
+      return defaultValue
+    }
+
+    const mqttWssCheck = (mqttResult) => {
+      if(mqttResult.includes('wss://')) {
+        return mqttResult
+      } else {
+        return `wss://${mqttResult}:1886/mqtt`
+      }
+    }
+
+    await this.HTTPAdapter.get_request('api/v2/sdk/config')
+      .then((resp) => resp.body.results)
+      .then((cfg) => {
+        const baseUrl = this.baseURL // default value for baseUrl
+        const brokerLbUrl = this.brokerLbUrl // default value for brokerLbUrl
+        const mqttUrl = this.mqttURL // default value for brokerUrl
+        const enableRealtime = this.enableRealtime // default value for enableRealtime
+        const enableRealtimeCheck = this.enableRealtimeCheck // default value for enableRealtimeCheck
+        const syncInterval = this.syncInterval // default value for syncInterval
+        const syncIntervalWhenConnected = this.syncOnConnect // default value for syncIntervalWhenConnected
+        const enableEventReport = this.enableEventReport // default value for enableEventReport
+        const configExtras = {} // default value for extras
+
+        this.baseURL = setterHelper(config.baseURL, cfg.base_url, baseUrl)
+        this.brokerLbUrl = setterHelper(config.brokerLbURL, cfg.broker_lb_url, brokerLbUrl )
+        this.mqttURL = mqttWssCheck(setterHelper(config.mqttURL, cfg.broker_url, mqttUrl))
+        this.enableRealtime = setterHelper(config.enableRealtime, cfg.enable_realtime, enableRealtime)
+        this.syncInterval = setterHelper(config.syncInterval, cfg.sync_interval, syncInterval)
+        this.syncOnConnect = setterHelper(config.syncOnConnect, cfg.sync_on_connect, syncIntervalWhenConnected)
+        // since user never provide this value
+        this.enableRealtimeCheck = setterHelper(null, cfg.enable_realtime_check, enableRealtimeCheck)
+        this.enableEventReport = setterHelper(null, cfg.enable_event_report, enableEventReport)
+        this.extras = setterHelper(null, cfg.extras, configExtras)
+      })
+
     // set Event Listeners
     this.setEventListeners()
 
-    this.realtimeAdapter = new MqttAdapter(this.mqttURL, this, {
+    this.realtimeAdapter = new MqttAdapter(this.mqttURL, this, this.isLogin, {
       brokerLbUrl: this.brokerLbUrl,
       enableLb: this.enableLb
     })
@@ -150,13 +226,33 @@ class QiscusSDK {
       if (this.options.onReconnectCallback) {
         this.options.onReconnectCallback()
       }
+      if (this.enableRealtime == false) {
+        this.realtimeAdapter.mqtt.connected = false
+        this.realtimeAdapter = new MqttAdapter(null, this, {
+          brokerLbUrl: null,
+          enableLb: null,
+        })
+      }
+      if (this.isLogin || !this.realtimeAdapter.connected) {
+        this.updateLastReceivedComment(localStorage.last_received_comment_id)
+      }
     })
     this.realtimeAdapter.on('close', () => {})
     this.realtimeAdapter.on('reconnect', () => {
-      if (this.isLogin) {
-        this.synchronize()
-        this.synchronizeEvent()
+      if (this.realtimeAdapter.connected || this.enableRealtime == false) return
+      if (this.realtimeAdapter.connected == false) {
+        this.realtimeAdapter.getMqttNode().then((res) => {
+          this.mqttURL = res
+          this.realtimeAdapter = new MqttAdapter(this.mqttURL, this, {
+            brokerLbUrl: this.brokerLbUrl,
+            enableLb: this.enableLb,
+          })
+        })
       }
+      // if (this.isLogin) {
+      //   this.synchronize()
+      //   this.synchronizeEvent()
+      // }
     })
     this.realtimeAdapter.on(
       'message-delivered',
@@ -194,8 +290,11 @@ class QiscusSDK {
 
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
       getToken: () => this.userData.token,
-      interval: this.syncInterval,
-      getShouldSync: () => this.isLogin && !this.realtimeAdapter.connected
+      syncInterval: () => this.syncInterval,
+      getShouldSync: () => this.isLogin && !this.realtimeAdapter.connected,
+      syncOnConnect: () => this.syncOnConnect,
+      lastCommentId: () => this.last_received_comment_id,
+      statusLogin: () => this.isLogin
     })
     this.syncAdapter.on('message.new', async (message) => {
       message = await this._hookAdapter.trigger(
@@ -429,7 +528,9 @@ class QiscusSDK {
     this.events.on('login-success', (response) => {
       this.isLogin = true
       this.userData = response.user
+      localStorage.setItem('userData', JSON.stringify(this.userData))
       this.last_received_comment_id = this.userData.last_comment_id
+      if (!this.realtimeAdapter.connected) this.updateLastReceivedComment(localStorage.last_received_comment_id)
 
       // now that we have the token, etc, we need to set all our adapters
       this.HTTPAdapter = new HttpAdapter({
@@ -646,7 +747,10 @@ class QiscusSDK {
   }
 
   updateLastReceivedComment(id) {
-    if (this.last_received_comment_id < id) this.last_received_comment_id = id
+    if (this.last_received_comment_id < id) {
+      this.last_received_comment_id = id
+      localStorage.setItem('last_received_comment_id', id)
+    }
   }
 
   /**
@@ -821,9 +925,7 @@ class QiscusSDK {
       .then(async (resp) => {
         const room = new Room(resp)
 
-        if (this.last_received_comment_id < room.last_comment_id) {
-          this.last_received_comment_id = room.last_comment_id
-        }
+        this.updateLastReceivedComment(room.last_comment_id)
         this.isLoading = false
 
         const mapIntercept = async (it) => {
@@ -911,10 +1013,7 @@ class QiscusSDK {
           name: roomData.room_name
         })
 
-        self.last_received_comment_id =
-          self.last_received_comment_id < room.last_comment_id
-            ? room.last_comment_id
-            : self.last_received_comment_id
+        self.updateLastReceivedComment(room.last_comment_id)
         self.setActiveRoom(room)
         self.isLoading = false
         // id of last comment on this room
@@ -947,10 +1046,7 @@ class QiscusSDK {
       .then(async (response) => {
         // make sure the room hasn't been pushed yet
         let room = new Room(response)
-        self.last_received_comment_id =
-          self.last_received_comment_id < room.last_comment_id
-            ? room.last_comment_id
-            : self.last_received_comment_id
+        self.updateLastReceivedComment(room.last_comment_id)
         const mapIntercept = async (item) =>
           await this._hookAdapter.trigger(Hooks.MESSAGE_BEFORE_RECEIVED, item)
         room.comments = await Promise.all(
@@ -1459,6 +1555,20 @@ class QiscusSDK {
     )
   }
 
+  getUserPresences(email = []) {
+    if (is.not.array(email)) {
+      return Promise.reject(new Error('`email` must have type of array'))
+    }
+
+    const self = this
+    return self.userAdapter.getUserPresences(email).then(
+      (res) => {
+        self.events.emit('user-status', res)
+        return Promise.resolve(res)
+      },
+      (err) => Promise.reject(err)
+    )
+  }
   upload(file, callback) {
     return request
       .post(this.uploadURL)

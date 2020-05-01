@@ -30,7 +30,7 @@ export default class RoomAdapter {
   }
 
   getRoomById(id) {
-    return this.HTTPAdapter.get(`api/v2/mobile/get_room_by_id?id=${id}`).then(
+    return this.HTTPAdapter.get(`api/v2/sdk/get_room_by_id?id=${id}`).then(
       (res) => res.body
     )
   }
@@ -39,10 +39,10 @@ export default class RoomAdapter {
     let params = {
       unique_id: id,
       name: name,
-      avatar_url: avatarURL
+      avatar_url: avatarURL,
     }
     return this.HTTPAdapter.post(
-      `api/v2/mobile/get_or_create_room_with_unique_id`,
+      `api/v2/sdk/get_or_create_room_with_unique_id`,
       params
     ).then((res) => {
       if (res.body.status !== 200) return Promise.reject(res)
@@ -63,31 +63,29 @@ export default class RoomAdapter {
       name: name,
       'participants[]': emails,
       avatar_url: opts.avatarURL,
-      options: optsData
+      options: optsData,
     }
 
-    return this.HTTPAdapter.post(`api/v2/mobile/create_room`, body).then(
-      (res) => {
-        if (res.body.status !== 200) return Promise.reject(res)
-        const room = res.body.results.room
-        room.comments = res.body.results.comments
-        return Promise.resolve({
-          id: room.id,
-          name: room.room_name,
-          lastCommentId: room.last_comment_id,
-          lastCommentMessage: room.last_comment_message,
-          lastTopicId: room.last_topic_id,
-          avatarURL: room.avatar_url,
-          options: room.options,
-          participants: room.participants.map((participant) => ({
-            id: participant.id,
-            email: participant.email,
-            username: participant.username,
-            avatarURL: participant.avatar_url
-          }))
-        })
-      }
-    )
+    return this.HTTPAdapter.post(`api/v2/sdk/create_room`, body).then((res) => {
+      if (res.body.status !== 200) return Promise.reject(res)
+      const room = res.body.results.room
+      room.comments = res.body.results.comments
+      return Promise.resolve({
+        id: room.id,
+        name: room.room_name,
+        lastCommentId: room.last_comment_id,
+        lastCommentMessage: room.last_comment_message,
+        lastTopicId: room.last_topic_id,
+        avatarURL: room.avatar_url,
+        options: room.options,
+        participants: room.participants.map((participant) => ({
+          id: participant.id,
+          email: participant.email,
+          username: participant.username,
+          avatarURL: participant.avatar_url,
+        })),
+      })
+    })
   }
 
   updateRoom(args) {
@@ -97,7 +95,7 @@ export default class RoomAdapter {
     if (args.avatar_url) params['avatar_url'] = args.avatar_url
     if (args.options) params['options'] = JSON.stringify(args.options)
 
-    return this.HTTPAdapter.post(`api/v2/mobile/update_room`, params).then(
+    return this.HTTPAdapter.post(`api/v2/sdk/update_room`, params).then(
       (res) => {
         if (res.body.status !== 200) return Promise.reject(res)
         return Promise.resolve(res.body.results.room)
@@ -115,11 +113,11 @@ export default class RoomAdapter {
     if (!roomId || !emails) throw new Error('room_id and emails is required')
     let params = {
       room_id: roomId,
-      'emails[]': emails
+      'emails[]': emails,
     }
 
     return this.HTTPAdapter.post(
-      `api/v2/mobile/add_room_participants`,
+      `api/v2/sdk/add_room_participants`,
       params
     ).then((res) => {
       if (res.body.status !== 200) return Promise.reject(res)
@@ -131,11 +129,11 @@ export default class RoomAdapter {
     if (!roomId || !emails) throw new Error('room_id and emails is required')
     let params = {
       room_id: roomId,
-      'emails[]': emails
+      'emails[]': emails,
     }
 
     return this.HTTPAdapter.post(
-      `api/v2/mobile/remove_room_participants`,
+      `api/v2/sdk/remove_room_participants`,
       params
     ).then((res) => {
       if (res.body.status !== 200) return Promise.reject(res)
