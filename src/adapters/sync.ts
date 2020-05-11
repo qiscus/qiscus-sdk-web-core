@@ -374,6 +374,7 @@ export declare module SyncResponse {
     unix_timestamp: number
     user_avatar: UserAvatar
     user_avatar_url: string
+    user_extras: object
     user_id: number
     user_id_str: string
     username: string

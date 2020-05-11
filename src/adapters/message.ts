@@ -115,6 +115,7 @@ export declare module PostCommentResponse {
     unix_timestamp: number
     user_avatar: UserAvatar
     user_avatar_url: string
+    user_extras: object
     user_id: number
     user_id_str: string
     username: string
@@ -169,6 +170,7 @@ export declare module GetCommentsResponse {
     unix_timestamp: number
     user_avatar: UserAvatar
     user_avatar_url: string
+    user_extras: object
     user_id: number
     user_id_str: string
     username: string
@@ -223,6 +225,7 @@ export declare module DeleteCommentsResponse {
     unix_timestamp: number
     user_avatar: UserAvatar
     user_avatar_url: string
+    user_extras: object
     user_id: number
     user_id_str: string
     username: string

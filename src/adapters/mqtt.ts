@@ -350,9 +350,17 @@ export default function getMqttAdapter(s: Storage) {
 
   cacheUrl = s.getBrokerUrl()
 
+  emitter.on('mqtt::connected', async () => {
+    if (!s.getEnableRealtime()) {
+      mqtt = __mqtt_conneck('')
+      s.setBrokerUrl('')
+    }
+  })
+
   emitter.on(
     'mqtt::close',
     debounce(async () => {
+      if (!s.getEnableRealtime()) return
       if (s.getCurrentUser() == null) return
       if (!s.getBrokerLbEnabled()) return
 
@@ -369,10 +377,12 @@ export default function getMqttAdapter(s: Storage) {
           `cannot get new brokerUrl, using old url instead (${cacheUrl})`
         )
         mqtt = __mqtt_conneck(cacheUrl)
+        s.setBrokerUrl(cacheUrl)
       } else {
         cacheUrl = url
         logger.log(`connecting to new broker url ${url}`)
         mqtt = __mqtt_conneck(url)
+        s.setBrokerUrl(url)
       }
       logger.log(`resubscribe to old topics ${topics}`)
       topics.forEach(t => mqtt?.subscribe(t))
