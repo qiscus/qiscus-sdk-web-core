@@ -93,7 +93,7 @@ export function user(json: UserJson1 | UserJson2): IQUser {
 }
 
 interface UserPresenceJson {
-  userId: string
+  email: string
   status: boolean
   timestamp: number
 }
@@ -101,7 +101,7 @@ interface UserPresenceJson {
 export const userPresence = <T extends UserPresenceJson>(
   json: T
 ): IQUserPresence => ({
-  userId: json.userId,
+  userId: json.email,
   status: json.status,
   timestamp: json.timestamp,
 })

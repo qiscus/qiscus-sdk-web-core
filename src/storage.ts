@@ -24,7 +24,7 @@ export const storageFactory = () => {
 
   const defaultBaseURL = 'https://api.qiscus.com'
   const defaultUploadUrl = `${defaultBaseURL}/api/v2/sdk/upload`
-  const defaultBrokerUrl = ''
+  const defaultBrokerUrl = 'wss://mqtt.qiscus.com:1886/mqtt'
   const defaultBrokerLbUrl = 'https://realtime.qiscus.com'
 
   return {

@@ -337,7 +337,7 @@ declare module DeviceTokenResponse {
 
 declare module UserPresenceResponse {
   export interface UserPresence {
-    userId: string
+    email: string
     status: boolean
     timestamp: number
   }
