@@ -52,16 +52,6 @@ const getUserAdapter = (s: Storage) => ({
       Decoder.user(resp.results.user)
     )
   },
-  getUserPresence(userIds: string[]): Promise<model.IQUserPresence[]> {
-    const apiConfig = Api.getUserPresence({
-      ...Provider.withBaseUrl(s),
-      ...Provider.withCredentials(s),
-      userIds: userIds,
-    })
-    return Api.request<UserPresenceResponse.RootObject>(apiConfig).then(resp =>
-      resp.results.user_status.map(Decoder.userPresence)
-    )
-  },
   getBlockedUser(
     page: number = 1,
     limit: number = 20
@@ -74,7 +64,7 @@ const getUserAdapter = (s: Storage) => ({
     })
     return Api.request<BlockedUserListResponse.RootObject>(
       apiConfig
-    ).then(resp => resp.results.blocked_users.map(Decoder.user))
+    ).then(resp => resp.results.users.map(Decoder.user))
   },
   getUserList(
     query: string = '',
@@ -249,7 +239,6 @@ declare module BlockUserResponse {
     id: number
     id_str: string
     username: string
-    user_extras: object
   }
 
   export interface Results {
@@ -309,11 +298,10 @@ declare module BlockedUserListResponse {
     id: number
     id_str: string
     username: string
-    user_extras: object
   }
 
   export interface Results {
-    blocked_users: BlockedUser[]
+    users: BlockedUser[]
     total: number
   }
 
@@ -327,23 +315,6 @@ declare module DeviceTokenResponse {
     changed: boolean
     pn_android_configured: boolean
     pn_ios_configured: boolean
-  }
-
-  export interface RootObject {
-    results: Results
-    status: number
-  }
-}
-
-declare module UserPresenceResponse {
-  export interface UserPresence {
-    email: string
-    status: boolean
-    timestamp: number
-  }
-
-  export interface Results {
-    user_status: UserPresence[]
   }
 
   export interface RootObject {

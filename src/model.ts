@@ -3,12 +3,6 @@ export interface IQUser {
   name: string
   avatarUrl?: string
   extras?: Record<string, unknown>
-  user_extras?: Record<string, unknown>
-}
-export interface IQUserPresence {
-  userId: string
-  status: boolean
-  timestamp: number
 }
 export interface IQAccount extends IQUser {
   lastMessageId: number
@@ -43,5 +37,4 @@ export interface IQChatRoom {
   lastMessage?: IQMessage
   extras?: Record<string, unknown>
   avatarUrl?: string
-  messages: IQMessage[]
 }

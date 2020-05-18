@@ -274,7 +274,7 @@ const getMqttHandler = (emitter: EventEmitter<Events>): IQMqttHandler => {
 
 export default function getMqttAdapter(s: Storage) {
   let mqtt: _MqttClient | undefined = undefined
-  // let cacheUrl: string = s.getBrokerUrl()
+  let cacheUrl: string = s.getBrokerUrl()
   const emitter = new EventEmitter<Events>()
   const handler = getMqttHandler(emitter)
   const subscribedCustomEventTopics = new Map<number, any>()
@@ -348,19 +348,11 @@ export default function getMqttAdapter(s: Storage) {
     return mqtt_ as _MqttClient
   }
 
-  // cacheUrl = s.getBrokerUrl()
-
-  emitter.on('mqtt::connected', async () => {
-    if (!s.getEnableRealtime()) {
-      mqtt = __mqtt_conneck('')
-      s.setBrokerUrl('')
-    }
-  })
+  cacheUrl = s.getBrokerUrl()
 
   emitter.on(
     'mqtt::close',
     debounce(async () => {
-      if (!s.getEnableRealtime()) return
       if (s.getCurrentUser() == null) return
       if (!s.getBrokerLbEnabled()) return
 
@@ -373,14 +365,14 @@ export default function getMqttAdapter(s: Storage) {
       const topics = Object.keys((mqtt as any)._resubscribeTopics)
       const [url, err] = await wrapP(getMqttNode())
       if (err) {
-        logger.log(`cannot get new brokerUrl, check the brokerLbUrl`)
-        mqtt = __mqtt_conneck(s.getBrokerUrl())
-        s.setBrokerUrl(s.getBrokerUrl())
+        logger.log(
+          `cannot get new brokerUrl, using old url instead (${cacheUrl})`
+        )
+        mqtt = __mqtt_conneck(cacheUrl)
       } else {
-        // cacheUrl = url
+        cacheUrl = url
         logger.log(`connecting to new broker url ${url}`)
         mqtt = __mqtt_conneck(url)
-        s.setBrokerUrl(url)
       }
       logger.log(`resubscribe to old topics ${topics}`)
       topics.forEach(t => mqtt?.subscribe(t))
