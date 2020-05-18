@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { IQUser, IQChatRoom, IQMessage } from './model'
+import { IQUser, IQChatRoom, IQMessage, IQUserPresence } from './model'
 import * as Encode from './encoder'
 import { tryCatch } from './utils/try-catch'
 
@@ -140,6 +140,16 @@ export const blockUser: ApiRequest<{
   useCredentials(),
   useBody(o => ({
     user_email: o.userId,
+  }))
+)
+
+export const getUserPresence: ApiRequest<{
+  userIds: IQUserPresence['userId'][]
+} & withCredentials> = compose(
+  usePostUrl('/users/status'),
+  useCredentials(),
+  useBody(o => ({
+    user_ids: o.userIds,
   }))
 )
 
@@ -438,4 +448,9 @@ export const synchronizeEvent: ApiRequest<{
   useParams(o => ({
     start_event_id: o.lastEventId ?? 0,
   }))
+)
+
+export const getConfig: ApiRequest<withHeaders> = compose(
+  useGetUrl('/config'),
+  useHeaders()
 )

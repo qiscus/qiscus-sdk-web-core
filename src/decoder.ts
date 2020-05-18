@@ -4,6 +4,7 @@ import {
   IQMessage,
   IQParticipant,
   IQUser,
+  IQUserPresence,
 } from './model'
 import { tryCatch } from './utils/try-catch'
 
@@ -52,6 +53,7 @@ interface UserJson1 {
   email: string
   extras: object
   user_avatar_url: string
+  user_extras: object
   user_id: number
   user_id_str: string
   username: string
@@ -64,6 +66,7 @@ export interface UserJson2 {
   id: number
   id_str: string
   username: string
+  user_extras: object
 }
 
 function isJson1(json: UserJson1 | UserJson2): json is UserJson1 {
@@ -85,8 +88,23 @@ export function user(json: UserJson1 | UserJson2): IQUser {
     extras: json.extras as IQUser['extras'],
     name: json.username,
     avatarUrl,
+    user_extras: json.user_extras as IQUser['user_extras'],
   }
 }
+
+interface UserPresenceJson {
+  email: string
+  status: boolean
+  timestamp: number
+}
+
+export const userPresence = <T extends UserPresenceJson>(
+  json: T
+): IQUserPresence => ({
+  userId: json.email,
+  status: json.status,
+  timestamp: json.timestamp,
+})
 
 interface ParticipantJson {
   avatar_url: string
@@ -126,6 +144,7 @@ interface RoomJson {
   unique_id: string
   unread_count: number
   participants: ParticipantJson[]
+  messages?: MessageJson[]
 }
 
 const getRoomType = (type: string, isChannel: boolean): IQChatRoom['type'] => {
@@ -143,6 +162,7 @@ export const room = <T extends RoomJson>(json: T): IQChatRoom => ({
   uniqueId: json.unique_id,
   lastMessage: json.last_comment ? message(json.last_comment) : undefined,
   id: json.id,
+  messages: json.messages?.map(message) ?? [],
 })
 
 export interface MessageJson {
@@ -170,6 +190,7 @@ export interface MessageJson {
   unix_nano_timestamp: number
   unix_timestamp: number
   user_avatar_url: string
+  user_extras: object
   user_id: number
   user_id_str: string
   username: string
