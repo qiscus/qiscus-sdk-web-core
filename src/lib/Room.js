@@ -21,9 +21,11 @@ export class Room {
     this.id = roomData.id
     this.last_comment_id = roomData.last_comment_id
     this.last_comment_message = roomData.last_comment_message
-    this.last_comment_message_created_at = roomData.last_comment_message_created_at
+    this.last_comment_message_created_at =
+      roomData.last_comment_message_created_at
     this.last_comment_topic_title = roomData.last_comment_topic_title
-    this.avatar = roomData.room_avatar || roomData.avatarURL || roomData.avatar_url
+    this.avatar =
+      roomData.room_avatar || roomData.avatarURL || roomData.avatar_url
     this.name = roomData.room_name
     this.room_type = roomData.room_type || roomData.chat_type
     this.secret_code = roomData.secret_code
@@ -36,7 +38,6 @@ export class Room {
 
     this.count_notif = roomData.unread_count
     this.isLoaded = false
-    this.unread_comments = []
     this.custom_title = null
     this.custom_subtitle = null
     this.options = roomData.options
@@ -76,7 +77,9 @@ export class Room {
     // Ignore if not from the same room
     if (comment.room_id !== this.id) return
     // let's check first whether this room already has this specific comment
-    const commentToFind = this.comments.find(cmt => cmt.unique_id === comment.unique_id)
+    const commentToFind = this.comments.find(
+      (cmt) => cmt.unique_id === comment.unique_id
+    )
     if (commentToFind) {
       commentToFind.id = comment.id
       commentToFind.message = comment.message
@@ -90,13 +93,13 @@ export class Room {
   }
 
   receiveComments(comments) {
-    comments.forEach(comment => {
+    comments.forEach((comment) => {
       this.receiveComment(new Comment(comment))
     })
   }
 
   getParticipant(participantEmail) {
-    return this.participants.find(p => p.email === participantEmail) || null
+    return this.participants.find((p) => p.email === participantEmail) || null
   }
 
   addParticipant(participant) {

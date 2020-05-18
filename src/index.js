@@ -45,7 +45,7 @@ class QiscusSDK {
     this.baseURL = 'https://api.qiscus.com'
     this.uploadURL = `${this.baseURL}/api/v2/sdk/upload`
     this.mqttURL = 'wss://mqtt.qiscus.com:1886/mqtt'
-    this.brokerLbUrl = 'https://realtime.qiscus.com'
+    this.brokerLbUrl = 'https://realtime-lb.qiscus.com'
     this.syncOnConnect = 10000
     this.enableEventReport = false
     this.enableRealtime = true
