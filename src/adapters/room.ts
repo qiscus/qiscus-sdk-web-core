@@ -143,7 +143,6 @@ const getRoomAdapter = (s: Storage) => ({
     ).then(resp =>
       Decoder.room({
         ...resp.results.room,
-        messages: resp.results.comments,
         is_removed: false,
         last_comment: resp.results.comments.pop(),
       })
@@ -463,7 +462,6 @@ declare module GetRoomResponse {
     unix_timestamp: number
     user_avatar: UserAvatar
     user_avatar_url: string
-    user_extras: object
     user_id: number
     user_id_str: string
     username: string
@@ -561,7 +559,6 @@ declare module GetRoomInfoResponse {
     unix_timestamp: number
     user_avatar: UserAvatar
     user_avatar_url: string
-    user_extras: object
     user_id: number
     user_id_str: string
     username: string

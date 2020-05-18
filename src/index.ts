@@ -6,7 +6,6 @@ import getMessageAdapter from './adapters/message'
 import getRealtimeAdapter from './adapters/realtime'
 import getRoomAdapter from './adapters/room'
 import getUserAdapter from './adapters/user'
-import getSetupAdapter from './adapters/setup'
 import {
   Callback,
   IQCallback,
@@ -57,7 +56,6 @@ export default class Qiscus {
   // region Property
   private readonly hookAdapter = hookAdapterFactory()
   private readonly userAdapter = getUserAdapter(this.storage)
-  private readonly setupAdapter = getSetupAdapter(this.storage)
   private readonly realtimeAdapter = getRealtimeAdapter(this.storage)
   private readonly loggerAdapter = getLogger(this.storage)
   private readonly roomAdapter = getRoomAdapter(this.storage)
@@ -113,115 +111,55 @@ export default class Qiscus {
   }
   // endregion
 
-  // Setup Adapter ----------------------------------------
-  setup(appId: string, syncInterval: number = 5000, callback: void): void {
+  setup(appId: string, syncInterval: number = 5000): void {
     this.setupWithCustomServer(
       appId,
       undefined,
       undefined,
       undefined,
-      syncInterval,
-      callback
+      syncInterval
     )
   }
 
   setupWithCustomServer(
     appId: string,
     baseUrl: string = this.storage.getBaseUrl(),
-    brokerUrl: any = this.storage.getBrokerUrl(),
+    brokerUrl: string = this.storage.getBrokerUrl(),
     brokerLbUrl: string = this.storage.getBrokerLbUrl(),
-    syncInterval: number = 5000,
-    callback: void
+    syncInterval: number = 5000
   ): void {
+    const defaultBaseUrl = this.storage.getBaseUrl()
+    const defaultBrokerUrl = this.storage.getBrokerUrl()
+    const defaultBrokerLbUrl = this.storage.getBrokerLbUrl()
+
+    // We need to disable realtime load balancing if user are using custom server
+    // and did not provide a brokerLbUrl
+    const isDifferentBaseUrl = baseUrl !== defaultBaseUrl
+    const isDifferentBrokerUrl = brokerUrl !== defaultBrokerUrl
+    const isDifferentBrokerLbUrl = brokerLbUrl !== defaultBrokerLbUrl
+    // disable realtime lb if user change baseUrl or mqttUrl but did not change
+    // broker lb url
+    if (
+      (isDifferentBaseUrl || isDifferentBrokerUrl) &&
+      !isDifferentBrokerLbUrl
+    ) {
+      this.loggerAdapter.log(
+        '' +
+          'force disable load balancing for realtime server, because ' +
+          '`baseUrl` or `brokerUrl` get changed but ' +
+          'did not provide `brokerLbURL`'
+      )
+      this.storage.setBrokerLbEnabled(false)
+    }
+
     this.storage.setAppId(appId)
-
-    xs.combine(
-      process(appId, isReqString({ appId })),
-      process(baseUrl, isReqString({ baseUrl })),
-      process(brokerLbUrl, isReqString({ brokerLbUrl })),
-      process(brokerUrl, isReqString({ brokerUrl })),
-      process(syncInterval, isReqNumber({ syncInterval })),
-      process(callback, isOptCallback({ callback }))
-    )
-    .map(() => xs.fromPromise(this.setupAdapter.setupWithCustomServer()))
-    .compose(flattenConcurrently)
-    .compose(
-      tap(resp => {
-        const defaultBaseUrl = this.storage.getBaseUrl()
-        const defaultBrokerLbUrl = this.storage.getBrokerLbUrl()
-        const defaultBrokerUrl = this.storage.getBrokerUrl()
-        const defaultEnableEventReport = this.storage.getEnableEventReport()
-        const defaultEnableRealtime = this.storage.getEnableRealtime()
-        const defaultEnableRealtimeCheck = this.storage.getEnableRealtimeCheck()
-        const defaultExtras = this.storage.getExtras()
-        const defaultSyncInterval = this.storage.getSyncInterval()
-        const defaultSyncIntervalWhenConnected = this.storage.getSyncIntervalWhenConnected()
-    
-        // We need to disable realtime load balancing if user are using custom server
-        // and did not provide a brokerLbUrl
-        const isDifferentBaseUrl = baseUrl !== defaultBaseUrl
-        const isDifferentBrokerUrl = brokerUrl !== defaultBrokerUrl
-        const isDifferentBrokerLbUrl = brokerLbUrl !== defaultBrokerLbUrl
-        // disable realtime lb if user change baseUrl or mqttUrl but did not change
-        // broker lb url
-        if (
-          (isDifferentBaseUrl || isDifferentBrokerUrl) &&
-          !isDifferentBrokerLbUrl
-        ) {
-          this.loggerAdapter.log(
-            '' +
-              'force disable load balancing for realtime server, because ' +
-              '`baseUrl` or `brokerUrl` get changed but ' +
-              'did not provide `brokerLbURL`'
-          )
-          this.storage.setBrokerLbEnabled(false)
-        }
-    
-        this.storage.setAppId(appId)
-        
-        const customSetterHelper = (
-          fromUser: any,
-          fromServer: any,
-          defaultValue: any
-        ) => {
-          if (fromServer == '') {
-            if (fromUser != null) {
-              if (typeof fromUser !== 'string') return fromUser
-              if (fromUser.length > 0) return fromUser
-            }
-          }
-          if (fromServer != null) {
-            if (fromServer.length > 0) return fromServer
-            if (typeof fromServer !== 'string') return fromServer
-          }
-          return defaultValue
-        }
-
-        const mqttWssCheck = (mqttResult : string) => {
-          if (mqttResult.includes('wss://')) {
-            return mqttResult
-          } else {
-            return `wss://${mqttResult}:1886/mqtt`
-          }
-        }
-
-        this.storage.setBaseUrl(customSetterHelper(baseUrl, resp.results.base_url, defaultBaseUrl))
-        this.storage.setBrokerLbUrl(customSetterHelper(brokerLbUrl, resp.results.broker_lb_url, defaultBrokerLbUrl))
-        this.storage.setBrokerUrl(mqttWssCheck(customSetterHelper(brokerUrl, resp.results.broker_url, defaultBrokerUrl)))
-        this.storage.setSyncInterval(customSetterHelper(syncInterval, resp.results.sync_interval, defaultSyncInterval))
-
-        this.storage.setEnableEventReport(customSetterHelper(null, resp.results.enable_event_report, defaultEnableEventReport))
-        this.storage.setEnableRealtime(customSetterHelper(null, resp.results.enable_realtime, defaultEnableRealtime))
-        this.storage.setEnableRealtimeCheck(customSetterHelper(null, resp.results.enable_realtime_check, defaultEnableRealtimeCheck))
-        this.storage.setExtras(customSetterHelper(null, resp.results.extras, defaultExtras))
-        this.storage.setSyncInterval(customSetterHelper(null, resp.results.sync_interval, defaultSyncInterval))
-        this.storage.setSyncIntervalWhenConnected(customSetterHelper(null, resp.results.sync_on_connect, defaultSyncIntervalWhenConnected))
-        
-        this.storage.setDebugEnabled(false)
-        this.storage.setVersion('3-alpha')
-      })
-    )
-    .compose(toCallbackOrPromise())
+    this.storage.setBaseUrl(baseUrl)
+    this.storage.setBrokerUrl(brokerUrl)
+    this.storage.setBrokerLbUrl(brokerLbUrl)
+    this.storage.setSyncInterval(syncInterval)
+    this.storage.setDebugEnabled(false)
+    this.storage.setVersion('3-alpha')
+    this.storage.setSyncInterval(5000)
   }
 
   setCustomHeader(headers: Record<string, string>): void {
@@ -309,23 +247,6 @@ export default class Qiscus {
       )
       .compose(bufferUntil(() => this.isLogin))
       .map(([userId]) => xs.fromPromise(this.userAdapter.unblockUser(userId)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
-  }
-
-  getUserPresence(
-    userIds: string[],
-    callback: IQCallback<model.IQUserPresence[]>
-  ): void | Promise<model.IQUserPresence[]> {
-    return xs
-      .combine(
-        process(userIds, isReqArrayString({ userIds })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([userId]) => 
-        xs.fromPromise(this.userAdapter.getUserPresence(userId))
-      )
       .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
