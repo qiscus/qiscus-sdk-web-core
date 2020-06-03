@@ -42,7 +42,7 @@ class QiscusSDK {
     this.userData = {}
     // SDK Configuration
     this.AppId = null
-    this.baseURL = 'https://api.qiscus.com'
+    this.baseURL = 'https://api3.qiscus.com'
     this.uploadURL = `${this.baseURL}/api/v2/sdk/upload`
     this.mqttURL = 'wss://mqtt.qiscus.com:1886/mqtt'
     this.brokerLbUrl = 'https://realtime-lb.qiscus.com'
