@@ -191,4 +191,17 @@ export default class User {
       (res) => res.body.results.user
     )
   }
+
+  getUserPresences(email) {
+    let params = {
+      user_ids: email,
+    }
+
+    return this.HTTPAdapter.post_json(`api/v2/sdk/users/status`, params).then(
+      (res) => {
+        if (res.body.status !== 200) return Promise.reject(res)
+        return Promise.resolve(res.body.results.user_status)
+      }
+    )
+  }
 }

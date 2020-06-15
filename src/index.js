@@ -1459,6 +1459,28 @@ class QiscusSDK {
     )
   }
 
+/**
+   * Get user status 
+   *
+   * @param {any} email the email is required 
+   * @returns Promise
+   * @memberof QiscusSDK
+   */
+  getUserPresences(email = []) {
+    if (is.not.array(email)) {
+      return Promise.reject(new Error('`email` must have type of array'))
+    }
+
+    const self = this
+    return self.userAdapter.getUserPresences(email).then(
+      (res) => {
+        self.events.emit('user-status', res)
+        return Promise.resolve(res)
+      },
+      (err) => Promise.reject(err)
+    )
+  }
+
   upload(file, callback) {
     return request
       .post(this.uploadURL)
