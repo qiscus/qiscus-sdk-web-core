@@ -66,6 +66,7 @@ class QiscusSDK {
     this.options = {
       avatar: true
     }
+    this.isConfigLoaded = false
 
     // UI related Properties
     this.UI = {}
@@ -191,7 +192,10 @@ class QiscusSDK {
     }
 
     await this.HTTPAdapter.get_request('api/v2/sdk/config')
-      .then((resp) => resp.body.results)
+      .then((resp) => {
+        resp.status == 200 ? this.isConfigLoaded = true : this.isConfigLoaded = false
+        return resp.body.results
+      })
       .then((cfg) => {
         const baseUrl = this.baseURL // default value for baseUrl
         const brokerLbUrl = this.brokerLbUrl // default value for brokerLbUrl
@@ -591,7 +595,7 @@ class QiscusSDK {
         isForEveryone,
         isHard
       } = data
-      if (self.selected && self.selected.id === roomId) {
+      if (self.selected && self.selected.id == roomId) {
         // loop through the array of unique_ids
         commentUniqueIds.map((id) => {
           const commentToBeFound = self.selected.comments.findIndex(
@@ -764,7 +768,6 @@ class QiscusSDK {
    */
   setUser(userId, key, username, avatarURL, extras) {
     const self = this
-    self.events.emit('start-init')
 
     self.user_id = userId
     self.key = key
@@ -779,15 +782,24 @@ class QiscusSDK {
     }
     if (this.avatar_url) params.avatar_url = this.avatar_url
 
-    return self.authAdapter.loginOrRegister(params).then(
-      (response) => {
-        self.isInit = true
-        self.events.emit('login-success', response)
-      },
-      (error) => {
-        return self.events.emit('login-error', error)
+    let waitingConfig = setInterval(() => {
+      if (!this.isConfigLoaded) {
+        console.log('Waiting for init config...')
+      } else {
+        clearInterval(waitingConfig)
+        console.log('Config Success!')
+        self.events.emit('start-init')
+        return self.authAdapter.loginOrRegister(params).then(
+          (response) => {
+            self.isInit = true
+            self.events.emit('login-success', response)
+          },
+          (error) => {
+            return self.events.emit('login-error', error)
+          }
+        )
       }
-    )
+    }, 300)
   }
 
   setUserWithIdentityToken(data) {
@@ -798,7 +810,15 @@ class QiscusSDK {
     this.username = data.user.username
     this.avatar_url = data.user.avatar_url
     this.isInit = true
-    this.events.emit('login-success', data)
+    let waitingConfig = setInterval(() => {
+      if (!this.isConfigLoaded) {
+        console.log('Waiting for init config...')
+      } else {
+        clearInterval(waitingConfig)
+        console.log('Config Success!')
+        this.events.emit('login-success', data)
+      }
+    }, 300)
   }
 
   publishOnlinePresence(val) {
