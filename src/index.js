@@ -784,7 +784,9 @@ class QiscusSDK {
 
     let waitingConfig = setInterval(() => {
       if (!this.isConfigLoaded) {
-        console.log('Waiting for init config...')
+        if (this.debugMode) {
+          console.log('Waiting for init config...')
+        }
       } else {
         clearInterval(waitingConfig)
         console.log('Config Success!')
@@ -812,7 +814,9 @@ class QiscusSDK {
     this.isInit = true
     let waitingConfig = setInterval(() => {
       if (!this.isConfigLoaded) {
-        console.log('Waiting for init config...')
+        if (this.debugMode) {
+          console.log('Waiting for init config...')
+        }
       } else {
         clearInterval(waitingConfig)
         console.log('Config Success!')
@@ -1379,7 +1383,7 @@ class QiscusSDK {
     const extrasToBeSubmitted = self.extras
     return this.userAdapter
       .postComment(
-        room.id,
+        '' + room.id,
         pendingComment.message,
         pendingComment.unique_id,
         comment.type,
