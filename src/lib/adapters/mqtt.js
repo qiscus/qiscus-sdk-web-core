@@ -6,7 +6,7 @@ import debounce from 'lodash.debounce'
 import { wrapP } from '../util'
 
 export default class MqttAdapter {
-  constructor(url, core, login, { brokerLbUrl, enableLb }) {
+  constructor(url, core, login, { shouldConnect = true, brokerLbUrl, enableLb }) {
     const emitter = mitt()
 
     const matcher = match({
@@ -71,6 +71,13 @@ export default class MqttAdapter {
     }
 
     let mqtt = __mqtt_conneck(url)
+
+    // if appConfig set realtimeEnabled to false,
+    // we intentionally end mqtt connection here.
+    // TODO: Make a better way to not connect
+    //       to broker, but still having mqtt client initiated.
+    if (!shouldConnect) mqtt.end(true);
+
     this.willConnectToRealtime = false
     this.cacheRealtimeURL = url
     // Define a read-only property so user cannot accidentially
@@ -86,7 +93,9 @@ export default class MqttAdapter {
     emitter.on(
       'close',
       debounce(async () => {
-        if (!enableLb && !login) return
+        if (enableLb == null) return
+        if (login != null && login == false) return
+        if (shouldConnect == false) return
         this.willConnectToRealtime = true
         const topics = Object.keys(this.mqtt._resubscribeTopics)
         const [url, err] = await wrapP(this.getMqttNode())
@@ -196,7 +205,7 @@ export default class MqttAdapter {
   }
   // #endregion
 
-  noop() {}
+  noop() { }
 
   newMessageHandler(topic, message) {
     message = JSON.parse(message)
