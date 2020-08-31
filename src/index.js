@@ -17,6 +17,8 @@ import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
 import throttle from 'lodash.throttle'
+import store from 'store'
+
 // helper for setup publishOnlinePresence status
 let setBackToOnline
 
@@ -104,7 +106,7 @@ class QiscusSDK {
   /**
    * Initializing the SDK, set Event Listeners (callbacks)
    * @param {any} config - Qiscus SDK Configurations
-   * @return {void}
+   * @return {Promise<void>}
    */
   async init(config) {
     // set AppID
@@ -255,7 +257,7 @@ class QiscusSDK {
         })
       }
       if (this.isLogin || !this.realtimeAdapter.connected) {
-        this.updateLastReceivedComment(localStorage.last_received_comment_id)
+        this.updateLastReceivedComment(store.get('last_received_comment_id'))
       }
     })
     this.realtimeAdapter.on('close', () => { })
@@ -424,31 +426,6 @@ class QiscusSDK {
     this.events.emit('comment-delivered', { comment: message, userId })
   }
 
-  get _throttleDelay () {
-    if (this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled) {
-      return 0
-    }
-    return this.updateCommentStatusThrottleDelay
-  }
-  get _updateStatusEnabled() {
-    return this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled;
-  }
-
-  readComment = throttle((roomId, commentId) => {
-    if (!this._updateStatusEnabled) return false
-    const isSelected = (this.selected && this.selected.id === roomId) || false
-    const isChannel = (this.selected && this.selected.isChannel) || false
-    if (!isSelected || isChannel) return false
-    this.userAdapter.updateCommentStatus(roomId, commentId, null).catch((err) => {})
-  }, this._throttleDelay)
-
-  receiveComment = throttle((roomId, commentId) => {
-    if (!this._updateStatusEnabled) return Promise.reject(new Error('updateCommentStatus disabled'))
-
-    const isChannel = this.selected ? this.selected.isChannel : false
-    if (isChannel) return false
-    this.userAdapter.updateCommentStatus(roomId, null, commentId).catch((err) => undefined)
-  }, this._throttleDelay)
 
   setEventListeners() {
     const self = this
@@ -564,9 +541,9 @@ class QiscusSDK {
     this.events.on('login-success', (response) => {
       this.isLogin = true
       this.userData = response.user
-      localStorage.setItem('userData', JSON.stringify(this.userData))
+      store.set('userData', JSON.stringify(this.userData))
       this.last_received_comment_id = this.userData.last_comment_id
-      if (!this.realtimeAdapter.connected) this.updateLastReceivedComment(localStorage.last_received_comment_id)
+      if (!this.realtimeAdapter.connected) this.updateLastReceivedComment(store.get('last_received_comment_id'))
 
       // now that we have the token, etc, we need to set all our adapters
       this.HTTPAdapter = new HttpAdapter({
@@ -785,7 +762,7 @@ class QiscusSDK {
   updateLastReceivedComment(id) {
     if (this.last_received_comment_id < id) {
       this.last_received_comment_id = id
-      localStorage.setItem('last_received_comment_id', id)
+      store.set('last_received_comment_id', id)
     }
   }
 
@@ -814,26 +791,30 @@ class QiscusSDK {
     }
     if (this.avatar_url) params.avatar_url = this.avatar_url
 
-    let waitingConfig = setInterval(() => {
-      if (!this.isConfigLoaded) {
-        if (this.debugMode) {
-          console.log('Waiting for init config...')
-        }
-      } else {
-        clearInterval(waitingConfig)
-        console.log('Config Success!')
-        self.events.emit('start-init')
-        return self.authAdapter.loginOrRegister(params).then(
-          (response) => {
-            self.isInit = true
-            self.events.emit('login-success', response)
-          },
-          (error) => {
-            return self.events.emit('login-error', error)
+    return new Promise((resolve, reject) => {
+      let waitingConfig = setInterval(() => {
+        if (!this.isConfigLoaded) {
+          if (this.debugMode) {
+            console.log('Waiting for init config...')
           }
-        )
-      }
-    }, 300)
+        } else {
+          clearInterval(waitingConfig)
+          console.log('Config Success!')
+          self.events.emit('start-init')
+          return self.authAdapter.loginOrRegister(params).then(
+            (response) => {
+              self.isInit = true
+              self.events.emit('login-success', response)
+              resolve(response)
+            },
+            (error) => {
+              self.events.emit('login-error', error)
+              reject(error)
+            }
+          )
+        }
+      }, 300)
+    })
   }
 
   setUserWithIdentityToken(data) {
@@ -1842,6 +1823,62 @@ class QiscusSDK {
   }
 
   noop() { }
+
+
+  get _throttleDelay() {
+    if (this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled) {
+      return 0
+    }
+    return this.updateCommentStatusThrottleDelay || 300
+  }
+  get _updateStatusEnabled() {
+    return this.updateCommentStatusMode !== QiscusSDK.UpdateCommentStatusMode.disabled;
+  }
+
+  _updateStatus(roomId, commentId1 = null, commentId2 = null) {
+      const isSelected = (this.selected && this.selected.id === roomId) || false
+      const isChannel = (this.selected && this.selected.isChannel) || false
+
+      if (!isSelected || isChannel) return false
+      if (!this._updateStatusEnabled) return false
+
+      this.userAdapter
+        .updateCommentStatus(roomId, commentId1, commentId2)
+        .then(() => console.log('$updated', roomId, commentId1, commentId2))
+        .catch(err => {})
+  }
+
+  _updateStatusThrottled = this._throttle((roomId, commentId1 = null, commentId2 = null) => {
+    this._updateStatus(roomId, commentId1, commentId2)
+  }, (console.log(this._throttleDelay), () => this._throttleDelay))
+
+  _updateCommentStatus(roomId, commentId1, commentId2) {
+    console.log('@updated', roomId, commentId1, commentId2)
+    // if (this._updateStatusEnabled) return this._updateStatus
+    this._updateStatusThrottled(roomId, commentId1, commentId2)
+  }
+  readComment(roomId, commentId) {
+    return this._updateCommentStatus(roomId, commentId)
+  }
+
+  receiveComment(roomId, commentId) {
+    return this._updateCommentStatus(roomId, null, commentId)
+  }
+
+  _throttle(func, getWait) {
+    let isWaiting = false
+
+    return (...args) => {
+      let waitTime = getWait()
+
+      if (!isWaiting) {
+        func(...args)
+        isWaiting = true
+
+        setTimeout(() => isWaiting = false, waitTime)
+      }
+    }
+  }
 }
 
 class FileUploaded {
@@ -1853,3 +1890,30 @@ class FileUploaded {
 }
 
 export default QiscusSDK
+
+;(async function () {
+  var qiscus = new QiscusSDK();
+  await qiscus.init({
+    AppId: 'sdksample',
+    updateCommentStatusThrottleDelay: 100,
+    // updateCommentStatusMode: QiscusSDK.UpdateCommentStatusMode.enabled,
+    updateCommentStatusMode: QiscusSDK.UpdateCommentStatusMode.throttled,
+    // updateCommentStatusMode: QiscusSDK.UpdateCommentStatusMode.disabled,
+  })
+  console.log('period:', qiscus._throttleDelay)
+  await qiscus.setUser('guest-1001', 'passkey')
+  var room = await qiscus.chatTarget('guest-1002')
+  var commentId = room.last_comment_id
+
+  var counter = 1
+  var _interval = setInterval(() => {
+    if (++counter > 10) return clearInterval(_interval)
+
+    qiscus.readComment(room.id, commentId);
+    // qiscus._updateStatusThrottled(room.id, commentId)
+    // qiscus._updateCommentStatus(room.id, commentId)
+    // console.log('result:', result)
+
+  }, 50)
+
+})()
