@@ -255,7 +255,8 @@ class QiscusSDK {
         })
       }
       if (this.isLogin || !this.realtimeAdapter.connected) {
-        this.updateLastReceivedComment(localStorage.last_received_comment_id)
+        // this.updateLastReceivedComment(localStorage.last_received_comment_id)
+        this.updateLastReceivedComment(this.last_received_comment_id);
       }
     })
     this.realtimeAdapter.on('close', () => { })
@@ -564,9 +565,9 @@ class QiscusSDK {
     this.events.on('login-success', (response) => {
       this.isLogin = true
       this.userData = response.user
-      localStorage.setItem('userData', JSON.stringify(this.userData))
+      if(typeof localStorage) localStorage.setItem('userData', JSON.stringify(this.userData))
       this.last_received_comment_id = this.userData.last_comment_id
-      if (!this.realtimeAdapter.connected) this.updateLastReceivedComment(localStorage.last_received_comment_id)
+      if (!this.realtimeAdapter.connected) this.updateLastReceivedComment(this.last_received_comment_id)
 
       // now that we have the token, etc, we need to set all our adapters
       this.HTTPAdapter = new HttpAdapter({
@@ -785,7 +786,7 @@ class QiscusSDK {
   updateLastReceivedComment(id) {
     if (this.last_received_comment_id < id) {
       this.last_received_comment_id = id
-      localStorage.setItem('last_received_comment_id', id)
+      if(typeof localStorage) localStorage.setItem('last_received_comment_id', id)
     }
   }
 
@@ -827,6 +828,7 @@ class QiscusSDK {
           (response) => {
             self.isInit = true
             self.events.emit('login-success', response)
+            self.last_received_comment_id = response.user.last_received_comment_id;
           },
           (error) => {
             return self.events.emit('login-error', error)
@@ -844,6 +846,7 @@ class QiscusSDK {
     this.username = data.user.username
     this.avatar_url = data.user.avatar_url
     this.isInit = true
+    this.last_received_comment_id = data.user.last_received_comment_id;
     let waitingConfig = setInterval(() => {
       if (!this.isConfigLoaded) {
         if (this.debugMode) {
