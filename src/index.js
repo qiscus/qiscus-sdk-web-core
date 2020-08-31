@@ -16,8 +16,15 @@ import { GroupChatBuilder } from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
+import throttle from 'lodash.throttle'
 // helper for setup publishOnlinePresence status
 let setBackToOnline
+
+const UpdateCommentStatusMode = Object.freeze({
+  disabled: 'UpdateCommentStatusMode.disabled',
+  throttled: 'UpdateCommentStatusMode.throttled',
+  enabled: 'UpdateCommentStatusMode.enabled',
+})
 
 /**
  * Qiscus Web SDK Core Class
@@ -26,6 +33,9 @@ let setBackToOnline
  * @class QiscusSDK
  */
 class QiscusSDK {
+
+  static UpdateCommentStatusMode = UpdateCommentStatusMode
+
   /**
    * Creates an instance of QiscusSDK.
    */
@@ -67,6 +77,8 @@ class QiscusSDK {
       avatar: true
     }
     this.isConfigLoaded = false
+    this.updateCommentStatusMode = QiscusSDK.UpdateCommentStatusMode.enabled
+    this.updateCommentStatusThrottleDelay = 300
 
     // UI related Properties
     this.UI = {}
@@ -120,6 +132,9 @@ class QiscusSDK {
     } else if (config.enableRealtimeLB != null) {
       this.enableLb = config.enableRealtimeLB
     }
+
+    if (config.updateCommentStatusMode != null) this.updateCommentStatusMode = config.updateCommentStatusMode
+    if (config.updateCommentStatusThrottleDelay != null) this.updateCommentStatusThrottleDelay = config.updateCommentStatusThrottleDelay
     if (config.baseURL) this.baseURL = config.baseURL
     if (config.mqttURL) this.mqttURL = config.brokerUrl || config.mqttURL
     if (config.mqttURL) this.brokerUrl = config.brokerUrl || config.mqttURL
@@ -409,18 +424,31 @@ class QiscusSDK {
     this.events.emit('comment-delivered', { comment: message, userId })
   }
 
-  readComment(roomId, commentId) {
+  get _throttleDelay () {
+    if (this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled) {
+      return 0
+    }
+    return this.updateCommentStatusThrottleDelay
+  }
+  get _updateStatusEnabled() {
+    return this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled;
+  }
+
+  readComment = throttle((roomId, commentId) => {
+    if (!this._updateStatusEnabled) return false
     const isSelected = (this.selected && this.selected.id === roomId) || false
     const isChannel = (this.selected && this.selected.isChannel) || false
     if (!isSelected || isChannel) return false
-    this.userAdapter.updateCommentStatus(roomId, commentId, null)
-  }
+    this.userAdapter.updateCommentStatus(roomId, commentId, null).catch((err) => {})
+  }, this._throttleDelay)
 
-  receiveComment(roomId, commentId) {
+  receiveComment = throttle((roomId, commentId) => {
+    if (!this._updateStatusEnabled) return Promise.reject(new Error('updateCommentStatus disabled'))
+
     const isChannel = this.selected ? this.selected.isChannel : false
     if (isChannel) return false
-    this.userAdapter.updateCommentStatus(roomId, null, commentId)
-  }
+    this.userAdapter.updateCommentStatus(roomId, null, commentId).catch((err) => undefined)
+  }, this._throttleDelay)
 
   setEventListeners() {
     const self = this
