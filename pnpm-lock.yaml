@@ -7,6 +7,7 @@ dependencies:
   mitt: 1.2.0
   mqtt: 3.0.0
   qiscus-sdk-core: 2.9.12
+  store: 2.0.12
   superagent: 3.8.3
 devDependencies:
   '@babel/cli': 7.10.5_@babel+core@7.11.4
@@ -6405,6 +6406,10 @@ packages:
       node: '>=0.10.0'
     resolution:
       integrity: sha1-YICcOcv/VTNyJv1eC1IPNB8ftcY=
+  /store/2.0.12:
+    dev: false
+    resolution:
+      integrity: sha1-jFNOKguDH3K3X8XxEZhXxE711ZM=
   /stream-browserify/2.0.2:
     dependencies:
       inherits: 2.0.4
@@ -7223,6 +7228,7 @@ specifiers:
   npm-run-all: ^4.1.5
   qiscus-sdk-core: ^2.9.5
   rimraf: ^2.7.1
+  store: ^2.0.12
   superagent: ^3.6.3
   webpack: ^4.41.6
   webpack-cli: ^3.3.11

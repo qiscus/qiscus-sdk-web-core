@@ -66,6 +66,7 @@
     "mitt": "^1.2.0",
     "mqtt": "^3.0.0",
     "qiscus-sdk-core": "^2.9.5",
+    "store": "^2.0.12",
     "superagent": "^3.6.3"
   },
   "babel": {
