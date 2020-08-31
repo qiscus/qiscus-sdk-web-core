@@ -1850,11 +1850,11 @@ class QiscusSDK {
 
   _updateStatusThrottled = this._throttle((roomId, commentId1 = null, commentId2 = null) => {
     this._updateStatus(roomId, commentId1, commentId2)
-  }, (console.log(this._throttleDelay), () => this._throttleDelay))
+  }, () => this._throttleDelay)
 
   _updateCommentStatus(roomId, commentId1, commentId2) {
-    console.log('@updated', roomId, commentId1, commentId2)
-    // if (this._updateStatusEnabled) return this._updateStatus
+    if (this._updateStatusEnabled) return this._updateStatus(roomId, commentId1, commentId2)
+    if (!this._updateStatusEnabled) return false
     this._updateStatusThrottled(roomId, commentId1, commentId2)
   }
   readComment(roomId, commentId) {
@@ -1891,29 +1891,29 @@ class FileUploaded {
 
 export default QiscusSDK
 
-;(async function () {
-  var qiscus = new QiscusSDK();
-  await qiscus.init({
-    AppId: 'sdksample',
-    updateCommentStatusThrottleDelay: 100,
-    // updateCommentStatusMode: QiscusSDK.UpdateCommentStatusMode.enabled,
-    updateCommentStatusMode: QiscusSDK.UpdateCommentStatusMode.throttled,
-    // updateCommentStatusMode: QiscusSDK.UpdateCommentStatusMode.disabled,
-  })
-  console.log('period:', qiscus._throttleDelay)
-  await qiscus.setUser('guest-1001', 'passkey')
-  var room = await qiscus.chatTarget('guest-1002')
-  var commentId = room.last_comment_id
+// ;(async function () {
+//   var qiscus = new QiscusSDK();
+//   await qiscus.init({
+//     AppId: 'sdksample',
+//     updateCommentStatusThrottleDelay: 100,
+//     // updateCommentStatusMode: QiscusSDK.UpdateCommentStatusMode.enabled,
+//     updateCommentStatusMode: QiscusSDK.UpdateCommentStatusMode.throttled,
+//     // updateCommentStatusMode: QiscusSDK.UpdateCommentStatusMode.disabled,
+//   })
+//   console.log('period:', qiscus._throttleDelay)
+//   await qiscus.setUser('guest-1001', 'passkey')
+//   var room = await qiscus.chatTarget('guest-1002')
+//   var commentId = room.last_comment_id
 
-  var counter = 1
-  var _interval = setInterval(() => {
-    if (++counter > 10) return clearInterval(_interval)
+//   var counter = 1
+//   var _interval = setInterval(() => {
+//     if (++counter > 10) return clearInterval(_interval)
 
-    qiscus.readComment(room.id, commentId);
-    // qiscus._updateStatusThrottled(room.id, commentId)
-    // qiscus._updateCommentStatus(room.id, commentId)
-    // console.log('result:', result)
+//     qiscus.readComment(room.id, commentId);
+//     // qiscus._updateStatusThrottled(room.id, commentId)
+//     // qiscus._updateCommentStatus(room.id, commentId)
+//     // console.log('result:', result)
 
-  }, 50)
+//   }, 50)
 
-})()
+// })()
