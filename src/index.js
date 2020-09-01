@@ -1836,15 +1836,45 @@ class QiscusSDK {
   }
 
   _updateStatus(roomId, commentId1 = null, commentId2 = null) {
-      const isSelected = (this.selected && this.selected.id === roomId) || false
-      const isChannel = (this.selected && this.selected.isChannel) || false
+    // The rules:
+    // if it is receive command
+    // - it is prohibited to send command if current room are channel
+    // - it is ok to send command even if no room selected
+    // - it is prohibited to send command when `updateCommentStatusMode` is `disabled`
+    // if it is read command
+    // - it is prohibited to send command if current room are channel
+    // - it is prohibited to send command if no room selected (but why was this a thing?)
+    // - it is ok to send command when `updateCommentStatusMode` is `disabled`
 
-      if ((!isSelected || isChannel) && commentId2 == null) return false
-      if (!this._updateStatusEnabled) return false
 
-      this.userAdapter
-        .updateCommentStatus(roomId, commentId1, commentId2)
-        .catch(err => {})
+    const isReceiveCommand = commentId2 != null;
+    const isReadCommand = commentId1 != null;
+    const isSelected = (this.selected != null && this.selected.id === roomId) || false
+    const isChannel = (this.selected != null && this.selected.isChannel) || false
+    const isUpdateStatusDisabled = !this._updateStatusEnabled
+
+    const command = (() => {
+      if (isReadCommand) return 'read'
+      if (isReceiveCommand) return 'receive'
+    })()
+    const isAbleToRunCommand = (() => {
+      if (isChannel) return false
+      if (isReceiveCommand && isUpdateStatusDisabled) return false
+      return true
+    })()
+
+    if (this.debugMode) {
+      console.group('update-command-status')
+      console.log('run:', command, `on: roomId(${roomId}) commentId(${commentId1 || commentId2})`)
+      console.log('is able to run command?', isAbleToRunCommand)
+      console.groupEnd()
+    }
+
+    if (!isAbleToRunCommand) return false
+
+    this.userAdapter
+      .updateCommentStatus(roomId, commentId1, commentId2)
+      .catch(err => {})
   }
 
   _updateStatusThrottled = this._throttle((roomId, commentId1 = null, commentId2 = null) => {
@@ -1852,9 +1882,9 @@ class QiscusSDK {
   }, () => this._throttleDelay)
 
   _updateCommentStatus(roomId, commentId1, commentId2) {
-    if (this._updateStatusEnabled) return this._updateStatus(roomId, commentId1, commentId2)
-    if (!this._updateStatusEnabled) return false
-    this._updateStatusThrottled(roomId, commentId1, commentId2)
+    if (this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled)
+      return this._updateStatus(roomId, commentId1, commentId2)
+    return this._updateStatusThrottled(roomId, commentId1, commentId2)
   }
   readComment(roomId, commentId) {
     return this._updateCommentStatus(roomId, commentId)
