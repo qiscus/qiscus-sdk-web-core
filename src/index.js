@@ -795,11 +795,11 @@ class QiscusSDK {
       let waitingConfig = setInterval(() => {
         if (!this.isConfigLoaded) {
           if (this.debugMode) {
-            console.log('Waiting for init config...')
+            this.logger('Waiting for init config...')
           }
         } else {
           clearInterval(waitingConfig)
-          console.log('Config Success!')
+          this.logger('Config Success!')
           self.events.emit('start-init')
           return self.authAdapter.loginOrRegister(params).then(
             (response) => {
@@ -828,11 +828,11 @@ class QiscusSDK {
     let waitingConfig = setInterval(() => {
       if (!this.isConfigLoaded) {
         if (this.debugMode) {
-          console.log('Waiting for init config...')
+          this.logger('Waiting for init config...')
         }
       } else {
         clearInterval(waitingConfig)
-        console.log('Config Success!')
+        this.logger('Config Success!')
         this.events.emit('login-success', data)
       }
     }, 300)
@@ -910,12 +910,12 @@ class QiscusSDK {
       // Clear Interval when realtimeAdapter has been Populated
 
       if (this.debugMode) {
-        console.log('Trying Initial Subscribe')
+        this.logger('Trying Initial Subscribe')
       }
 
       if (this.realtimeAdapter != null) {
         if (this.debugMode) {
-          console.log('MQTT Connected')
+          this.logger('MQTT Connected')
         }
         clearInterval(initialSubscribe)
 
@@ -930,11 +930,11 @@ class QiscusSDK {
           this.events.emit('room-changed', this.selected)
         }
         if (this.debugMode && this.realtimeAdapter == null) {
-          console.log('Retry')
+          this.logger('Retry')
         }
       } else {
         if (this.debugMode) {
-          console.log('MQTT Not Connected, yet')
+          this.logger('MQTT Not Connected, yet')
         }
       }
     }, 3000)
@@ -1200,7 +1200,7 @@ class QiscusSDK {
         this.userData = res
         return Promise.resolve(res)
       },
-      (err) => console.log(err)
+      (err) => this.logger(err)
     )
   }
 
@@ -1844,7 +1844,6 @@ class QiscusSDK {
 
       this.userAdapter
         .updateCommentStatus(roomId, commentId1, commentId2)
-        .then(() => console.log('$updated', roomId, commentId1, commentId2))
         .catch(err => {})
   }
 
@@ -1890,30 +1889,3 @@ class FileUploaded {
 }
 
 export default QiscusSDK
-
-// ;(async function () {
-//   var qiscus = new QiscusSDK();
-//   await qiscus.init({
-//     AppId: 'sdksample',
-//     updateCommentStatusThrottleDelay: 100,
-//     // updateCommentStatusMode: QiscusSDK.UpdateCommentStatusMode.enabled,
-//     updateCommentStatusMode: QiscusSDK.UpdateCommentStatusMode.throttled,
-//     // updateCommentStatusMode: QiscusSDK.UpdateCommentStatusMode.disabled,
-//   })
-//   console.log('period:', qiscus._throttleDelay)
-//   await qiscus.setUser('guest-1001', 'passkey')
-//   var room = await qiscus.chatTarget('guest-1002')
-//   var commentId = room.last_comment_id
-
-//   var counter = 1
-//   var _interval = setInterval(() => {
-//     if (++counter > 10) return clearInterval(_interval)
-
-//     qiscus.readComment(room.id, commentId);
-//     // qiscus._updateStatusThrottled(room.id, commentId)
-//     // qiscus._updateCommentStatus(room.id, commentId)
-//     // console.log('result:', result)
-
-//   }, 50)
-
-// })()
