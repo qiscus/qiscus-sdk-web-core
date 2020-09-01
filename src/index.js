@@ -1839,7 +1839,7 @@ class QiscusSDK {
       const isSelected = (this.selected && this.selected.id === roomId) || false
       const isChannel = (this.selected && this.selected.isChannel) || false
 
-      if (!isSelected || isChannel) return false
+      if ((!isSelected || isChannel) && commentId2 == null) return false
       if (!this._updateStatusEnabled) return false
 
       this.userAdapter
