@@ -1877,21 +1877,25 @@ class QiscusSDK {
       .catch(err => {})
   }
 
-  _updateStatusThrottled = this._throttle((roomId, commentId1 = null, commentId2 = null) => {
-    this._updateStatus(roomId, commentId1, commentId2)
+  _readComment = (roomId, commentId) => this._updateStatus(roomId, commentId)
+  _readCommentT = this._throttle((roomId, commentId) => {
+    this._updateStatus(roomId, commentId)
+  }, () => this._throttleDelay)
+  _deliverComment = (roomId, commentId) => this._updateStatus(roomId, undefined, commentId)
+  _deliverCommentT = this._throttle((roomId, commentId) => {
+    this._updateStatus(roomId, undefined, commentId)
   }, () => this._throttleDelay)
 
-  _updateCommentStatus(roomId, commentId1, commentId2) {
-    if (this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled)
-      return this._updateStatus(roomId, commentId1, commentId2)
-    return this._updateStatusThrottled(roomId, commentId1, commentId2)
-  }
   readComment(roomId, commentId) {
-    return this._updateCommentStatus(roomId, commentId)
+    if (this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled)
+      return this._readComment(roomId, commentId)
+    return this._readCommentT(roomId, commentId)
   }
 
   receiveComment(roomId, commentId) {
-    return this._updateCommentStatus(roomId, null, commentId)
+    if (this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled)
+      return this._deliverComment(roomId, commentId)
+    return this._deliverCommentT(roomId, commentId)
   }
 
   _throttle(func, getWait) {
