@@ -1912,6 +1912,88 @@ class QiscusSDK {
       }
     }
   }
+
+
+
+  /**
+   * @typedef {Object} SearchMessageParams
+   * @property {string} query
+   * @property {Array.<number>} roomIds
+   * @property {string} userId
+   * @property {Array.<string>} type
+   * @property {string} roomType
+   * @property {number} page
+   * @property {number} limit
+   */
+  /**
+   *
+   * @param {SearchMessageParams} param0
+   * @returns {Array.<Object>}
+   */
+  async searchMessage({query, roomIds = [], userId, type, roomType, page, limit} = {}) {
+    const url = 'api/v2/sdk/search'
+
+    const isValidRoomType = ['group', 'single', 'channel'].some((it) => it === roomType)
+    if (roomType != null && !isValidRoomType) {
+      return Promise.reject('Invalid room type, valid room type are: `group`, `single`, and `channel`')
+    }
+
+    const room = ((roomType) => {
+      const rType = roomType == null
+        ? undefined
+        : roomType === 'single'
+          ? 'single'
+          : 'group'
+      const isPublic = roomType == null
+        ? undefined
+        : roomType === 'channel'
+          ? true
+          : false
+
+      return {
+        type: rType,
+        isPublic: isPublic,
+      }
+    })(roomType)
+
+    return this.HTTPAdapter.post(url, {
+      token: this.token,
+      query: query,
+      sender: userId,
+      type: type,
+      room_ids: roomIds.map((it) => String(it)),
+      room_type: room.type || undefined,
+      is_public: room.isPublic || undefined,
+      page: page,
+      limit: limit,
+    }).then((res) => {
+      console.log('res', res)
+    })
+  }
+
+  /**
+   * @typedef {Object} GetFileListParams
+   * @property {Array.<number>} roomIds
+   * @property {string} fileType
+   * @property {number} page
+   * @property {number} limit
+   */
+  async getFileList({roomIds = [], fileType, page, limit} = {}) {
+    const url = 'api/v2/sdk/file_list'
+
+    if (!this.isLogin) return Promise.reject('You need to login to use this method')
+
+
+    return this.HTTPAdapter.post(url, {
+      room_ids: roomIds.map(it => String(it)),
+      sender: this.user_id,
+      file_type: fileType,
+      page: page,
+      limit: limit,
+    }).then((res) => {
+      console.log('res', res)
+    })
+  }
 }
 
 class FileUploaded {
@@ -1923,3 +2005,4 @@ class FileUploaded {
 }
 
 export default QiscusSDK
+
