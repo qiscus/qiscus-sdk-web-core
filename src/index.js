@@ -17,7 +17,6 @@ import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
 import throttle from 'lodash.throttle'
-import store from 'store'
 
 // helper for setup publishOnlinePresence status
 let setBackToOnline
@@ -260,7 +259,8 @@ class QiscusSDK {
         })
       }
       if (this.isLogin || !this.realtimeAdapter.connected) {
-        this.updateLastReceivedComment(store.get('last_received_comment_id'))
+        this.last_received_comment_id = this.userData.last_comment_id
+        this.updateLastReceivedComment(this.last_received_comment_id)
       }
     })
     this.realtimeAdapter.on('close', () => { })
@@ -544,9 +544,8 @@ class QiscusSDK {
     this.events.on('login-success', (response) => {
       this.isLogin = true
       this.userData = response.user
-      store.set('userData', JSON.stringify(this.userData))
       this.last_received_comment_id = this.userData.last_comment_id
-      if (!this.realtimeAdapter.connected) this.updateLastReceivedComment(store.get('last_received_comment_id'))
+      if (!this.realtimeAdapter.connected) this.updateLastReceivedComment(this.last_received_comment_id)
 
       // now that we have the token, etc, we need to set all our adapters
       this.HTTPAdapter = new HttpAdapter({
@@ -765,7 +764,6 @@ class QiscusSDK {
   updateLastReceivedComment(id) {
     if (this.last_received_comment_id < id) {
       this.last_received_comment_id = id
-      store.set('last_received_comment_id', id)
     }
   }
 
