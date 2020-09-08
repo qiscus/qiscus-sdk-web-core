@@ -234,6 +234,9 @@ class QiscusSDK {
         this.enableRealtimeCheck = setterHelper(null, cfg.enable_realtime_check, enableRealtimeCheck)
         this.enableEventReport = setterHelper(null, cfg.enable_event_report, enableEventReport)
         this.extras = setterHelper(null, cfg.extras, configExtras)
+      }).catch((err) => {
+        this.logger('got error when trying to get app config', err)
+        this.isConfigLoaded = true
       })
 
     // set Event Listeners
