@@ -6,8 +6,30 @@ import debounce from 'lodash.debounce'
 import { wrapP } from '../util'
 
 export default class MqttAdapter {
-  constructor(url, core, login, { shouldConnect = true, brokerLbUrl, enableLb }) {
+  /**
+   * @typedef {Function} GetClientId
+   * @return {string}
+   */
+  /**
+   * @typedef {Object} MqttAdapterParams
+   * @property {boolean} shouldConnect
+   * @property {string} brokerLbUrl
+   * @property {boolean} enableLb
+   * @property {GetClientId} getClientId
+   */
+  /**
+   * @param {string} url
+   * @param {QiscusSDK} core
+   * @param {boolean} login
+   * @param {MqttAdapterParams} obj
+   */
+  constructor(url, core, login, { shouldConnect = true, brokerLbUrl, enableLb, getClientId }) {
     const emitter = mitt()
+
+    const _getClientId = () => {
+      if (getClientId == null) return `${core.AppId}_${core.user_id}_${Date.now()}`
+      return getClientId()
+    }
 
     const matcher = match({
       [when(this.reNewMessage)]: (topic) =>
@@ -46,19 +68,22 @@ export default class MqttAdapter {
       this.logger('error', err.message)
     }
     const __mqtt_conneck = (brokerUrl) => {
+      if (brokerUrl == null) brokerUrl = this.cacheRealtimeURL
       if (this.mqtt != null) {
         this.mqtt.removeAllListeners()
         this.mqtt = null
       }
       const opts = {
         will: {
-          topic: `u/${core.userData.email}/s`,
+          topic: `u/${core.user_id}/s`,
           payload: 0,
           retain: true,
         },
+        clientId: _getClientId()
       }
 
       const mqtt = connect(brokerUrl, opts)
+
       // #region Mqtt Listener
       mqtt.addListener('connect', __mqtt_connected_handler)
       mqtt.addListener('reconnect', __mqtt_reconnect_handler)
@@ -70,6 +95,8 @@ export default class MqttAdapter {
       return mqtt
     }
 
+    this.__mqtt_conneck = __mqtt_conneck
+    this.__url = url
     let mqtt = __mqtt_conneck(url)
 
     // if appConfig set realtimeEnabled to false,
@@ -113,6 +140,10 @@ export default class MqttAdapter {
         topics.forEach((topic) => this.mqtt.subscribe(topic))
       }, 300)
     )
+  }
+
+  connect() {
+    this.mqtt = this.__mqtt_conneck()
   }
 
   async getMqttNode() {

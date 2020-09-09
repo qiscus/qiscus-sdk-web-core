@@ -16,7 +16,6 @@ import { GroupChatBuilder } from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
-import throttle from 'lodash.throttle'
 
 // helper for setup publishOnlinePresence status
 let setBackToOnline
@@ -240,11 +239,13 @@ class QiscusSDK {
 
     // set Event Listeners
 
+    this._getMqttClientId = () => `${this.AppId}_${this.user_id}_${Date.now()}`
 
     this.realtimeAdapter = new MqttAdapter(this.mqttURL, this, this.isLogin, {
       brokerLbUrl: this.brokerLbUrl,
       enableLb: this.enableLb,
       shouldConnect: this.enableRealtime,
+      getClientId: this._getMqttClientId,
     })
     this.realtimeAdapter.on('connected', () => {
       if (this.options.onReconnectCallback) {
@@ -256,6 +257,7 @@ class QiscusSDK {
           brokerLbUrl: null,
           enableLb: null,
           shouldConnect: this.enableRealtime,
+          getClientId: this._getMqttClientId,
         })
       }
       if (this.isLogin || !this.realtimeAdapter.connected) {
@@ -276,6 +278,7 @@ class QiscusSDK {
             brokerLbUrl: this.brokerLbUrl,
             enableLb: this.enableLb,
             shouldConnect: this.enableRealtime,
+            getClientId: this._getMqttClientId,
           })
         })
       }
@@ -806,6 +809,7 @@ class QiscusSDK {
             (response) => {
               self.isInit = true
               self.events.emit('login-success', response)
+              this.realtimeAdapter.connect()
               resolve(response)
             },
             (error) => {
