@@ -68,8 +68,13 @@ export default class MqttAdapter {
       this.logger('error', err.message)
     }
     const __mqtt_conneck = (brokerUrl) => {
+      const topics = []
+
       if (brokerUrl == null) brokerUrl = this.cacheRealtimeURL
       if (this.mqtt != null) {
+        const _topics = Object.keys(this.mqtt._resubscribeTopics)
+        topics.push(..._topics)
+
         this.mqtt.removeAllListeners()
         this.mqtt = null
       }
@@ -91,6 +96,8 @@ export default class MqttAdapter {
       mqtt.addListener('error', __mqtt_error_handler)
       mqtt.addListener('message', __mqtt_message_handler)
       // #endregion
+
+      topics.forEach((topic) => mqtt.subscribe(topic))
 
       return mqtt
     }
@@ -124,7 +131,7 @@ export default class MqttAdapter {
         if (login != null && login == false) return
         if (shouldConnect == false) return
         this.willConnectToRealtime = true
-        const topics = Object.keys(this.mqtt._resubscribeTopics)
+
         const [url, err] = await wrapP(this.getMqttNode())
         if (err) {
           this.logger(
@@ -137,7 +144,6 @@ export default class MqttAdapter {
           this.mqtt = __mqtt_conneck(url)
         }
         this.logger(`resubscribe to old topics ${topics}`)
-        topics.forEach((topic) => this.mqtt.subscribe(topic))
       }, 300)
     )
   }
