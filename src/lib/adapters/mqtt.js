@@ -6,8 +6,30 @@ import debounce from 'lodash.debounce'
 import { wrapP } from '../util'
 
 export default class MqttAdapter {
-  constructor(url, core, login, { shouldConnect = true, brokerLbUrl, enableLb }) {
+  /**
+   * @typedef {Function} GetClientId
+   * @return {string}
+   */
+  /**
+   * @typedef {Object} MqttAdapterParams
+   * @property {boolean} shouldConnect
+   * @property {string} brokerLbUrl
+   * @property {boolean} enableLb
+   * @property {GetClientId} getClientId
+   */
+  /**
+   * @param {string} url
+   * @param {QiscusSDK} core
+   * @param {boolean} login
+   * @param {MqttAdapterParams} obj
+   */
+  constructor(url, core, login, { shouldConnect = true, brokerLbUrl, enableLb, getClientId }) {
     const emitter = mitt()
+
+    const _getClientId = () => {
+      if (getClientId == null) return `${core.AppId}_${core.user_id}_${Date.now()}`
+      return getClientId()
+    }
 
     const matcher = match({
       [when(this.reNewMessage)]: (topic) =>
@@ -46,19 +68,27 @@ export default class MqttAdapter {
       this.logger('error', err.message)
     }
     const __mqtt_conneck = (brokerUrl) => {
+      const topics = []
+
+      if (brokerUrl == null) brokerUrl = this.cacheRealtimeURL
       if (this.mqtt != null) {
+        const _topics = Object.keys(this.mqtt._resubscribeTopics)
+        topics.push(..._topics)
+
         this.mqtt.removeAllListeners()
         this.mqtt = null
       }
       const opts = {
         will: {
-          topic: `u/${core.userData.email}/s`,
+          topic: `u/${core.user_id}/s`,
           payload: 0,
           retain: true,
         },
+        clientId: _getClientId()
       }
 
       const mqtt = connect(brokerUrl, opts)
+
       // #region Mqtt Listener
       mqtt.addListener('connect', __mqtt_connected_handler)
       mqtt.addListener('reconnect', __mqtt_reconnect_handler)
@@ -67,9 +97,13 @@ export default class MqttAdapter {
       mqtt.addListener('message', __mqtt_message_handler)
       // #endregion
 
+      topics.forEach((topic) => mqtt.subscribe(topic))
+
       return mqtt
     }
 
+    this.__mqtt_conneck = __mqtt_conneck
+    this.__url = url
     let mqtt = __mqtt_conneck(url)
 
     // if appConfig set realtimeEnabled to false,
@@ -97,7 +131,7 @@ export default class MqttAdapter {
         if (login != null && login == false) return
         if (shouldConnect == false) return
         this.willConnectToRealtime = true
-        const topics = Object.keys(this.mqtt._resubscribeTopics)
+
         const [url, err] = await wrapP(this.getMqttNode())
         if (err) {
           this.logger(
@@ -110,9 +144,12 @@ export default class MqttAdapter {
           this.mqtt = __mqtt_conneck(url)
         }
         this.logger(`resubscribe to old topics ${topics}`)
-        topics.forEach((topic) => this.mqtt.subscribe(topic))
       }, 300)
     )
+  }
+
+  connect() {
+    this.mqtt = this.__mqtt_conneck()
   }
 
   async getMqttNode() {

@@ -16,8 +16,6 @@ import { GroupChatBuilder } from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
-import throttle from 'lodash.throttle'
-import store from 'store'
 
 // helper for setup publishOnlinePresence status
 let setBackToOnline
@@ -234,15 +232,20 @@ class QiscusSDK {
         this.enableRealtimeCheck = setterHelper(null, cfg.enable_realtime_check, enableRealtimeCheck)
         this.enableEventReport = setterHelper(null, cfg.enable_event_report, enableEventReport)
         this.extras = setterHelper(null, cfg.extras, configExtras)
+      }).catch((err) => {
+        this.logger('got error when trying to get app config', err)
+        this.isConfigLoaded = true
       })
 
     // set Event Listeners
 
+    this._getMqttClientId = () => `${this.AppId}_${this.user_id}_${Date.now()}`
 
     this.realtimeAdapter = new MqttAdapter(this.mqttURL, this, this.isLogin, {
       brokerLbUrl: this.brokerLbUrl,
       enableLb: this.enableLb,
       shouldConnect: this.enableRealtime,
+      getClientId: this._getMqttClientId,
     })
     this.realtimeAdapter.on('connected', () => {
       if (this.options.onReconnectCallback) {
@@ -254,10 +257,12 @@ class QiscusSDK {
           brokerLbUrl: null,
           enableLb: null,
           shouldConnect: this.enableRealtime,
+          getClientId: this._getMqttClientId,
         })
       }
       if (this.isLogin || !this.realtimeAdapter.connected) {
-        this.updateLastReceivedComment(store.get('last_received_comment_id'))
+        this.last_received_comment_id = this.userData.last_comment_id
+        this.updateLastReceivedComment(this.last_received_comment_id)
       }
     })
     this.realtimeAdapter.on('close', () => { })
@@ -273,6 +278,7 @@ class QiscusSDK {
             brokerLbUrl: this.brokerLbUrl,
             enableLb: this.enableLb,
             shouldConnect: this.enableRealtime,
+            getClientId: this._getMqttClientId,
           })
         })
       }
@@ -541,9 +547,8 @@ class QiscusSDK {
     this.events.on('login-success', (response) => {
       this.isLogin = true
       this.userData = response.user
-      store.set('userData', JSON.stringify(this.userData))
       this.last_received_comment_id = this.userData.last_comment_id
-      if (!this.realtimeAdapter.connected) this.updateLastReceivedComment(store.get('last_received_comment_id'))
+      if (!this.realtimeAdapter.connected) this.updateLastReceivedComment(this.last_received_comment_id)
 
       // now that we have the token, etc, we need to set all our adapters
       this.HTTPAdapter = new HttpAdapter({
@@ -762,7 +767,6 @@ class QiscusSDK {
   updateLastReceivedComment(id) {
     if (this.last_received_comment_id < id) {
       this.last_received_comment_id = id
-      store.set('last_received_comment_id', id)
     }
   }
 
@@ -805,6 +809,7 @@ class QiscusSDK {
             (response) => {
               self.isInit = true
               self.events.emit('login-success', response)
+              this.realtimeAdapter.connect()
               resolve(response)
             },
             (error) => {
