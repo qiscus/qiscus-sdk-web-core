@@ -94,6 +94,7 @@ class QiscusSDK {
     this.templateFunction = null
     this.debugMode = false
     this.debugMQTTMode = false
+    this._customHeader = {}
 
     // to prevent double receive newmessages callback
     this.lastReceiveMessages = []
@@ -157,7 +158,7 @@ class QiscusSDK {
     }
 
     if (config.syncInterval != null) this.syncInterval = config.syncInterval
-    this._customHeader = {}
+    // this._customHeader = {}
 
     // set appConfig
     this.HTTPAdapter = new HttpAdapter({
