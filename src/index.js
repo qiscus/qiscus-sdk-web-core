@@ -1880,7 +1880,7 @@ class QiscusSDK {
 
     this.userAdapter
       .updateCommentStatus(roomId, commentId1, commentId2)
-      .catch(err => {})
+      .catch(err => { })
   }
 
   _readComment = (roomId, commentId) => this._updateStatus(roomId, commentId)
@@ -1936,7 +1936,7 @@ class QiscusSDK {
    * @param {SearchMessageParams} param0
    * @returns {Array.<Object>}
    */
-  async searchMessage({query, roomIds = [], userId, type, roomType, page, limit} = {}) {
+  async searchMessage({ query, roomIds = [], userId, type, roomType, page, limit } = {}) {
     const url = 'api/v2/sdk/search'
 
     const isValidRoomType = ['group', 'single', 'channel'].some((it) => it === roomType)
@@ -1962,7 +1962,7 @@ class QiscusSDK {
       }
     })(roomType)
 
-    return this.HTTPAdapter.post(url, {
+    return this.HTTPAdapter.post_json(url, {
       token: this.token,
       query: query,
       sender: userId,
@@ -1972,9 +1972,7 @@ class QiscusSDK {
       is_public: room.isPublic || undefined,
       page: page,
       limit: limit,
-    }).then((res) => {
-      console.log('res', res)
-    })
+    }).then((res) => res.body)
   }
 
   /**
@@ -1984,7 +1982,7 @@ class QiscusSDK {
    * @property {number} page
    * @property {number} limit
    */
-  async getFileList({roomIds = [], fileType, page, limit} = {}) {
+  async getFileList({ roomIds = [], fileType, page, limit } = {}) {
     const url = 'api/v2/sdk/file_list'
 
     if (!this.isLogin) return Promise.reject('You need to login to use this method')
@@ -1996,9 +1994,7 @@ class QiscusSDK {
       file_type: fileType,
       page: page,
       limit: limit,
-    }).then((res) => {
-      console.log('res', res)
-    })
+    }).then((res) => res.body)
   }
 }
 
