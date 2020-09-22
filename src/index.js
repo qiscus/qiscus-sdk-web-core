@@ -1978,9 +1978,12 @@ class QiscusSDK {
   /**
    * @typedef {Object} GetFileListParams
    * @property {Array.<number>} roomIds
-   * @property {string} fileType
-   * @property {number} page
-   * @property {number} limit
+   * @property {String} fileType
+   * @property {Number} page
+   * @property {Number} limit
+   */
+  /**
+   * @param {GetFileListParams} param0
    */
   async getFileList({ roomIds = [], fileType, page, limit } = {}) {
     const url = 'api/v2/sdk/file_list'
