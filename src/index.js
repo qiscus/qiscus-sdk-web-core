@@ -1824,6 +1824,9 @@ class QiscusSDK {
       }
     );
   }
+  getRoomUnreadCount() {
+    return this.roomAdapter.getRoomUnreadCount();
+  }
 
   publishEvent(...args) {
     this.customEventAdapter.publishEvent(...args);
