@@ -1,30 +1,30 @@
-import request from 'superagent'
-import mitt from 'mitt'
-import is from 'is_js'
-import format from 'date-fns/format'
-import distanceInWordsToNow from 'date-fns/distance_in_words_to_now'
-import Comment from './lib/Comment'
-import Room from './lib/Room'
-import HttpAdapter from './lib/adapters/http'
-import AuthAdapter from './lib/adapters/auth'
-import UserAdapter from './lib/adapters/user'
-import RoomAdapter from './lib/adapters/room'
-import MqttAdapter from './lib/adapters/mqtt'
-import CustomEventAdapter from './lib/adapters/custom-event'
-import SyncAdapter from './lib/adapters/sync'
-import { GroupChatBuilder } from './lib/utils'
-import { tryCatch } from './lib/util'
-import Package from '../package.json'
-import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
+import request from 'superagent';
+import mitt from 'mitt';
+import is from 'is_js';
+import format from 'date-fns/format';
+import distanceInWordsToNow from 'date-fns/distance_in_words_to_now';
+import Comment from './lib/Comment';
+import Room from './lib/Room';
+import HttpAdapter from './lib/adapters/http';
+import AuthAdapter from './lib/adapters/auth';
+import UserAdapter from './lib/adapters/user';
+import RoomAdapter from './lib/adapters/room';
+import MqttAdapter from './lib/adapters/mqtt';
+import CustomEventAdapter from './lib/adapters/custom-event';
+import SyncAdapter from './lib/adapters/sync';
+import { GroupChatBuilder } from './lib/utils';
+import { tryCatch } from './lib/util';
+import Package from '../package.json';
+import { Hooks, hookAdapterFactory } from './lib/adapters/hook';
 
 // helper for setup publishOnlinePresence status
-let setBackToOnline
+let setBackToOnline;
 
 const UpdateCommentStatusMode = Object.freeze({
   disabled: 'UpdateCommentStatusMode.disabled',
   throttled: 'UpdateCommentStatusMode.throttled',
   enabled: 'UpdateCommentStatusMode.enabled',
-})
+});
 
 /**
  * Qiscus Web SDK Core Class
@@ -33,73 +33,80 @@ const UpdateCommentStatusMode = Object.freeze({
  * @class QiscusSDK
  */
 class QiscusSDK {
-
-  static UpdateCommentStatusMode = UpdateCommentStatusMode
+  static UpdateCommentStatusMode = UpdateCommentStatusMode;
 
   /**
    * Creates an instance of QiscusSDK.
    */
   constructor() {
-    this.events = mitt()
-    this.rooms = []
-    this.selected = null
-    this.room_name_id_map = {}
-    this.pendingCommentId = 0
-    this.uploadedFiles = []
-    this.chatmateStatus = null
-    this.version = `WEB_${Package.version}`
+    this.events = mitt();
+    this.rooms = [];
+    this.selected = null;
+    this.room_name_id_map = {};
+    this.pendingCommentId = 0;
+    this.uploadedFiles = [];
+    this.chatmateStatus = null;
+    this.version = `WEB_${Package.version}`;
 
-    this.userData = {}
+    this.userData = {};
     // SDK Configuration
-    this.AppId = null
-    this.baseURL = 'https://api.qiscus.com'
-    this.uploadURL = `${this.baseURL}/api/v2/sdk/upload`
-    this.mqttURL = 'wss://mqtt.qiscus.com:1886/mqtt'
-    this.brokerLbUrl = 'https://realtime-lb.qiscus.com'
-    this.syncOnConnect = 10000
-    this.enableEventReport = false
-    this.enableRealtime = true
-    this.enableRealtimeCheck = true
-    this.HTTPAdapter = null
-    this.realtimeAdapter = null
-    this.customEventAdapter = null
-    this.isInit = false
-    this.isSynced = false
-    this.syncInterval = 5000
-    this.sync = 'socket' // possible values 'socket', 'http', 'both'
-    this.enableLb = true
-    this.httpsync = null
-    this.eventsync = null
-    this.extras = null
-    this.last_received_comment_id = 0
-    this.googleMapKey = ''
+    this.AppId = null;
+    this.baseURL = 'https://api.qiscus.com';
+    this.mqttURL = 'wss://mqtt.qiscus.com:1886/mqtt';
+    this.brokerLbUrl = 'https://realtime-lb.qiscus.com';
+    this.syncOnConnect = 10000;
+    this.enableEventReport = false;
+    this.enableRealtime = true;
+    this.enableRealtimeCheck = true;
+    this.HTTPAdapter = null;
+    this.realtimeAdapter = null;
+    this.customEventAdapter = null;
+    this.isInit = false;
+    this.isSynced = false;
+    this.syncInterval = 5000;
+    this.sync = 'socket'; // possible values 'socket', 'http', 'both'
+    this.enableLb = true;
+    this.httpsync = null;
+    this.eventsync = null;
+    this.extras = null;
+    this.last_received_comment_id = 0;
+    this.googleMapKey = '';
     this.options = {
-      avatar: true
-    }
-    this.isConfigLoaded = false
-    this.updateCommentStatusMode = QiscusSDK.UpdateCommentStatusMode.enabled
-    this.updateCommentStatusThrottleDelay = 300
+      avatar: true,
+    };
+    this.isConfigLoaded = false;
+    this.updateCommentStatusMode = QiscusSDK.UpdateCommentStatusMode.enabled;
+    this.updateCommentStatusThrottleDelay = 300;
 
     // UI related Properties
-    this.UI = {}
-    this.mode = 'widget'
-    this.avatar = true
-    this.plugins = []
-    this.isLogin = false
-    this.isLoading = false
-    this.isInit = false
-    this.emoji = false
-    this.isTypingStatus = ''
-    this.customTemplate = false
-    this.templateFunction = null
-    this.debugMode = false
-    this.debugMQTTMode = false
-    this._customHeader = {}
+    this.UI = {};
+    this.mode = 'widget';
+    this.avatar = true;
+    this.plugins = [];
+    this.isLogin = false;
+    this.isLoading = false;
+    this.isInit = false;
+    this.emoji = false;
+    this.isTypingStatus = '';
+    this.customTemplate = false;
+    this.templateFunction = null;
+    this.debugMode = false;
+    this.debugMQTTMode = false;
+    this._customHeader = {};
 
     // to prevent double receive newmessages callback
-    this.lastReceiveMessages = []
+    this.lastReceiveMessages = [];
 
-    this._hookAdapter = hookAdapterFactory()
+    this._hookAdapter = hookAdapterFactory();
+    this._uploadURL = null;
+  }
+
+  // this.uploadURL = `${this.baseURL}/api/v2/sdk/upload`
+  get uploadURL() {
+    return this._uploadURL || `${this.baseURL}/api/v2/sdk/upload`;
+  }
+  set uploadURL(uploadURL) {
+    this._uploadURL = uploadURL;
   }
 
   /**
@@ -109,55 +116,58 @@ class QiscusSDK {
    */
   async init(config) {
     // set AppID
-    if (!config.AppId) throw new Error('Please provide valid AppId')
-    this.AppId = config.AppId
+    if (!config.AppId) throw new Error('Please provide valid AppId');
+    this.AppId = config.AppId;
 
     // We need to disable realtime load balancing if user are using custom server
     // and did not provide a brokerLbUrl
     const isDifferentBaseUrl =
-      config.baseURL != null && this.baseURL !== config.baseURL
+      config.baseURL != null && this.baseURL !== config.baseURL;
     const isDifferentMqttUrl =
-      config.mqttURL != null && this.mqttURL !== config.mqttURL
+      config.mqttURL != null && this.mqttURL !== config.mqttURL;
     const isDifferentBrokerLbUrl =
-      config.brokerLbURL != null && this.brokerLbUrl !== config.brokerLbURL
+      config.brokerLbURL != null && this.brokerLbUrl !== config.brokerLbURL;
     // disable realtime lb if user change baseUrl or mqttUrl but did not change
     // broker lb url
     if ((isDifferentBaseUrl || isDifferentMqttUrl) && !isDifferentBrokerLbUrl) {
       this.logger(
         '' +
-        'force disable load balancing for realtime server, because ' +
-        '`baseURL` or `mqttURL` get changed but ' +
-        'did not provide `brokerLbURL`'
-      )
-      this.enableLb = false
+          'force disable load balancing for realtime server, because ' +
+          '`baseURL` or `mqttURL` get changed but ' +
+          'did not provide `brokerLbURL`'
+      );
+      this.enableLb = false;
     } else if (config.enableRealtimeLB != null) {
-      this.enableLb = config.enableRealtimeLB
+      this.enableLb = config.enableRealtimeLB;
     }
 
-    if (config.updateCommentStatusMode != null) this.updateCommentStatusMode = config.updateCommentStatusMode
-    if (config.updateCommentStatusThrottleDelay != null) this.updateCommentStatusThrottleDelay = config.updateCommentStatusThrottleDelay
-    if (config.baseURL) this.baseURL = config.baseURL
-    if (config.mqttURL) this.mqttURL = config.brokerUrl || config.mqttURL
-    if (config.mqttURL) this.brokerUrl = config.brokerUrl || config.mqttURL
-    if (config.brokerLbURL) this.brokerLbUrl = config.brokerLbURL
-    if (config.uploadURL) this.uploadURL = config.uploadURL
-    if (config.sync) this.sync = config.sync
-    if (config.mode) this.mode = config.mode
-    if (config.syncInterval) this.syncInterval = config.syncInterval || 5000
-    if (config.googleMapKey) this.googleMapKey = config.googleMapKey
+    if (config.updateCommentStatusMode != null)
+      this.updateCommentStatusMode = config.updateCommentStatusMode;
+    if (config.updateCommentStatusThrottleDelay != null)
+      this.updateCommentStatusThrottleDelay =
+        config.updateCommentStatusThrottleDelay;
+    if (config.baseURL) this.baseURL = config.baseURL;
+    if (config.mqttURL) this.mqttURL = config.brokerUrl || config.mqttURL;
+    if (config.mqttURL) this.brokerUrl = config.brokerUrl || config.mqttURL;
+    if (config.brokerLbURL) this.brokerLbUrl = config.brokerLbURL;
+    if (config.uploadURL) this.uploadURL = config.uploadURL;
+    if (config.sync) this.sync = config.sync;
+    if (config.mode) this.mode = config.mode;
+    if (config.syncInterval) this.syncInterval = config.syncInterval || 5000;
+    if (config.googleMapKey) this.googleMapKey = config.googleMapKey;
     if (config.allowedFileTypes) {
-      this.allowedFileTypes = config.allowedFileTypes
+      this.allowedFileTypes = config.allowedFileTypes;
     }
     // Let's initialize the app based on options
     if (config.options) {
-      this.options = Object.assign({}, this.options, config.options)
+      this.options = Object.assign({}, this.options, config.options);
     }
-    if (config.customTemplate) this.customTemplate = config.customTemplate
+    if (config.customTemplate) this.customTemplate = config.customTemplate;
     if (config.templateFunction) {
-      this.templateFunction = config.templateFunction
+      this.templateFunction = config.templateFunction;
     }
 
-    if (config.syncInterval != null) this.syncInterval = config.syncInterval
+    if (config.syncInterval != null) this.syncInterval = config.syncInterval;
     // this._customHeader = {}
 
     // set appConfig
@@ -167,7 +177,7 @@ class QiscusSDK {
       userId: this.user_id,
       version: this.version,
       getCustomHeader: () => this._customHeader,
-    })
+    });
 
     /**
      * @callback SetterCallback
@@ -188,135 +198,169 @@ class QiscusSDK {
     const setterHelper = (fromUser, fromServer, defaultValue) => {
       if (fromServer == '') {
         if (fromUser != null) {
-          if (typeof fromUser !== 'string') return fromUser
-          if (fromUser.length > 0) return fromUser
+          if (typeof fromUser !== 'string') return fromUser;
+          if (fromUser.length > 0) return fromUser;
         }
       }
       if (fromServer != null) {
-        if (fromServer.length > 0) return fromServer
-        if (typeof fromServer !== 'string') return fromServer
+        if (fromServer.length > 0) return fromServer;
+        if (typeof fromServer !== 'string') return fromServer;
       }
-      return defaultValue
-    }
+      return defaultValue;
+    };
 
     const mqttWssCheck = (mqttResult) => {
       if (mqttResult.includes('wss://')) {
-        return mqttResult
+        return mqttResult;
       } else {
-        return `wss://${mqttResult}:1886/mqtt`
+        return `wss://${mqttResult}:1886/mqtt`;
       }
-    }
+    };
 
     await this.HTTPAdapter.get_request('api/v2/sdk/config')
       .then((resp) => {
-        resp.status == 200 ? this.isConfigLoaded = true : this.isConfigLoaded = false
-        return resp.body.results
+        resp.status == 200
+          ? (this.isConfigLoaded = true)
+          : (this.isConfigLoaded = false);
+        return resp.body.results;
       })
       .then((cfg) => {
-        const baseUrl = this.baseURL // default value for baseUrl
-        const brokerLbUrl = this.brokerLbUrl // default value for brokerLbUrl
-        const mqttUrl = this.mqttURL // default value for brokerUrl
-        const enableRealtime = this.enableRealtime // default value for enableRealtime
-        const enableRealtimeCheck = this.enableRealtimeCheck // default value for enableRealtimeCheck
-        const syncInterval = this.syncInterval // default value for syncInterval
-        const syncIntervalWhenConnected = this.syncOnConnect // default value for syncIntervalWhenConnected
-        const enableEventReport = this.enableEventReport // default value for enableEventReport
-        const configExtras = {} // default value for extras
+        const baseUrl = this.baseURL; // default value for baseUrl
+        const brokerLbUrl = this.brokerLbUrl; // default value for brokerLbUrl
+        const mqttUrl = this.mqttURL; // default value for brokerUrl
+        const enableRealtime = this.enableRealtime; // default value for enableRealtime
+        const enableRealtimeCheck = this.enableRealtimeCheck; // default value for enableRealtimeCheck
+        const syncInterval = this.syncInterval; // default value for syncInterval
+        const syncIntervalWhenConnected = this.syncOnConnect; // default value for syncIntervalWhenConnected
+        const enableEventReport = this.enableEventReport; // default value for enableEventReport
+        const configExtras = {}; // default value for extras
 
-        this.baseURL = setterHelper(config.baseURL, cfg.base_url, baseUrl)
-        this.brokerLbUrl = setterHelper(config.brokerLbURL, cfg.broker_lb_url, brokerLbUrl)
-        this.mqttURL = mqttWssCheck(setterHelper(config.mqttURL, cfg.broker_url, mqttUrl))
-        this.enableRealtime = setterHelper(config.enableRealtime, cfg.enable_realtime, enableRealtime)
-        this.syncInterval = setterHelper(config.syncInterval, cfg.sync_interval, syncInterval)
-        this.syncOnConnect = setterHelper(config.syncOnConnect, cfg.sync_on_connect, syncIntervalWhenConnected)
+        this.baseURL = setterHelper(config.baseURL, cfg.base_url, baseUrl);
+        this.brokerLbUrl = setterHelper(
+          config.brokerLbURL,
+          cfg.broker_lb_url,
+          brokerLbUrl
+        );
+        this.mqttURL = mqttWssCheck(
+          setterHelper(config.mqttURL, cfg.broker_url, mqttUrl)
+        );
+        this.enableRealtime = setterHelper(
+          config.enableRealtime,
+          cfg.enable_realtime,
+          enableRealtime
+        );
+        this.syncInterval = setterHelper(
+          config.syncInterval,
+          cfg.sync_interval,
+          syncInterval
+        );
+        this.syncOnConnect = setterHelper(
+          config.syncOnConnect,
+          cfg.sync_on_connect,
+          syncIntervalWhenConnected
+        );
         // since user never provide this value
-        this.enableRealtimeCheck = setterHelper(null, cfg.enable_realtime_check, enableRealtimeCheck)
-        this.enableEventReport = setterHelper(null, cfg.enable_event_report, enableEventReport)
-        this.extras = setterHelper(null, cfg.extras, configExtras)
-      }).catch((err) => {
-        this.logger('got error when trying to get app config', err)
-        this.isConfigLoaded = true
+        this.enableRealtimeCheck = setterHelper(
+          null,
+          cfg.enable_realtime_check,
+          enableRealtimeCheck
+        );
+        this.enableEventReport = setterHelper(
+          null,
+          cfg.enable_event_report,
+          enableEventReport
+        );
+        this.extras = setterHelper(null, cfg.extras, configExtras);
       })
+      .catch((err) => {
+        this.logger('got error when trying to get app config', err);
+        this.isConfigLoaded = true;
+      });
 
     // set Event Listeners
 
-    this._getMqttClientId = () => `${this.AppId}_${this.user_id}_${Date.now()}`
+    this._getMqttClientId = () => `${this.AppId}_${this.user_id}_${Date.now()}`;
 
     this.realtimeAdapter = new MqttAdapter(this.mqttURL, this, this.isLogin, {
       brokerLbUrl: this.brokerLbUrl,
       enableLb: this.enableLb,
       shouldConnect: this.enableRealtime,
       getClientId: this._getMqttClientId,
-    })
+    });
     this.realtimeAdapter.on('connected', () => {
       if (this.options.onReconnectCallback) {
-        this.options.onReconnectCallback()
+        this.options.onReconnectCallback();
       }
       if (this.enableRealtime == false) {
-        this.realtimeAdapter.mqtt.connected = false
+        this.realtimeAdapter.mqtt.connected = false;
         this.realtimeAdapter = new MqttAdapter(null, this, this.isLogin, {
           brokerLbUrl: null,
           enableLb: null,
           shouldConnect: this.enableRealtime,
           getClientId: this._getMqttClientId,
-        })
+        });
       }
       if (this.isLogin || !this.realtimeAdapter.connected) {
-        this.last_received_comment_id = this.userData.last_comment_id
-        this.updateLastReceivedComment(this.last_received_comment_id)
+        this.last_received_comment_id = this.userData.last_comment_id;
+        this.updateLastReceivedComment(this.last_received_comment_id);
       }
-    })
-    this.realtimeAdapter.on('close', () => { })
+    });
+    this.realtimeAdapter.on('close', () => {});
     this.realtimeAdapter.on('reconnect', () => {
       const isLogin = this.isLogin;
       const isConnected = this.realtimeAdapter.connected;
       const isEnabled = this.enableRealtime;
-      if (!isLogin && isConnected && !isEnabled) return
+      if (!isLogin && isConnected && !isEnabled) return;
       if (this.realtimeAdapter.connected == false) {
         this.realtimeAdapter.getMqttNode().then((res) => {
-          this.mqttURL = res
-          this.realtimeAdapter = new MqttAdapter(this.mqttURL, this, this.isLogin, {
-            brokerLbUrl: this.brokerLbUrl,
-            enableLb: this.enableLb,
-            shouldConnect: this.enableRealtime,
-            getClientId: this._getMqttClientId,
-          })
-        })
+          this.mqttURL = res;
+          this.realtimeAdapter = new MqttAdapter(
+            this.mqttURL,
+            this,
+            this.isLogin,
+            {
+              brokerLbUrl: this.brokerLbUrl,
+              enableLb: this.enableLb,
+              shouldConnect: this.enableRealtime,
+              getClientId: this._getMqttClientId,
+            }
+          );
+        });
       }
-    })
+    });
     this.realtimeAdapter.on(
       'message-delivered',
       ({ commentId, commentUniqueId, userId }) =>
         this._setDelivered(commentId, commentUniqueId, userId)
-    )
+    );
     this.realtimeAdapter.on(
       'message-read',
       ({ commentId, commentUniqueId, userId }) =>
         this._setRead(commentId, commentUniqueId, userId)
-    )
+    );
     this.realtimeAdapter.on('new-message', async (message) => {
       message = await this._hookAdapter.trigger(
         Hooks.MESSAGE_BEFORE_RECEIVED,
         message
-      )
-      this.events.emit('newmessages', [message])
-    })
+      );
+      this.events.emit('newmessages', [message]);
+    });
     this.realtimeAdapter.on('presence', (data) =>
       this.events.emit('presence', data)
-    )
+    );
     this.realtimeAdapter.on('comment-deleted', (data) =>
       this.events.emit('comment-deleted', data)
-    )
+    );
     this.realtimeAdapter.on('room-cleared', (data) =>
       this.events.emit('room-cleared', data)
-    )
+    );
     this.realtimeAdapter.on('typing', (data) =>
       this.events.emit('typing', {
         message: data.message,
         username: data.userId,
-        room_id: data.roomId
+        room_id: data.roomId,
       })
-    )
+    );
 
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
       getToken: () => this.userData.token,
@@ -324,150 +368,149 @@ class QiscusSDK {
       getShouldSync: () => this.isLogin && !this.realtimeAdapter.connected,
       syncOnConnect: () => this.syncOnConnect,
       lastCommentId: () => this.last_received_comment_id,
-      statusLogin: () => this.isLogin
-    })
+      statusLogin: () => this.isLogin,
+    });
     this.syncAdapter.on('message.new', async (message) => {
       message = await this._hookAdapter.trigger(
         Hooks.MESSAGE_BEFORE_RECEIVED,
         message
-      )
+      );
       if (this.selected != null) {
         const index = this.selected.comments.findIndex(
           (it) =>
             it.id === message.id || it.unique_id === message.unique_temp_id
-        )
+        );
         if (index === -1) {
-          const _message = new Comment(message)
+          const _message = new Comment(message);
           if (_message.room_id === this.selected.id) {
-            this.selected.comments.push(_message)
-            this.sortComments()
+            this.selected.comments.push(_message);
+            this.sortComments();
           }
-          this.events.emit('newmessages', [message])
+          this.events.emit('newmessages', [message]);
         }
       } else {
-        this.events.emit('newmessages', [message])
+        this.events.emit('newmessages', [message]);
       }
-    })
+    });
     this.syncAdapter.on('message.delivered', (message) => {
       this._setDelivered(
         message.comment_id,
         message.comment_unique_id,
         message.email
-      )
-    })
+      );
+    });
     this.syncAdapter.on('message.read', (message) => {
       this._setRead(
         message.comment_id,
         message.comment_unique_id,
         message.email
-      )
-    })
+      );
+    });
     this.syncAdapter.on('message.deleted', (data) => {
       data.deleted_messages.forEach((it) => {
         this.events.emit('comment-deleted', {
           roomId: it.room_id,
           commentUniqueIds: it.message_unique_ids,
           isForEveryone: true,
-          isHard: true
-        })
-      })
-    })
+          isHard: true,
+        });
+      });
+    });
     this.syncAdapter.on('room.cleared', (data) => {
       data.deleted_rooms.forEach((room) => {
-        this.events.emit('room-cleared', room)
-      })
-    })
+        this.events.emit('room-cleared', room);
+      });
+    });
 
     this.customEventAdapter = CustomEventAdapter(
       this.realtimeAdapter,
       this.user_id
-    )
+    );
 
-    this.setEventListeners()
+    this.setEventListeners();
   }
 
   _setRead(messageId, messageUniqueId, userId) {
-    if (this.selected == null) return
-    const room = this.selected
+    if (this.selected == null) return;
+    const room = this.selected;
     const message = room.comments.find(
       (it) => it.id === messageId || it.unique_id === messageUniqueId
-    )
-    if (message == null) return
-    if (message.status === 'read') return
+    );
+    if (message == null) return;
+    if (message.status === 'read') return;
 
     const options = {
       participants: room.participants,
       actor: userId,
       comment_id: messageId,
-      activeActorId: this.user_id
-    }
+      activeActorId: this.user_id,
+    };
     room.comments.forEach((it) => {
       if (it.id <= message.id) {
-        it.markAsRead(options)
+        it.markAsRead(options);
       }
-    })
-    if (!message.isRead) return
-    this.events.emit('comment-read', { comment: message, userId })
+    });
+    if (!message.isRead) return;
+    this.events.emit('comment-read', { comment: message, userId });
   }
   _setDelivered(messageId, messageUniqueId, userId) {
-    if (this.selected == null) return
-    const room = this.selected
+    if (this.selected == null) return;
+    const room = this.selected;
     const message = room.comments.find(
       (it) => it.id === messageId || it.unique_id === messageUniqueId
-    )
-    if (message == null) return
-    if (message.status === 'read') return
+    );
+    if (message == null) return;
+    if (message.status === 'read') return;
 
     const options = {
       participants: room.participants,
       actor: userId,
       comment_id: messageId,
-      activeActorId: this.user_id
-    }
+      activeActorId: this.user_id,
+    };
     room.comments.forEach((it) => {
       if (it.id <= message.id) {
-        it.markAsDelivered(options)
+        it.markAsDelivered(options);
       }
-    })
-    if (!message.isDelivered) return
-    this.events.emit('comment-delivered', { comment: message, userId })
+    });
+    if (!message.isDelivered) return;
+    this.events.emit('comment-delivered', { comment: message, userId });
   }
 
-
   setEventListeners() {
-    const self = this
+    const self = this;
     self.events.on('start-init', () => {
       self.HTTPAdapter = new HttpAdapter({
         baseURL: self.baseURL,
         AppId: self.AppId,
         userId: self.user_id,
         version: self.version,
-        getCustomHeader: () => this._customHeader
-      })
-      self.HTTPAdapter.setToken(self.userData.token)
-      self.authAdapter = new AuthAdapter(self.HTTPAdapter)
-    })
+        getCustomHeader: () => this._customHeader,
+      });
+      self.HTTPAdapter.setToken(self.userData.token);
+      self.authAdapter = new AuthAdapter(self.HTTPAdapter);
+    });
 
     self.events.on('room-changed', (room) => {
-      this.logging('room changed', room)
+      this.logging('room changed', room);
       if (self.options.roomChangedCallback) {
-        self.options.roomChangedCallback(room)
+        self.options.roomChangedCallback(room);
       }
-    })
+    });
 
     self.events.on('file-uploaded', (url) => {
       if (self.options.fileUploadedCallback) {
-        self.options.fileUploadedCallback(url)
+        self.options.fileUploadedCallback(url);
       }
-    })
+    });
 
     self.events.on('profile-updated', (user) => {
-      self.username = user.name
-      self.avatar_url = user.avatar_url
+      self.username = user.name;
+      self.avatar_url = user.avatar_url;
       if (self.options.updateProfileCallback) {
-        self.options.updateProfileCallback(user)
+        self.options.updateProfileCallback(user);
       }
-    })
+    });
 
     /**
      * This event will be called when there's new post messages
@@ -477,79 +520,80 @@ class QiscusSDK {
     self.events.on('newmessages', (comments) => {
       // let's convert the data into something we can use
       // first we need to make sure we sort this data out based on room_id
-      this.logging('newmessages', comments)
+      this.logging('newmessages', comments);
 
-      const lastReceivedMessageNotEmpty = this.lastReceiveMessages.length > 0
+      const lastReceivedMessageNotEmpty = this.lastReceiveMessages.length > 0;
       if (
         lastReceivedMessageNotEmpty &&
         this.lastReceiveMessages[0].unique_temp_id ===
-        comments[0].unique_temp_id
+          comments[0].unique_temp_id
       ) {
-        this.logging('lastReceiveMessages double', comments)
-        return
+        this.logging('lastReceiveMessages double', comments);
+        return;
       }
 
-      this.lastReceiveMessages = comments
+      this.lastReceiveMessages = comments;
 
-      self._callNewMessagesCallback(comments)
+      self._callNewMessagesCallback(comments);
       comments.forEach((comment) => {
         // we have this comment, so means it's already delivered, update it's delivered status
-        self.receiveComment(comment.room_id, comment.id)
+        self.receiveComment(comment.room_id, comment.id);
 
         const isActiveRoom = self.selected
           ? comment.room_id === self.selected.id
-          : false
-        const isAlreadyRead = comment.id <= self.last_received_comment_id
+          : false;
+        const isAlreadyRead = comment.id <= self.last_received_comment_id;
 
         // kalau comment ini ada di currently selected
         if (isActiveRoom) {
-          const selected = self.selected
+          const selected = self.selected;
           const lastComment =
-            self.selected.comments[self.selected.comments.length - 1]
+            self.selected.comments[self.selected.comments.length - 1];
           // kirim event read kalau ini bukan komen kita sendiri
           if (
             !lastComment.isPending &&
             !isAlreadyRead &&
             self.user_id !== comment.email
           ) {
-            self.readComment(comment.room_id, comment.id)
+            self.readComment(comment.room_id, comment.id);
           }
           // pastiin sync
-          const roomLastCommentId = lastComment.id
+          const roomLastCommentId = lastComment.id;
           const commentBeforeThis = self.selected.comments.find(
             (c) => c.id === lastComment.comment_before_id
-          )
+          );
           if (!lastComment.isPending && !commentBeforeThis) {
             this.logging(
               'comment before id not found! ',
               comment.comment_before_id
-            )
+            );
             // need to fix, these method does not work
-            self.synchronize(roomLastCommentId)
+            self.synchronize(roomLastCommentId);
           }
           // pastikan dulu komen ini komen baru, klo komen lama ga usah panggil cb
-          const pendingComment = new Comment(comment)
+          const pendingComment = new Comment(comment);
           // fetch the comment inside the room
-          selected.receiveComment(pendingComment)
-          selected.last_comment_id = pendingComment.id
-          selected.last_comment_message = pendingComment.message
+          selected.receiveComment(pendingComment);
+          selected.last_comment_id = pendingComment.id;
+          selected.last_comment_message = pendingComment.message;
         }
 
         // let's update last_received_comment_id
-        self.updateLastReceivedComment(comment.id)
-        this.sortComments()
-      })
-    })
+        self.updateLastReceivedComment(comment.id);
+        this.sortComments();
+      });
+    });
 
     /**
      * This event will be called when login is sucess
      * Basically, it sets up necessary properties for qiscusSDK
      */
     this.events.on('login-success', (response) => {
-      this.isLogin = true
-      this.userData = response.user
-      this.last_received_comment_id = this.userData.last_comment_id
-      if (!this.realtimeAdapter.connected) this.updateLastReceivedComment(this.last_received_comment_id)
+      this.isLogin = true;
+      this.userData = response.user;
+      this.last_received_comment_id = this.userData.last_comment_id;
+      if (!this.realtimeAdapter.connected)
+        this.updateLastReceivedComment(this.last_received_comment_id);
 
       // now that we have the token, etc, we need to set all our adapters
       this.HTTPAdapter = new HttpAdapter({
@@ -557,49 +601,49 @@ class QiscusSDK {
         AppId: this.AppId,
         userId: this.user_id,
         version: this.version,
-        getCustomHeader: () => this._customHeader
-      })
-      this.HTTPAdapter.setToken(this.userData.token)
+        getCustomHeader: () => this._customHeader,
+      });
+      this.HTTPAdapter.setToken(this.userData.token);
 
-      this.userAdapter = new UserAdapter(this.HTTPAdapter)
-      this.roomAdapter = new RoomAdapter(this.HTTPAdapter)
+      this.userAdapter = new UserAdapter(this.HTTPAdapter);
+      this.roomAdapter = new RoomAdapter(this.HTTPAdapter);
 
-      this.realtimeAdapter.subscribeUserChannel()
+      this.realtimeAdapter.subscribeUserChannel();
       if (this.presensePublisherId != null && this.presensePublisherId !== -1) {
-        clearInterval(this.presensePublisherId)
+        clearInterval(this.presensePublisherId);
       }
       this.presensePublisherId = setInterval(() => {
-        this.realtimeAdapter.publishPresence(this.user_id, true)
-      }, 3500)
+        this.realtimeAdapter.publishPresence(this.user_id, true);
+      }, 3500);
 
       // if (this.sync === "http" || this.sync === "both") this.activateSync();
       if (this.options.loginSuccessCallback) {
-        this.options.loginSuccessCallback(response)
+        this.options.loginSuccessCallback(response);
       }
-    })
+    });
 
     /**
      * Called when there's something wrong when connecting to qiscus SDK
      */
     self.events.on('login-error', function (error) {
       if (self.options.loginErrorCallback) {
-        self.options.loginErrorCallback(error)
+        self.options.loginErrorCallback(error);
       }
-    })
+    });
 
     self.events.on('room-cleared', function (room) {
       // find room
       if (self.selected) {
-        const currentRoom = self.selected
+        const currentRoom = self.selected;
         if (self.selected.unique_id === room.unique_id) {
-          self.selected = null
-          self.selected = currentRoom
+          self.selected = null;
+          self.selected = currentRoom;
         }
       }
       if (self.options.roomClearedCallback) {
-        self.options.roomClearedCallback(room)
+        self.options.roomClearedCallback(room);
       }
-    })
+    });
 
     self.events.on('comment-deleted', function (data) {
       // get to the room id and delete the comment
@@ -608,166 +652,166 @@ class QiscusSDK {
         commentUniqueIds,
         // eslint-disable-next-line
         isForEveryone,
-        isHard
-      } = data
+        isHard,
+      } = data;
       if (self.selected && self.selected.id == roomId) {
         // loop through the array of unique_ids
         commentUniqueIds.map((id) => {
           const commentToBeFound = self.selected.comments.findIndex(
             (comment) => comment.unique_id === id
-          )
+          );
           if (commentToBeFound > -1) {
             if (isHard) {
-              self.selected.comments.splice(commentToBeFound, 1)
+              self.selected.comments.splice(commentToBeFound, 1);
             } else {
               self.selected.comments[commentToBeFound].message =
-                'this message has been deleted'
+                'this message has been deleted';
             }
           }
-        })
+        });
       }
       if (self.options.commentDeletedCallback) {
-        self.options.commentDeletedCallback(data)
+        self.options.commentDeletedCallback(data);
       }
-    })
+    });
 
     /**
      * Called when the comment has been delivered
      */
     self.events.on('comment-delivered', function (response) {
-      self.logging('comment-delivered', response)
-      if (!response) return false
+      self.logging('comment-delivered', response);
+      if (!response) return false;
       if (self.options.commentDeliveredCallback) {
-        return self.options.commentDeliveredCallback(response)
+        return self.options.commentDeliveredCallback(response);
       }
       // find comment with the id or unique id listed from response
       // const commentToFind = self.selected.comments.find(comment =>
       //   comment.id === response.id || comment.uniqueId === response.uniqueId);
-    })
+    });
 
     /**
      * Called when new chatroom has been created
      */
     self.events.on('chat-room-created', function (response) {
-      self.isLoading = false
+      self.isLoading = false;
       if (self.options.chatRoomCreatedCallback) {
-        self.options.chatRoomCreatedCallback(response)
+        self.options.chatRoomCreatedCallback(response);
       }
-    })
+    });
 
     /**
      * Called when a new room with type of group has been created
      */
     self.events.on('group-room-created', function (response) {
-      self.isLoading = false
+      self.isLoading = false;
       if (self.options.groupRoomCreatedCallback) {
-        self.options.groupRoomCreatedCallback(response)
+        self.options.groupRoomCreatedCallback(response);
       }
-    })
+    });
 
     /**
      * Called when user clicked on Chat SDK Header
      */
     self.events.on('header-clicked', function (response) {
       if (self.options.headerClickedCallback) {
-        self.options.headerClickedCallback(response)
+        self.options.headerClickedCallback(response);
       }
-    })
+    });
 
     /**
      * Called when a comment has been read
      */
     self.events.on('comment-read', function (response) {
-      self.logging('comment-read', response)
+      self.logging('comment-read', response);
       if (self.options.commentReadCallback) {
-        self.options.commentReadCallback(response)
+        self.options.commentReadCallback(response);
       }
-    })
+    });
 
     /**
      * Called when there's new presence data of currently subscribed target user (last seen timestamp)
      * @param {string} data MQTT Payload with format of "x:xxxxxxxxxxxxx"
      */
     self.events.on('presence', ({ message, userId }) => {
-      const payload = message.split(':')
+      const payload = message.split(':');
       if (this.chatmateStatus !== payload[0]) {
         this.chatmateStatus =
           payload[0] === 1
             ? 'Online'
             : `Last seen ${distanceInWordsToNow(
-              Number(payload[1].substring(0, 13))
-            )}`
+                Number(payload[1].substring(0, 13))
+              )}`;
       }
       if (self.options.presenceCallback)
-        self.options.presenceCallback(message, userId)
-    })
+        self.options.presenceCallback(message, userId);
+    });
 
     self.events.on('typing', function (data) {
-      if (self.options.typingCallback) self.options.typingCallback(data)
-    })
+      if (self.options.typingCallback) self.options.typingCallback(data);
+    });
 
     /**
      * Called when user clicked on Message Info
      */
     self.events.on('message-info', function (response) {
       if (self.options.messageInfoCallback) {
-        self.options.messageInfoCallback(response)
+        self.options.messageInfoCallback(response);
       }
-    })
+    });
 
     /**
      * Called when new particant was added into a group
      */
     self.events.on('participants-added', (response) => {
-      if (response == null || this.selected == null) return
-      this.selected.participants.push(...response)
-    })
+      if (response == null || this.selected == null) return;
+      this.selected.participants.push(...response);
+    });
 
     /**
      * Called when particant was removed from a group
      */
     self.events.on('participants-removed', (response) => {
-      if (response == null || this.selected == null) return
+      if (response == null || this.selected == null) return;
       const participants = this.selected.participants.filter(
         (participant) => response.indexOf(participant.email) <= -1
-      )
-      this.selected.participants = participants
-    })
+      );
+      this.selected.participants = participants;
+    });
 
     /**
      * Called when user was added to blocked list
      */
     self.events.on('block-user', function (response) {
       if (self.options.blockUserCallback) {
-        self.options.blockUserCallback(response)
+        self.options.blockUserCallback(response);
       }
-    })
+    });
 
     /**
      * Called when user was removed from blocked list
      */
     self.events.on('unblock-user', function (response) {
       if (self.options.unblockUserCallback) {
-        self.options.unblockUserCallback(response)
+        self.options.unblockUserCallback(response);
       }
-    })
+    });
   }
 
   onReconnectMqtt() {
-    if (this.options.onReconnectCallback) this.options.onReconnectedCallback()
-    if (!this.selected) return
-    this.loadComments(this.selected.id)
+    if (this.options.onReconnectCallback) this.options.onReconnectedCallback();
+    if (!this.selected) return;
+    this.loadComments(this.selected.id);
   }
 
   _callNewMessagesCallback(comments) {
     if (this.options.newMessagesCallback) {
-      this.options.newMessagesCallback(comments)
+      this.options.newMessagesCallback(comments);
     }
   }
 
   updateLastReceivedComment(id) {
     if (this.last_received_comment_id < id) {
-      this.last_received_comment_id = id
+      this.last_received_comment_id = id;
     }
   }
 
@@ -781,169 +825,172 @@ class QiscusSDK {
    * @return {Promise}
    */
   setUser(userId, key, username, avatarURL, extras) {
-    const self = this
+    const self = this;
 
-    self.user_id = userId
-    self.key = key
-    self.username = username
-    self.avatar_url = avatarURL
+    self.user_id = userId;
+    self.key = key;
+    self.username = username;
+    self.avatar_url = avatarURL;
 
     let params = {
       email: this.user_id,
       password: this.key,
       username: this.username,
-      extras: extras ? JSON.stringify(extras) : null
-    }
-    if (this.avatar_url) params.avatar_url = this.avatar_url
+      extras: extras ? JSON.stringify(extras) : null,
+    };
+    if (this.avatar_url) params.avatar_url = this.avatar_url;
 
     return new Promise((resolve, reject) => {
       let waitingConfig = setInterval(() => {
         if (!this.isConfigLoaded) {
           if (this.debugMode) {
-            this.logger('Waiting for init config...')
+            this.logger('Waiting for init config...');
           }
         } else {
-          clearInterval(waitingConfig)
-          this.logger('Config Success!')
-          self.events.emit('start-init')
+          clearInterval(waitingConfig);
+          this.logger('Config Success!');
+          self.events.emit('start-init');
           return self.authAdapter.loginOrRegister(params).then(
             (response) => {
-              self.isInit = true
-              self.events.emit('login-success', response)
-              this.realtimeAdapter.connect()
-              resolve(response)
+              self.isInit = true;
+              self.events.emit('login-success', response);
+              this.realtimeAdapter.connect();
+              resolve(response);
             },
             (error) => {
-              self.events.emit('login-error', error)
-              reject(error)
+              self.events.emit('login-error', error);
+              reject(error);
             }
-          )
+          );
         }
-      }, 300)
-    })
+      }, 300);
+    });
   }
 
   setUserWithIdentityToken(data) {
-    if (!data || !('user' in data)) return this.events.emit('login-error', data)
-    this.email = data.user.email
-    this.user_id = data.user.email
-    this.key = data.identity_token
-    this.username = data.user.username
-    this.avatar_url = data.user.avatar_url
-    this.isInit = true
+    if (!data || !('user' in data))
+      return this.events.emit('login-error', data);
+    this.email = data.user.email;
+    this.user_id = data.user.email;
+    this.key = data.identity_token;
+    this.username = data.user.username;
+    this.avatar_url = data.user.avatar_url;
+    this.isInit = true;
     let waitingConfig = setInterval(() => {
       if (!this.isConfigLoaded) {
         if (this.debugMode) {
-          this.logger('Waiting for init config...')
+          this.logger('Waiting for init config...');
         }
       } else {
-        clearInterval(waitingConfig)
-        this.logger('Config Success!')
-        this.events.emit('login-success', data)
+        clearInterval(waitingConfig);
+        this.logger('Config Success!');
+        this.events.emit('login-success', data);
       }
-    }, 300)
+    }, 300);
   }
 
   publishOnlinePresence(val) {
     if (val === true) {
       setBackToOnline = setInterval(() => {
-        this.realtimeAdapter.publishPresence(this.user_id, true)
-      }, 3500)
+        this.realtimeAdapter.publishPresence(this.user_id, true);
+      }, 3500);
     } else {
-      clearInterval(this.presensePublisherId)
-      clearInterval(setBackToOnline)
+      clearInterval(this.presensePublisherId);
+      clearInterval(setBackToOnline);
       setTimeout(() => {
-        this.realtimeAdapter.publishPresence(this.user_id, false)
-      }, 3500)
+        this.realtimeAdapter.publishPresence(this.user_id, false);
+      }, 3500);
     }
   }
 
   subscribeUserPresence(userId) {
-    this.realtimeAdapter.subscribeUserPresence(userId)
+    this.realtimeAdapter.subscribeUserPresence(userId);
   }
 
   unsubscribeUserPresence(userId) {
-    this.realtimeAdapter.unsubscribeUserPresence(userId)
+    this.realtimeAdapter.unsubscribeUserPresence(userId);
   }
 
   logout() {
-    clearInterval(this.presensePublisherId)
-    this.publishOnlinePresence(false)
-    this.selected = null
-    this.isInit = false
-    this.isLogin = false
-    this.realtimeAdapter.disconnect()
-    this.userData = {}
+    clearInterval(this.presensePublisherId);
+    this.publishOnlinePresence(false);
+    this.selected = null;
+    this.isInit = false;
+    this.isLogin = false;
+    this.realtimeAdapter.disconnect();
+    this.userData = {};
   }
 
   get synchronize() {
-    return this.syncAdapter.synchronize
+    return this.syncAdapter.synchronize;
   }
   get synchronizeEvent() {
-    return this.syncAdapter.synchronizeEvent
+    return this.syncAdapter.synchronizeEvent;
   }
 
   disconnect() {
-    this.logout()
+    this.logout();
   }
 
   setActiveRoom(room) {
     // when we activate a room
     // we need to unsubscribe from typing event
     if (this.selected) {
-      this.realtimeAdapter.unsubscribeTyping()
+      this.realtimeAdapter.unsubscribeTyping();
       // before we unsubscribe, we need to get the userId first
       // and only unsubscribe if the previous room is having a type of 'single'
       if (this.selected.room_type === 'single') {
         const unsubscribedUserId = this.selected.participants.filter(
           (p) => p.email !== this.user_id
-        )
+        );
         if (unsubscribedUserId.length > 0) {
           this.realtimeAdapter.unsubscribeRoomPresence(
             unsubscribedUserId[0].email
-          )
+          );
         }
       }
     }
-    if (room.participants == null) room.participants = []
-    const targetUserId = room.participants.find((p) => p.email !== this.user_id)
-    this.chatmateStatus = null
-    this.isTypingStatus = null
-    this.selected = room
+    if (room.participants == null) room.participants = [];
+    const targetUserId = room.participants.find(
+      (p) => p.email !== this.user_id
+    );
+    this.chatmateStatus = null;
+    this.isTypingStatus = null;
+    this.selected = room;
     // found a bug where there's a race condition, subscribing to mqtt
     // while mqtt is still connecting, so we'll have to do this hack
     const initialSubscribe = setInterval(() => {
       // Clear Interval when realtimeAdapter has been Populated
 
       if (this.debugMode) {
-        this.logger('Trying Initial Subscribe')
+        this.logger('Trying Initial Subscribe');
       }
 
       if (this.realtimeAdapter != null) {
         if (this.debugMode) {
-          this.logger('MQTT Connected')
+          this.logger('MQTT Connected');
         }
-        clearInterval(initialSubscribe)
+        clearInterval(initialSubscribe);
 
         // before we unsubscribe, we need to get the userId first
         // and only unsubscribe if the previous room is having a type of 'single'
         if (room.room_type === 'single' && targetUserId != null) {
-          this.realtimeAdapter.subscribeRoomPresence(targetUserId.email)
+          this.realtimeAdapter.subscribeRoomPresence(targetUserId.email);
         }
         // we need to subscribe to new room typing event now
         if (this.selected != null && !this.selected.isChannel) {
-          this.realtimeAdapter.subscribeTyping(room.id)
-          this.events.emit('room-changed', this.selected)
+          this.realtimeAdapter.subscribeTyping(room.id);
+          this.events.emit('room-changed', this.selected);
         }
         if (this.debugMode && this.realtimeAdapter == null) {
-          this.logger('Retry')
+          this.logger('Retry');
         }
       } else {
         if (this.debugMode) {
-          this.logger('MQTT Not Connected, yet')
+          this.logger('MQTT Not Connected, yet');
         }
       }
-    }, 3000)
+    }, 3000);
   }
 
   /**
@@ -954,55 +1001,55 @@ class QiscusSDK {
    */
   chatTarget(userId, options = {}) {
     // make sure data already loaded first (user already logged in)
-    if (this.userData.length != null) return false
+    if (this.userData.length != null) return false;
 
-    const initialMessage = options ? options.message : null
-    const distinctId = options.distinctId
+    const initialMessage = options ? options.message : null;
+    const distinctId = options.distinctId;
 
-    this.isLoading = true
-    this.isTypingStatus = ''
+    this.isLoading = true;
+    this.isTypingStatus = '';
 
     // Create room
     return this.roomAdapter
       .getOrCreateRoom(userId, options, distinctId)
       .then(async (resp) => {
-        const room = new Room(resp)
+        const room = new Room(resp);
 
-        this.updateLastReceivedComment(room.last_comment_id)
-        this.isLoading = false
+        this.updateLastReceivedComment(room.last_comment_id);
+        this.isLoading = false;
 
         const mapIntercept = async (it) => {
           return await this._hookAdapter.trigger(
             Hooks.MESSAGE_BEFORE_RECEIVED,
             it
-          )
-        }
+          );
+        };
         room.comments = await Promise.all(
           room.comments.map((comment) => mapIntercept(comment))
-        )
+        );
 
-        this.setActiveRoom(room)
+        this.setActiveRoom(room);
         // id of last comment on this room
-        const lastComment = room.comments[room.comments.length - 1]
-        if (lastComment) this.readComment(room.id, lastComment.id)
+        const lastComment = room.comments[room.comments.length - 1];
+        if (lastComment) this.readComment(room.id, lastComment.id);
         this.events.emit('chat-room-created', {
-          room: room
-        })
+          room: room,
+        });
 
-        if (!initialMessage) return room
+        if (!initialMessage) return room;
 
-        const topicId = room.id
+        const topicId = room.id;
         return this.sendComment(topicId, initialMessage)
           .then(() => Promise.resolve(room))
           .catch((err) => {
-            console.error('Error when submit comment', err)
-          })
+            console.error('Error when submit comment', err);
+          });
       })
       .catch((err) => {
-        console.error('Error when creating room', err)
-        this.isLoading = false
-        return Promise.reject(err)
-      })
+        console.error('Error when creating room', err);
+        this.isLoading = false;
+        return Promise.reject(err);
+      });
   }
 
   /**
@@ -1014,14 +1061,14 @@ class QiscusSDK {
    * @memberof QiscusSDK
    */
   chatGroup(id) {
-    const self = this
-    if (!self.isInit) return
+    const self = this;
+    if (!self.isInit) return;
     return self.getRoomById(id).then(
       (response) => {
-        return Promise.resolve(response)
+        return Promise.resolve(response);
       },
       (err) => Promise.reject(err)
-    )
+    );
   }
 
   /**
@@ -1029,23 +1076,23 @@ class QiscusSDK {
    * @return {Room} Room data
    */
   getRoomById(id) {
-    if (!this.isInit) return
+    if (!this.isInit) return;
 
-    const self = this
-    self.isLoading = true
-    self.isTypingStatus = ''
+    const self = this;
+    self.isLoading = true;
+    self.isTypingStatus = '';
 
     return self.roomAdapter
       .getRoomById(id)
       .then(async (resp) => {
-        const roomData = resp.results.room
-        const comments = []
+        const roomData = resp.results.room;
+        const comments = [];
         for (const comment of resp.results.comments.reverse()) {
           const c = await this._hookAdapter.trigger(
             Hooks.MESSAGE_BEFORE_RECEIVED,
             comment
-          )
-          comments.push(c)
+          );
+          comments.push(c);
         }
         // .map((it) =>
         //   this._hookAdapter.trigger(Hooks.MESSAGE_BEFORE_RECEIVED, it)
@@ -1053,24 +1100,24 @@ class QiscusSDK {
         const room = new Room({
           ...roomData,
           comments,
-          name: roomData.room_name
-        })
+          name: roomData.room_name,
+        });
 
-        self.updateLastReceivedComment(room.last_comment_id)
-        self.setActiveRoom(room)
-        self.isLoading = false
+        self.updateLastReceivedComment(room.last_comment_id);
+        self.setActiveRoom(room);
+        self.isLoading = false;
         // id of last comment on this room
-        const lastComment = room.comments[room.comments.length - 1]
-        if (lastComment) self.readComment(room.id, lastComment.id)
+        const lastComment = room.comments[room.comments.length - 1];
+        if (lastComment) self.readComment(room.id, lastComment.id);
         if (room.isChannel) {
-          this.realtimeAdapter.subscribeChannel(this.AppId, room.unique_id)
+          this.realtimeAdapter.subscribeChannel(this.AppId, room.unique_id);
         }
-        return room
+        return room;
       })
       .catch((error) => {
-        console.error('Error getting room by id', error)
-        return Promise.reject(error)
-      })
+        console.error('Error getting room by id', error);
+        return Promise.reject(error);
+      });
   }
 
   /**
@@ -1080,85 +1127,85 @@ class QiscusSDK {
    * @return {Room} Room data
    */
   getOrCreateRoomByUniqueId(id, roomName, avatarURL) {
-    const self = this
-    self.isLoading = true
-    self.isTypingStatus = ''
+    const self = this;
+    self.isLoading = true;
+    self.isTypingStatus = '';
 
     return self.roomAdapter
       .getOrCreateRoomByUniqueId(id, roomName, avatarURL)
       .then(async (response) => {
         // make sure the room hasn't been pushed yet
-        let room = new Room(response)
-        self.updateLastReceivedComment(room.last_comment_id)
+        let room = new Room(response);
+        self.updateLastReceivedComment(room.last_comment_id);
         const mapIntercept = async (item) =>
-          await this._hookAdapter.trigger(Hooks.MESSAGE_BEFORE_RECEIVED, item)
+          await this._hookAdapter.trigger(Hooks.MESSAGE_BEFORE_RECEIVED, item);
         room.comments = await Promise.all(
           room.comments.map((it) => mapIntercept(it))
-        )
-        self.setActiveRoom(room)
-        self.isLoading = false
-        const lastComment = room.comments[room.comments.length - 1]
-        if (lastComment) self.readComment(room.id, lastComment.id)
-        this.realtimeAdapter.subscribeChannel(this.AppId, room.unique_id)
-        return Promise.resolve(room)
+        );
+        self.setActiveRoom(room);
+        self.isLoading = false;
+        const lastComment = room.comments[room.comments.length - 1];
+        if (lastComment) self.readComment(room.id, lastComment.id);
+        this.realtimeAdapter.subscribeChannel(this.AppId, room.unique_id);
+        return Promise.resolve(room);
         // self.events.emit('group-room-created', self.selected)
       })
       .catch((error) => {
         // console.error('Error getting room by id', error)
-        return Promise.reject(error)
-      })
+        return Promise.reject(error);
+      });
   }
 
   getOrCreateRoomByChannel(channel, name, avatarURL) {
-    return this.getOrCreateRoomByUniqueId(channel, name, avatarURL)
+    return this.getOrCreateRoomByUniqueId(channel, name, avatarURL);
   }
 
   sortComments() {
     this.selected &&
       this.selected.comments.sort(function (leftSideComment, rightSideComment) {
-        return leftSideComment.unix_timestamp - rightSideComment.unix_timestamp
-      })
+        return leftSideComment.unix_timestamp - rightSideComment.unix_timestamp;
+      });
   }
 
   async loadRoomList(params = {}) {
-    const rooms = await this.userAdapter.loadRoomList(params)
+    const rooms = await this.userAdapter.loadRoomList(params);
     return rooms.map((room) => {
-      room.last_comment_id = room.last_comment.id
-      room.last_comment_message = room.last_comment.message
-      room.last_comment_message_created_at = room.last_comment.timestamp
-      room.room_type = room.chat_type
-      room.comments = []
-      return new Room(room)
-    })
+      room.last_comment_id = room.last_comment.id;
+      room.last_comment_message = room.last_comment.message;
+      room.last_comment_message_created_at = room.last_comment.timestamp;
+      room.room_type = room.chat_type;
+      room.comments = [];
+      return new Room(room);
+    });
   }
 
   loadComments(roomId, options = {}) {
     return this.userAdapter
       .loadComments(roomId, options)
       .then(async (comments_) => {
-        const comments = []
+        const comments = [];
         for (const comment of comments_) {
           comments.push(
             await this._hookAdapter.trigger(
               Hooks.MESSAGE_BEFORE_RECEIVED,
               comment
             )
-          )
+          );
         }
 
         if (this.selected != null) {
-          this.selected.receiveComments(comments.reverse())
-          this.sortComments()
+          this.selected.receiveComments(comments.reverse());
+          this.sortComments();
         }
-        return comments
-      })
+        return comments;
+      });
   }
 
   loadMore(lastCommentId, options = {}) {
-    if (this.selected == null) return
-    options.last_comment_id = lastCommentId
-    options.after = false
-    return this.loadComments(this.selected.id, options)
+    if (this.selected == null) return;
+    options.last_comment_id = lastCommentId;
+    options.after = false;
+    return this.loadComments(this.selected.id, options);
   }
 
   async registerDeviceToken(token, isDevelopment = false) {
@@ -1167,10 +1214,10 @@ class QiscusSDK {
       {
         device_token: token,
         device_platform: 'rn',
-        is_development: isDevelopment
+        is_development: isDevelopment,
       }
-    )
-    return res.body.results
+    );
+    return res.body.results;
   }
   async removeDeviceToken(token, isDevelopment = false) {
     const res = await this.HTTPAdapter.post(
@@ -1178,10 +1225,10 @@ class QiscusSDK {
       {
         device_token: token,
         device_platform: 'rn',
-        is_development: isDevelopment
+        is_development: isDevelopment,
       }
-    )
-    return res.body.results
+    );
+    return res.body.results;
   }
 
   /**
@@ -1192,22 +1239,22 @@ class QiscusSDK {
    * @memberof qiscusSDK
    */
   async searchMessages(params = {}) {
-    console.warn('Deprecated: search message will be removed on next release')
-    const messages = await this.userAdapter.searchMessages(params)
+    console.warn('Deprecated: search message will be removed on next release');
+    const messages = await this.userAdapter.searchMessages(params);
     return messages.map((message) => {
-      return new Comment(message)
-    })
+      return new Comment(message);
+    });
   }
 
   updateProfile(user) {
     return this.userAdapter.updateProfile(user).then(
       (res) => {
-        this.events.emit('profile-updated', user)
-        this.userData = res
-        return Promise.resolve(res)
+        this.events.emit('profile-updated', user);
+        this.userData = res;
+        return Promise.resolve(res);
       },
       (err) => this.logger(err)
-    )
+    );
   }
 
   getNonce() {
@@ -1219,21 +1266,21 @@ class QiscusSDK {
       .then(
         (res) => Promise.resolve(res.body.results),
         (err) => Promise.reject(err)
-      )
+      );
   }
 
   verifyIdentityToken(identityToken) {
     return request
       .post(`${this.baseURL}/api/v2/sdk/auth/verify_identity_token`)
       .send({
-        identity_token: identityToken
+        identity_token: identityToken,
       })
       .set('qiscus_sdk_app_id', `${this.AppId}`)
       .set('qiscus_sdk_version', `${this.version}`)
       .then(
         (res) => Promise.resolve(res.body.results),
         (err) => Promise.reject(err)
-      )
+      );
   }
 
   /**
@@ -1259,10 +1306,10 @@ class QiscusSDK {
     payload,
     extras
   ) {
-    const self = this
+    const self = this;
     // set extra data, etc
     if (self.options.prePostCommentCallback) {
-      self.options.prePostCommentCallback(commentMessage)
+      self.options.prePostCommentCallback(commentMessage);
     }
     /**
      * example:
@@ -1271,9 +1318,9 @@ class QiscusSDK {
      * }
      */
     if (self.options.commentFormaterCallback) {
-      commentMessage = self.options.commentFormaterCallback(commentMessage)
+      commentMessage = self.options.commentFormaterCallback(commentMessage);
     }
-    self.pendingCommentId--
+    self.pendingCommentId--;
     const commentData = {
       message: commentMessage,
       username_as: this.username,
@@ -1288,37 +1335,38 @@ class QiscusSDK {
         () => JSON.parse(payload),
         payload,
         (error) => this.logger('Error when parsing payload', error.message)
-      )
-    }
-    const pendingComment = self.prepareCommentToBeSubmitted(commentData)
+      ),
+    };
+    const pendingComment = self.prepareCommentToBeSubmitted(commentData);
 
     // push this comment unto active room
     if (type === 'reply') {
       // change payload for pendingComment
       // get the comment for current replied id
-      var parsedPayload = JSON.parse(payload)
+      var parsedPayload = JSON.parse(payload);
       var repliedMessage = self.selected.comments.find(
         (cmt) => cmt.id === parsedPayload.replied_comment_id
-      )
+      );
       parsedPayload.replied_comment_message =
         repliedMessage.type === 'reply'
           ? repliedMessage.payload.text
-          : repliedMessage.message
-      parsedPayload.replied_comment_sender_username = repliedMessage.username_as
-      pendingComment.payload = parsedPayload
+          : repliedMessage.message;
+      parsedPayload.replied_comment_sender_username =
+        repliedMessage.username_as;
+      pendingComment.payload = parsedPayload;
     }
-    const extrasToBeSubmitted = extras || self.extras
+    const extrasToBeSubmitted = extras || self.extras;
 
     let messageData = await this._hookAdapter.trigger(
       Hooks.MESSAGE_BEFORE_SENT,
       {
         ...pendingComment,
-        extras: extrasToBeSubmitted
+        extras: extrasToBeSubmitted,
       }
-    )
-    messageData = self.prepareCommentToBeSubmitted(messageData)
+    );
+    messageData = self.prepareCommentToBeSubmitted(messageData);
 
-    if (self.selected) self.selected.comments.push(messageData)
+    if (self.selected) self.selected.comments.push(messageData);
 
     return this.userAdapter
       .postComment(
@@ -1333,26 +1381,26 @@ class QiscusSDK {
         res = await this._hookAdapter.trigger(
           Hooks.MESSAGE_BEFORE_RECEIVED,
           res
-        )
-        Object.assign(messageData, res)
+        );
+        Object.assign(messageData, res);
 
-        if (!self.selected) return Promise.resolve(messageData)
+        if (!self.selected) return Promise.resolve(messageData);
         // When the posting succeeded, we mark the Comment as sent,
         // so all the interested party can be notified.
-        messageData.markAsSent()
-        messageData.id = res.id
-        messageData.before_id = res.comment_before_id
+        messageData.markAsSent();
+        messageData.id = res.id;
+        messageData.before_id = res.comment_before_id;
         // update the timestamp also then re-sort the comment list
-        messageData.unix_timestamp = res.unix_timestamp
+        messageData.unix_timestamp = res.unix_timestamp;
 
-        self.sortComments()
+        self.sortComments();
 
-        return messageData
+        return messageData;
       })
       .catch((err) => {
-        messageData.markAsFailed()
-        return Promise.reject(err)
-      })
+        messageData.markAsFailed();
+        return Promise.reject(err);
+      });
   }
 
   // #endregion
@@ -1361,11 +1409,11 @@ class QiscusSDK {
       .query({
         query,
         page,
-        limit
+        limit,
       })
       .then((resp) => {
-        return Promise.resolve(resp.body.results)
-      })
+        return Promise.resolve(resp.body.results);
+      });
   }
 
   getParticipants(roomUniqueId, page = 1, limit = 20) {
@@ -1373,33 +1421,33 @@ class QiscusSDK {
       .query({
         room_unique_id: roomUniqueId,
         page,
-        limit
+        limit,
       })
-      .then((resp) => resp.body.results)
+      .then((resp) => resp.body.results);
   }
   getRoomParticipants(roomUniqueId, offset = 0) {
     console.warn(
       '`getRoomParticipants` are deprecated, use `getParticipants` instead.'
-    )
+    );
     return this.HTTPAdapter.get_request('api/v2/sdk/room_participants')
       .query({
         room_unique_id: roomUniqueId,
-        offset
+        offset,
       })
       .then((resp) => {
-        return Promise.resolve(resp.body.results)
-      })
+        return Promise.resolve(resp.body.results);
+      });
   }
 
   resendComment(comment) {
-    if (this.selected == null) return
-    var self = this
-    var room = self.selected
+    if (this.selected == null) return;
+    var self = this;
+    var room = self.selected;
     var pendingComment = room.comments.find(
       (cmtToFind) => cmtToFind.id === comment.id
-    )
+    );
 
-    const extrasToBeSubmitted = self.extras
+    const extrasToBeSubmitted = self.extras;
     return this.userAdapter
       .postComment(
         '' + room.id,
@@ -1413,34 +1461,34 @@ class QiscusSDK {
         (res) => {
           // When the posting succeeded, we mark the Comment as sent,
           // so all the interested party can be notified.
-          pendingComment.markAsSent()
-          pendingComment.id = res.id
-          pendingComment.before_id = res.comment_before_id
-          return new Promise((resolve, reject) => resolve(self.selected))
+          pendingComment.markAsSent();
+          pendingComment.id = res.id;
+          pendingComment.before_id = res.comment_before_id;
+          return new Promise((resolve, reject) => resolve(self.selected));
         },
         (err) => {
-          pendingComment.markAsFailed()
-          return new Promise((resolve, reject) => reject(err))
+          pendingComment.markAsFailed();
+          return new Promise((resolve, reject) => reject(err));
         }
-      )
+      );
   }
 
   prepareCommentToBeSubmitted(comment) {
-    var commentToBeSubmitted, uniqueId
-    commentToBeSubmitted = new Comment(comment)
+    var commentToBeSubmitted, uniqueId;
+    commentToBeSubmitted = new Comment(comment);
     // We're gonna use timestamp for uniqueId for now.
     // "bq" stands for "Bonjour Qiscus" by the way.
-    uniqueId = 'bq' + Date.now()
-    if (comment.unique_id) uniqueId = comment.unique_id
-    commentToBeSubmitted.attachUniqueId(uniqueId)
-    commentToBeSubmitted.markAsPending()
-    commentToBeSubmitted.isDelivered = false
-    commentToBeSubmitted.isSent = false
-    commentToBeSubmitted.isRead = false
+    uniqueId = 'bq' + Date.now();
+    if (comment.unique_id) uniqueId = comment.unique_id;
+    commentToBeSubmitted.attachUniqueId(uniqueId);
+    commentToBeSubmitted.markAsPending();
+    commentToBeSubmitted.isDelivered = false;
+    commentToBeSubmitted.isSent = false;
+    commentToBeSubmitted.isRead = false;
     commentToBeSubmitted.unix_timestamp = Math.round(
       new Date().getTime() / 1000
-    )
-    return commentToBeSubmitted
+    );
+    return commentToBeSubmitted;
   }
 
   /**
@@ -1449,37 +1497,37 @@ class QiscusSDK {
    * @return Promise
    */
   updateRoom(args) {
-    return this.roomAdapter.updateRoom(args)
+    return this.roomAdapter.updateRoom(args);
   }
 
   removeSelectedRoomParticipants(values = [], payload = 'id') {
     if (is.not.array(values)) {
-      return Promise.reject(new Error('`values` must have type of array'))
+      return Promise.reject(new Error('`values` must have type of array'));
     }
 
-    const participants = this.selected.participants
+    const participants = this.selected.participants;
     if (!participants) {
-      return Promise.reject(new Error('Nothing selected room chat.'))
+      return Promise.reject(new Error('Nothing selected room chat.'));
     }
     // start to changes selected participants with newest values
-    let participantsExclude = participants
+    let participantsExclude = participants;
     if (payload === 'id') {
       participantsExclude = participants.filter(
         (participant) => values.indexOf(participant.id) <= -1
-      )
+      );
     }
     if (payload === 'email') {
       participantsExclude = participants.filter(
         (participant) => values.indexOf(participant.email) <= -1
-      )
+      );
     }
     if (payload === 'username') {
       participantsExclude = participants.filter(
         (participant) => values.indexOf(participant.username) <= -1
-      )
+      );
     }
-    this.selected.participants = participantsExclude
-    return Promise.resolve(participants)
+    this.selected.participants = participantsExclude;
+    return Promise.resolve(participants);
   }
 
   /**
@@ -1489,17 +1537,17 @@ class QiscusSDK {
    * @returns {Promise.<Room, Error>} - Room detail
    */
   createGroupRoom(name, emails, options) {
-    const self = this
-    if (!this.isLogin) throw new Error('Please initiate qiscus SDK first')
+    const self = this;
+    if (!this.isLogin) throw new Error('Please initiate qiscus SDK first');
     return new GroupChatBuilder(this.roomAdapter)
       .withName(name)
       .withOptions(options)
       .addParticipants(emails)
       .create()
       .then((res) => {
-        self.events.emit('group-room-created', res)
-        return Promise.resolve(res)
-      })
+        self.events.emit('group-room-created', res);
+        return Promise.resolve(res);
+      });
   }
 
   /**
@@ -1511,17 +1559,17 @@ class QiscusSDK {
    * @memberof QiscusSDK
    */
   addParticipantsToGroup(roomId, emails) {
-    const self = this
+    const self = this;
     if (!Array.isArray(emails)) {
-      throw new Error(`emails' must be type of Array`)
+      throw new Error(`emails' must be type of Array`);
     }
     return self.roomAdapter.addParticipantsToGroup(roomId, emails).then(
       (res) => {
-        self.events.emit('participants-added', res)
-        return Promise.resolve(res)
+        self.events.emit('participants-added', res);
+        return Promise.resolve(res);
       },
       (err) => Promise.reject(err)
-    )
+    );
   }
 
   /**
@@ -1534,14 +1582,14 @@ class QiscusSDK {
    */
   removeParticipantsFromGroup(roomId, emails) {
     if (is.not.array(emails)) {
-      return Promise.reject(new Error('`emails` must have type of array'))
+      return Promise.reject(new Error('`emails` must have type of array'));
     }
     return this.roomAdapter
       .removeParticipantsFromGroup(roomId, emails)
       .then((res) => {
-        this.events.emit('participants-removed', emails)
-        return Promise.resolve(res)
-      })
+        this.events.emit('participants-removed', emails);
+        return Promise.resolve(res);
+      });
   }
 
   /**
@@ -1553,13 +1601,13 @@ class QiscusSDK {
    * @memberof QiscusSDK
    */
   getBlockedUser(page = 1, limit = 20) {
-    const self = this
+    const self = this;
     return self.userAdapter.getBlockedUser(page, limit).then(
       (res) => {
-        return Promise.resolve(res)
+        return Promise.resolve(res);
       },
       (err) => Promise.reject(err)
-    )
+    );
   }
 
   /**
@@ -1570,14 +1618,14 @@ class QiscusSDK {
    * @memberof QiscusSDK
    */
   blockUser(email) {
-    const self = this
+    const self = this;
     return self.userAdapter.blockUser(email).then(
       (res) => {
-        self.events.emit('block-user', res)
-        return Promise.resolve(res)
+        self.events.emit('block-user', res);
+        return Promise.resolve(res);
       },
       (err) => Promise.reject(err)
-    )
+    );
   }
 
   /**
@@ -1588,29 +1636,29 @@ class QiscusSDK {
    * @memberof QiscusSDK
    */
   unblockUser(email) {
-    const self = this
+    const self = this;
     return self.userAdapter.unblockUser(email).then(
       (res) => {
-        self.events.emit('unblock-user', res)
-        return Promise.resolve(res)
+        self.events.emit('unblock-user', res);
+        return Promise.resolve(res);
       },
       (err) => Promise.reject(err)
-    )
+    );
   }
 
   getUserPresences(email = []) {
     if (is.not.array(email)) {
-      return Promise.reject(new Error('`email` must have type of array'))
+      return Promise.reject(new Error('`email` must have type of array'));
     }
 
-    const self = this
+    const self = this;
     return self.userAdapter.getUserPresences(email).then(
       (res) => {
-        self.events.emit('user-status', res)
-        return Promise.resolve(res)
+        self.events.emit('user-status', res);
+        return Promise.resolve(res);
       },
       (err) => Promise.reject(err)
-    )
+    );
   }
   upload(file, callback) {
     return request
@@ -1620,17 +1668,17 @@ class QiscusSDK {
       .set('qiscus_sdk_token', this.userData.token)
       .set('qiscus_sdk_user_id', this.user_id)
       .on('progress', (event) => {
-        if (event.direction === 'upload') callback(null, event)
+        if (event.direction === 'upload') callback(null, event);
       })
       .then((resp) => {
-        const url = resp.body.results.file.url
-        callback(null, null, resp.body.results.file.url)
-        return Promise.resolve(url)
+        const url = resp.body.results.file.url;
+        callback(null, null, resp.body.results.file.url);
+        return Promise.resolve(url);
       })
       .catch((error) => {
-        callback(error)
-        return Promise.reject(error)
-      })
+        callback(error);
+        return Promise.reject(error);
+      });
   }
 
   /**
@@ -1642,41 +1690,41 @@ class QiscusSDK {
    * @memberof QiscusSDK
    */
   uploadFile(roomId, file) {
-    const self = this
-    var formData = new FormData()
-    formData.append('file', file)
-    var xhr = new XMLHttpRequest()
-    xhr.open('POST', `${self.baseURL}/api/v2/sdk/upload`, true)
-    xhr.setRequestHeader('qiscus_sdk_app_id', `${self.AppId}`)
-    xhr.setRequestHeader('qiscus_sdk_user_id', `${self.user_id}`)
-    xhr.setRequestHeader('qiscus_sdk_token', `${self.userData.token}`)
+    const self = this;
+    var formData = new FormData();
+    formData.append('file', file);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', `${self.baseURL}/api/v2/sdk/upload`, true);
+    xhr.setRequestHeader('qiscus_sdk_app_id', `${self.AppId}`);
+    xhr.setRequestHeader('qiscus_sdk_user_id', `${self.user_id}`);
+    xhr.setRequestHeader('qiscus_sdk_token', `${self.userData.token}`);
     xhr.onload = function () {
       if (xhr.status === 200) {
         // file(s) uploaded), let's post to comment
-        var url = JSON.parse(xhr.response).results.file.url
-        self.events.emit('fileupload', url)
+        var url = JSON.parse(xhr.response).results.file.url;
+        self.events.emit('fileupload', url);
         // send
-        return self.sendComment(roomId, `[file] ${url} [/file]`)
+        return self.sendComment(roomId, `[file] ${url} [/file]`);
       } else {
-        return Promise.reject(xhr)
+        return Promise.reject(xhr);
       }
-    }
-    xhr.send(formData)
+    };
+    xhr.send(formData);
   }
 
   addUploadedFile(name, roomId) {
-    this.uploadedFiles.push(new FileUploaded(name, roomId))
+    this.uploadedFiles.push(new FileUploaded(name, roomId));
   }
 
   removeUploadedFile(name, roomId) {
     const index = this.uploadedFiles.findIndex(
       (file) => file.name === name && file.roomId === roomId
-    )
-    this.uploadedFiles.splice(index, 1)
+    );
+    this.uploadedFiles.splice(index, 1);
   }
 
   publishTyping(val) {
-    this.realtimeAdapter.publishTyping(val)
+    this.realtimeAdapter.publishTyping(val);
   }
 
   /**
@@ -1689,12 +1737,12 @@ class QiscusSDK {
    * @memberof QiscusSDK
    */
   getRoomsInfo(params) {
-    return this.userAdapter.getRoomsInfo(params)
+    return this.userAdapter.getRoomsInfo(params);
   }
 
   deleteComment(roomId, commentUniqueIds, isForEveryone, isHard) {
     if (!Array.isArray(commentUniqueIds)) {
-      throw new Error(`unique ids' must be type of Array`)
+      throw new Error(`unique ids' must be type of Array`);
     }
     return this.userAdapter
       .deleteComment(roomId, commentUniqueIds, isForEveryone, isHard)
@@ -1704,12 +1752,12 @@ class QiscusSDK {
             roomId,
             commentUniqueIds,
             isForEveryone,
-            isHard
-          })
-          return Promise.resolve(res)
+            isHard,
+          });
+          return Promise.resolve(res);
         },
         (err) => Promise.reject(err)
-      )
+      );
   }
 
   clearRoomsCache() {
@@ -1717,27 +1765,27 @@ class QiscusSDK {
     if (this.selected) {
       // clear the map
       this.room_name_id_map = {
-        [this.selected.name]: this.selected.id
-      }
+        [this.selected.name]: this.selected.id,
+      };
       // get current index and array length
-      const roomLength = this.rooms.length
+      const roomLength = this.rooms.length;
       let curIndex = this.rooms.findIndex(
         (room) => room.id === this.selected.id
-      )
+      );
       if (!(curIndex + 1 === roomLength)) {
-        this.rooms.splice(curIndex + 1, roomLength - (curIndex + 1))
+        this.rooms.splice(curIndex + 1, roomLength - (curIndex + 1));
       }
       // ambil ulang cur index nya, klo udah di awal ga perlu lagi kode dibawah ini
-      curIndex = this.rooms.findIndex((room) => room.id === this.selected.id)
+      curIndex = this.rooms.findIndex((room) => room.id === this.selected.id);
       if (curIndex > 0 && this.rooms.length > 1) {
-        this.rooms.splice(1, this.rooms.length - 1)
+        this.rooms.splice(1, this.rooms.length - 1);
       }
     }
   }
 
   exitChatRoom() {
     // remove all subscriber
-    this.realtimeAdapter.unsubscribeTyping()
+    this.realtimeAdapter.unsubscribeTyping();
     tryCatch(
       () =>
         this.selected.participants
@@ -1749,96 +1797,100 @@ class QiscusSDK {
         userIds.forEach((userId) =>
           this.realtimeAdapter.unsubscribeRoomPresence(userId)
         )
-    )
-    this.selected = null
+    );
+    this.selected = null;
   }
 
   clearRoomMessages(roomIds) {
     if (!Array.isArray(roomIds)) {
-      throw new Error('room_ids must be type of array')
+      throw new Error('room_ids must be type of array');
     }
-    return this.userAdapter.clearRoomMessages(roomIds)
+    return this.userAdapter.clearRoomMessages(roomIds);
   }
 
   logging(message, params = {}) {
     if (this.debugMode) {
-      console.log(message, params)
+      console.log(message, params);
     }
   }
 
   getTotalUnreadCount() {
     return this.roomAdapter.getTotalUnreadCount().then(
       (response) => {
-        return Promise.resolve(response)
+        return Promise.resolve(response);
       },
       (error) => {
-        return Promise.reject(error)
+        return Promise.reject(error);
       }
-    )
+    );
   }
 
   publishEvent(...args) {
-    this.customEventAdapter.publishEvent(...args)
+    this.customEventAdapter.publishEvent(...args);
   }
 
   subscribeEvent(...args) {
-    this.customEventAdapter.subscribeEvent(...args)
+    this.customEventAdapter.subscribeEvent(...args);
   }
 
   unsubscribeEvent(...args) {
-    this.customEventAdapter.unsubscribeEvent(...args)
+    this.customEventAdapter.unsubscribeEvent(...args);
   }
 
   setCustomHeader(headers) {
     if (is.not.json(headers)) {
-      throw new TypeError('`headers` must have type of object')
+      throw new TypeError('`headers` must have type of object');
     }
-    this._customHeader = headers
+    this._customHeader = headers;
   }
 
   getUserProfile() {
-    return this.userAdapter.getProfile()
+    return this.userAdapter.getProfile();
   }
 
-  static Interceptor = Hooks
+  static Interceptor = Hooks;
   get Interceptor() {
-    return Hooks
+    return Hooks;
   }
   intercept(interceptor, callback) {
-    return this._hookAdapter.intercept(interceptor, callback)
+    return this._hookAdapter.intercept(interceptor, callback);
   }
 
   getThumbnailURL(fileURL) {
-    const reURL = /^https?:\/\/\S+(\/upload\/)\S+(\.\w+)$/i
+    const reURL = /^https?:\/\/\S+(\/upload\/)\S+(\.\w+)$/i;
     return fileURL.replace(reURL, (match, g1, g2) =>
       match.replace(g1, '/upload/w_320,h_320,c_limit/').replace(g2, '.png')
-    )
+    );
   }
   getBlurryThumbnailURL(fileURL) {
-    const reURL = /^https?:\/\/\S+(\/upload\/)\S+(\.\w+)$/i
+    const reURL = /^https?:\/\/\S+(\/upload\/)\S+(\.\w+)$/i;
     return fileURL.replace(reURL, (match, g1, g2) =>
       match
         .replace(g1, '/upload/w_320,h_320,c_limit,e_blur:300/')
         .replace(g2, '.png')
-    )
+    );
   }
 
   get logger() {
-    if (this.debugMode) return console.log.bind(console, 'Qiscus ->')
-    return this.noop
+    if (this.debugMode) return console.log.bind(console, 'Qiscus ->');
+    return this.noop;
   }
 
-  noop() { }
-
+  noop() {}
 
   get _throttleDelay() {
-    if (this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled) {
-      return 0
+    if (
+      this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled
+    ) {
+      return 0;
     }
-    return this.updateCommentStatusThrottleDelay || 300
+    return this.updateCommentStatusThrottleDelay || 300;
   }
   get _updateStatusEnabled() {
-    return this.updateCommentStatusMode !== QiscusSDK.UpdateCommentStatusMode.disabled;
+    return (
+      this.updateCommentStatusMode !==
+      QiscusSDK.UpdateCommentStatusMode.disabled
+    );
   }
 
   _updateStatus(roomId, commentId1 = null, commentId2 = null) {
@@ -1852,74 +1904,88 @@ class QiscusSDK {
     // - it is prohibited to send command if no room selected (but why was this a thing?)
     // - it is ok to send command when `updateCommentStatusMode` is `disabled`
 
-
     const isReceiveCommand = commentId2 != null;
     const isReadCommand = commentId1 != null;
-    const isSelected = (this.selected != null && this.selected.id === roomId) || false
-    const isChannel = (this.selected != null && this.selected.isChannel) || false
-    const isUpdateStatusDisabled = !this._updateStatusEnabled
+    const isSelected =
+      (this.selected != null && this.selected.id === roomId) || false;
+    const isChannel =
+      (this.selected != null && this.selected.isChannel) || false;
+    const isUpdateStatusDisabled = !this._updateStatusEnabled;
 
     const command = (() => {
-      if (isReadCommand) return 'read'
-      if (isReceiveCommand) return 'receive'
-    })()
+      if (isReadCommand) return 'read';
+      if (isReceiveCommand) return 'receive';
+    })();
     const isAbleToRunCommand = (() => {
-      if (isChannel) return false
-      if (isReceiveCommand && isUpdateStatusDisabled) return false
-      return true
-    })()
+      if (isChannel) return false;
+      if (isReceiveCommand && isUpdateStatusDisabled) return false;
+      return true;
+    })();
 
     if (this.debugMode) {
-      console.group('update-command-status')
-      console.log('run:', command, `on: roomId(${roomId}) commentId(${commentId1 || commentId2})`)
-      console.log('is able to run command?', isAbleToRunCommand)
-      console.groupEnd()
+      console.group('update-command-status');
+      console.log(
+        'run:',
+        command,
+        `on: roomId(${roomId}) commentId(${commentId1 || commentId2})`
+      );
+      console.log('is able to run command?', isAbleToRunCommand);
+      console.groupEnd();
     }
 
-    if (!isAbleToRunCommand) return false
+    if (!isAbleToRunCommand) return false;
 
     this.userAdapter
       .updateCommentStatus(roomId, commentId1, commentId2)
-      .catch(err => { })
+      .catch((err) => {});
   }
 
-  _readComment = (roomId, commentId) => this._updateStatus(roomId, commentId)
-  _readCommentT = this._throttle((roomId, commentId) => {
-    this._updateStatus(roomId, commentId)
-  }, () => this._throttleDelay)
-  _deliverComment = (roomId, commentId) => this._updateStatus(roomId, undefined, commentId)
-  _deliverCommentT = this._throttle((roomId, commentId) => {
-    this._updateStatus(roomId, undefined, commentId)
-  }, () => this._throttleDelay)
+  _readComment = (roomId, commentId) => this._updateStatus(roomId, commentId);
+  _readCommentT = this._throttle(
+    (roomId, commentId) => {
+      this._updateStatus(roomId, commentId);
+    },
+    () => this._throttleDelay
+  );
+  _deliverComment = (roomId, commentId) =>
+    this._updateStatus(roomId, undefined, commentId);
+  _deliverCommentT = this._throttle(
+    (roomId, commentId) => {
+      this._updateStatus(roomId, undefined, commentId);
+    },
+    () => this._throttleDelay
+  );
 
   readComment(roomId, commentId) {
-    if (this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled)
-      return this._readComment(roomId, commentId)
-    return this._readCommentT(roomId, commentId)
+    if (
+      this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled
+    )
+      return this._readComment(roomId, commentId);
+    return this._readCommentT(roomId, commentId);
   }
 
   receiveComment(roomId, commentId) {
-    if (this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled)
-      return this._deliverComment(roomId, commentId)
-    return this._deliverCommentT(roomId, commentId)
+    if (
+      this.updateCommentStatusMode === QiscusSDK.UpdateCommentStatusMode.enabled
+    )
+      return this._deliverComment(roomId, commentId);
+    return this._deliverCommentT(roomId, commentId);
   }
 
   _throttle(func, getWait) {
-    let isWaiting = false
+    let isWaiting = false;
 
     return (...args) => {
-      let waitTime = getWait()
+      let waitTime = getWait();
 
       if (!isWaiting) {
-        func(...args)
-        isWaiting = true
+        func(...args);
+        isWaiting = true;
 
-        setTimeout(() => isWaiting = false, waitTime)
+        setTimeout(() => (isWaiting = false), waitTime);
       }
-    }
+    };
   }
-
-
 
   /**
    * @typedef {Object} SearchMessageParams
@@ -1936,31 +2002,41 @@ class QiscusSDK {
    * @param {SearchMessageParams} param0
    * @returns {Array.<Object>}
    */
-  async searchMessage({ query, roomIds = [], userId, type, roomType, page, limit } = {}) {
-    const url = 'api/v2/sdk/search'
+  async searchMessage({
+    query,
+    roomIds = [],
+    userId,
+    type,
+    roomType,
+    page,
+    limit,
+  } = {}) {
+    const url = 'api/v2/sdk/search';
 
-    const isValidRoomType = ['group', 'single', 'channel'].some((it) => it === roomType)
+    const isValidRoomType = ['group', 'single', 'channel'].some(
+      (it) => it === roomType
+    );
     if (roomType != null && !isValidRoomType) {
-      return Promise.reject('Invalid room type, valid room type are: `group`, `single`, and `channel`')
+      return Promise.reject(
+        'Invalid room type, valid room type are: `group`, `single`, and `channel`'
+      );
     }
 
     const room = ((roomType) => {
-      const rType = roomType == null
-        ? undefined
-        : roomType === 'single'
+      const rType =
+        roomType == null
+          ? undefined
+          : roomType === 'single'
           ? 'single'
-          : 'group'
-      const isPublic = roomType == null
-        ? undefined
-        : roomType === 'channel'
-          ? true
-          : false
+          : 'group';
+      const isPublic =
+        roomType == null ? undefined : roomType === 'channel' ? true : false;
 
       return {
         type: rType,
         isPublic: isPublic,
-      }
-    })(roomType)
+      };
+    })(roomType);
 
     return this.HTTPAdapter.post_json(url, {
       token: this.token,
@@ -1972,7 +2048,7 @@ class QiscusSDK {
       is_public: room.isPublic || undefined,
       page: page,
       limit: limit,
-    }).then((res) => res.body)
+    }).then((res) => res.body);
   }
 
   /**
@@ -1986,28 +2062,27 @@ class QiscusSDK {
    * @param {GetFileListParams} param0
    */
   async getFileList({ roomIds = [], fileType, page, limit } = {}) {
-    const url = 'api/v2/sdk/file_list'
+    const url = 'api/v2/sdk/file_list';
 
-    if (!this.isLogin) return Promise.reject('You need to login to use this method')
-
+    if (!this.isLogin)
+      return Promise.reject('You need to login to use this method');
 
     return this.HTTPAdapter.post(url, {
-      room_ids: roomIds.map(it => String(it)),
+      room_ids: roomIds.map((it) => String(it)),
       sender: this.user_id,
       file_type: fileType,
       page: page,
       limit: limit,
-    }).then((res) => res.body)
+    }).then((res) => res.body);
   }
 }
 
 class FileUploaded {
   constructor(name, roomId) {
-    this.name = name
-    this.roomId = roomId
-    this.progress = 0
+    this.name = name;
+    this.roomId = roomId;
+    this.progress = 0;
   }
 }
 
-export default QiscusSDK
-
+export default QiscusSDK;
