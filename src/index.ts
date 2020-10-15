@@ -65,10 +65,10 @@ export default class Qiscus {
 
   private readonly _onMessageReceived$ = this.realtimeAdapter
     .onNewMessage$()
-    .map(it => this.hookAdapter.triggerBeforeReceived$(it))
+    .map((it) => this.hookAdapter.triggerBeforeReceived$(it))
     .compose(flattenConcurrently)
     .compose(
-      tap(message => {
+      tap((message) => {
         if (this.currentUser?.id !== message.sender.id) {
           this.messageAdapter.markAsDelivered(message.chatRoomId, message.id)
         }
@@ -111,13 +111,17 @@ export default class Qiscus {
   }
   // endregion
 
-  setup(appId: string, syncInterval: number = 5000): void {
+  setup(
+    appId: string,
+    callback?: (error?: null | Error) => void
+  ): void | Promise<void> {
     this.setupWithCustomServer(
       appId,
       undefined,
       undefined,
       undefined,
-      syncInterval
+      undefined,
+      callback
     )
   }
 
@@ -126,7 +130,8 @@ export default class Qiscus {
     baseUrl: string = this.storage.getBaseUrl(),
     brokerUrl: string = this.storage.getBrokerUrl(),
     brokerLbUrl: string = this.storage.getBrokerLbUrl(),
-    syncInterval: number = 5000
+    syncInterval: number = 5000,
+    callback?: null | ((error?: Error | null | undefined) => void)
   ): void {
     const defaultBaseUrl = this.storage.getBaseUrl()
     const defaultBrokerUrl = this.storage.getBrokerUrl()
@@ -160,6 +165,8 @@ export default class Qiscus {
     this.storage.setDebugEnabled(false)
     this.storage.setVersion('3-alpha')
     this.storage.setSyncInterval(5000)
+
+    callback?.()
   }
 
   setCustomHeader(headers: Record<string, string>): void {
@@ -329,7 +336,7 @@ export default class Qiscus {
       .combine(process(callback, isOptCallback({ callback })))
       .map(() => xs.fromPromise(this.userAdapter.getNonce()))
       .compose(flattenConcurrently)
-      .map(nonce => nonce)
+      .map((nonce) => nonce)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -914,13 +921,13 @@ export default class Qiscus {
         const url = resp.data.results.file.url
         callback?.(void 0, void 0, url)
       })
-      .catch(error => callback?.(error))
+      .catch((error) => callback?.(error))
   }
 
   hasSetupUser(callback: IQCallback<boolean>): void | Promise<boolean> {
     return xs
       .of(this.currentUser)
-      .map(user => user != null)
+      .map((user) => user != null)
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -945,7 +952,7 @@ export default class Qiscus {
           type: IQMessageType.Attachment,
           message: `[file] ${url} [/file]`,
         }
-        this.sendMessage(roomId, _message, msg => {
+        this.sendMessage(roomId, _message, (msg) => {
           callback?.(undefined, undefined, msg)
         })
       }
@@ -1032,7 +1039,7 @@ export default class Qiscus {
       .mapTo(this._onRoomCleared$)
       .compose(flattenConcurrently)
       .compose(
-        toEventSubscription_(data => {
+        toEventSubscription_((data) => {
           if (typeof data === 'number') return handler(data)
           if (isChatRoom(data)) return handler(data.id)
         })
@@ -1060,7 +1067,7 @@ export default class Qiscus {
   subscribeChatRoom(room: model.IQChatRoom): void {
     process(room, isRequired({ room }))
       .compose(bufferUntil(() => this.isLogin))
-      .map(it => [it])
+      .map((it) => [it])
       .compose(
         subscribeOnNext(([room]) => {
           if (room.type === 'channel') {
@@ -1077,7 +1084,7 @@ export default class Qiscus {
   unsubscribeChatRoom(room: model.IQChatRoom): void {
     process(room, isRequired({ room }))
       .compose(bufferUntil(() => this.isLogin))
-      .map(it => [it])
+      .map((it) => [it])
       .compose(
         subscribeOnNext(([room]) => {
           if (room.type === 'channel')
@@ -1092,7 +1099,7 @@ export default class Qiscus {
   subscribeUserOnlinePresence(userId: string): void {
     process(userId, isReqString({ userId }))
       .compose(bufferUntil(() => this.isLogin))
-      .map(it => [it])
+      .map((it) => [it])
       .compose(
         subscribeOnNext(([userId]) =>
           this.realtimeAdapter.mqtt.subscribeUserPresence(userId)
@@ -1102,7 +1109,7 @@ export default class Qiscus {
   unsubscribeUserOnlinePresence(userId: string): void {
     process(userId, isReqString({ userId }))
       .compose(bufferUntil(() => this.isLogin))
-      .map(it => [it])
+      .map((it) => [it])
       .compose(
         subscribeOnNext(([userId]) =>
           this.realtimeAdapter.mqtt.unsubscribeUserPresence(userId)
