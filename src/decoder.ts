@@ -1,3 +1,4 @@
+import { IAppConfig } from 'defs'
 import {
   IQAccount,
   IQChatRoom,
@@ -189,4 +190,27 @@ export const message = <T extends MessageJson>(json: T): IQMessage => ({
   timestamp: new Date(json.unix_nano_timestamp / 1e6),
   // @ts-ignore
   __roomType: json.room_type,
+})
+
+interface IAppConfigJson {
+  base_url: string
+  broker_lb_url: string
+  broker_url: string
+  enable_event_report: boolean
+  enable_realtime: boolean
+  enable_realtime_check: boolean
+  sync_interval: number
+  sync_on_connect: number
+  extras: string | Record<string, any>
+}
+export const appConfig = <T extends IAppConfigJson>(json: T): IAppConfig => ({
+  baseUrl: json.base_url,
+  brokerLbUrl: json.broker_lb_url,
+  brokerUrl: json.broker_url,
+  enableEventReport: json.enable_event_report,
+  enableRealtime: json.enable_realtime,
+  enableRealtimeCheck: json.enable_realtime_check,
+  extras: tryCatch(() => JSON.parse(json.extras as string), json.extras),
+  syncInterval: json.sync_interval,
+  syncOnConnect: json.sync_on_connect,
 })

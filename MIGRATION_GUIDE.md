@@ -248,54 +248,179 @@ clearMessagesByChatRoomId(roomUniqueIds: string[], callback?: IQCallback<void>):
 createGroupChat(name: string, userIds: string[], avatarUrl: string, extras: object, callback?: IQCallback<model.IQChatRoom>): void | Promise<model.IQChatRoom>;
 ```
 
+## `QiscusSDK.createChannel` previously known as `QiscusSDK.getOrCreateRoomWithUniqueId`
+
 ```typescript
 createChannel(uniqueId: string, name: string, avatarUrl: string, extras: object, callback?: IQCallback<model.IQChatRoom>): void | Promise<model.IQChatRoom>;
+```
+
+## `QiscusSDK.getParticipants` previously known as `QiscusSDK.getParticipants`
+
+```typescript
 getParticipants(roomUniqueId: string, page?: number, limit?: number, sorting?: 'asc' | 'desc', callback?: IQCallback<model.IQParticipant[]>): void | Promise<model.IQParticipant[]>;
+```
+
+## `QiscusSDK.getChatRooms` previously known as `QiscusSDK.getRoomsInfo`
+
+```typescript
 getChatRooms(roomIds: number[], page?: number, showRemoved?: boolean, showParticipant?: boolean, callback?: IQCallback<model.IQChatRoom[]>): void | Promise<model.IQChatRoom[]>;
 getChatRooms(uniqueIds: string[], page?: number, showRemoved?: boolean, showParticipant?: boolean, callback?: IQCallback<model.IQChatRoom[]>): void | Promise<model.IQChatRoom[]>;
+```
+
+## `QiscusSDK.getAllChatRooms` previously known as `QiscusSDK.loadRoomList`
+
+```typescript
 getAllChatRooms(showParticipant?: boolean, showRemoved?: boolean, showEmpty?: boolean, page?: number, limit?: number, callback?: IQCallback<model.IQChatRoom[]>): void | Promise<model.IQChatRoom[]>;
+```
+
+## `QiscusSDK.getChatRoomWithMessages` previously known as `QiscusSDK.getRoomById` or `QiscusSDK.chatGroup`
+
+```typescript
 getChatRoomWithMessages(roomId: number, callback?: IQCallback<model.IQChatRoom>): void | Promise<model.IQChatRoom>;
+```
+
+## `QiscusSDK.getTotalUnreadCount` previously known as `QiscusSDK.getTotalUnreadCount`
+
+```typescript
 getTotalUnreadCount(callback?: IQCallback<number>): void | Promise<number>;
+```
+
+## `QiscusSDK.sendMessage` previously known as `QiscusSDK.sendComment`
+
+```typescript
 sendMessage(roomId: number, message: IQMessageT, callback?: IQCallback<model.IQMessage>): void | Promise<model.IQMessage>;
+```
+
+## `QiscusSDK.sendFileMessage`
+
+```typescript
+sendFileMessage(roomId: number, message: string, file: File, callback?: IQProgressListener<model.IQMessage>): void;
+```
+
+## `QiscusSDK.markAsDelivered` previously known as `QiscusSDK.receiveComment`
+
+```typescript
 markAsDelivered(roomId: number, messageId: number, callback?: IQCallback<void>): void | Promise<void>;
+```
+
+## `QiscusSDK.markAsRead` previously known as `QiscusSDK.readComment`
+
+```typescript
 markAsRead(roomId: number, messageId: number, callback?: IQCallback<void>): void | Promise<void>;
+```
+
+## `QiscusSDK.deleteMessages` previously known as `QiscusSDK.deleteComment`
+
+```typescript
 deleteMessages(messageUniqueIds: string[], callback?: IQCallback<model.IQMessage[]>): void | Promise<model.IQMessage[]>;
+```
+
+## `QiscusSDK.getPreviousMessagesById` previously known as `QiscusSDK.loadComments` with options `after: false`
+
+```typescript
 getPreviousMessagesById(roomId: number, limit?: number, messageId?: number, callback?: IQCallback<model.IQMessage[]>): void | Promise<model.IQMessage[]>;
+```
+
+## `QiscusSDK.getNextMessagesById` previously known as `QiscusSDK.loadComments` with options `after: true`
+
+```typescript
 getNextMessagesById(roomId: number, limit?: number, messageId?: number, callback?: IQCallback<model.IQMessage[]>): void | Promise<model.IQMessage[]>;
-publishCustomEvent(roomId: number, data: any, callback?: Callback<void>): void;
-publishOnlinePresence(isOnline: boolean, callback?: Callback<void>): void;
-publishTyping(roomId: number, isTyping?: boolean): void;
+```
+
+## `QiscusSDK.hasSetupUser` previously known as `QiscusSDK.isLogin`
+
+```typescript
+hasSetupUser(callback: IQCallback<boolean>): void | Promise<boolean>;
+```
+
+## `QiscusSDK.upload` previously known as `QiscusSDK.upload`
+
+```typescript
+upload(file: File, callback?: (err?: Error, progress?: number, url?: string) => void): void;
+```
+
+## `QiscusSDK.getThumbnailURL` previously known as `QiscusSDK.getThumbnailURL`
+
+```typescript
+getThumbnailURL(url: string): string;
+```
+
+## `QiscusSDK.synchronize` previously known as `QiscusSDK.synchronize`
+
+```typescript
+synchronize(lastMessageId: model.IQAccount['lastMessageId']): void;
+```
+
+## `QiscusSDK.synchronizeEvent` previously known as `QiscusSDK.synchronizeEvent`
+
+```typescript
+synchronizeEvent(lastEventId: model.IQAccount['lastSyncEventId']): void;
+```
+
+```typescript
+setSyncInterval(interval: number): void;
+enableDebugMode(enable: boolean, callback: Callback<void>): void;
+```
+
+## `QiscusSDK.intercept` previously known as `QiscusSDK.intercept`
+
+```typescript
+intercept(interceptor: string, callback: (data: unknown) => unknown): () => void;
+```
+
+# Realtime Event
+
+while in version 2, realtime event are passed as an arguments when initializing qiscus sdk,
+in version 3, in comes with it own method, so you can initialized realtime event handling at a later code.
+
+## `QiscusSDK.susbcribeCustomEvent`
+
+```typescript
+publishCustomEvent(roomId: number, data: any, callback?: () => void): void | Promise<void>;
 subscribeCustomEvent(roomId: number, callback: IQCallback<any>): void;
 unsubscribeCustomEvent(roomId: number): void;
-upload(file: File, callback?: IQProgressListener): void;
-hasSetupUser(callback: IQCallback<boolean>): void | Promise<boolean>;
-sendFileMessage(roomId: number, message: string, file: File, callback?: IQProgressListener<model.IQMessage>): void;
-getThumbnailURL(url: string): string;
-setSyncInterval(interval: number): void;
-synchronize(lastMessageId: model.IQAccount['lastMessageId']): void;
-synchronizeEvent(lastEventId: model.IQAccount['lastSyncEventId']): void;
-enableDebugMode(enable: boolean, callback: Callback<void>): void;
-static Interceptor: {
-    MESSAGE_BEFORE_SENT: string;
-    MESSAGE_BEFORE_RECEIVED: string;
-};
-get Interceptor(): {
-    MESSAGE_BEFORE_SENT: string;
-    MESSAGE_BEFORE_RECEIVED: string;
-};
-intercept(interceptor: string, callback: (data: unknown) => unknown): () => void;
+```
+
+## Subscribe Chat Room related events
+
+this event include message being read and delivered, and user typing on that room
+
+```typescript
+publishOnlinePresence(isOnline: boolean, callback?: () => void): void | Promise<void>;
+publishTyping(roomId: number, isTyping?: boolean, callback?: () => void): void | Promise<void>;
+subscribeChatRoom(room: model.IQChatRoom): void;
+unsubscribeChatRoom(room: model.IQChatRoom): void;
+```
+
+## Subscribe user online presence
+
+```typescript
+subscribeUserOnlinePresence(userId: string): void;
+unsubscribeUserOnlinePresence(userId: string): void;
+```
+
+## Handler
+
+```typescript
 onMessageReceived(handler: (message: model.IQMessage) => void): () => void;
-onMessageDeleted(handler: (message: model.IQMessage) => void): Subscription;
 onMessageDelivered(handler: (message: model.IQMessage) => void): Subscription;
 onMessageRead(handler: (message: model.IQMessage) => void): Subscription;
 onUserTyping(handler: (userId: string, roomId: number, isTyping: boolean) => void): Subscription;
 onUserOnlinePresence(handler: (userId: string, isOnline: boolean, lastSeen: Date) => void): Subscription;
+onMessageDeleted(handler: (message: model.IQMessage) => void): Subscription;
 onChatRoomCleared(handler: Callback<number>): Subscription;
+```
+
+## Subscribe realtime server connection state
+
+this event related to connection state of mqtt, which is our realtime mechanism
+
+```typescript
 onConnected(handler: () => void): Subscription;
 onReconnecting(handler: () => void): Subscription;
 onDisconnected(handler: () => void): Subscription;
-subscribeChatRoom(room: model.IQChatRoom): void;
-unsubscribeChatRoom(room: model.IQChatRoom): void;
-subscribeUserOnlinePresence(userId: string): void;
-unsubscribeUserOnlinePresence(userId: string): void;
 ```
+
+# Removed in version 3
+
+- `QiscusSDK.selected` version 3 no longer cache / keep room data and list of comments internally

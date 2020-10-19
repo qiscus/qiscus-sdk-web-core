@@ -15,19 +15,34 @@ export const listStorageFactory = <T extends unknown>() => {
 export type ListStorageFactory = ReturnType<typeof listStorageFactory>
 
 export const storageFactory = () => {
-  const storage = new Map<string, any>()
+  // const storage = new Map<string, any>()
+  const storage: Record<string, any> = {}
   const makeSetter = <T>(name: string) => (value: T): void => {
-    storage.set(name, value)
+    console.log('setting new value:', name, value)
+    // storage.set(name, value)
+    storage[name] = value
   }
-  const makeGetter = <T>(name: string, defaultValue?: T) => (): T =>
-    storage.get(name) ?? defaultValue
+  const makeGetter = <T>(name: string, defaultValue?: T) => (): T => {
+    // storage.get(name) ?? defaultValue
+    return storage[name] ?? defaultValue
+  }
 
   const defaultBaseURL = 'https://api.qiscus.com'
   const defaultUploadUrl = `${defaultBaseURL}/api/v2/sdk/upload`
   const defaultBrokerUrl = 'wss://mqtt.qiscus.com:1886/mqtt'
   const defaultBrokerLbUrl = 'https://realtime-lb.qiscus.com'
+  const defaultSyncInterval = 5000
+  const defaultSyncIntervalWhenConnected = 30000
 
   return {
+    defaultBaseURL,
+    defaultUploadUrl,
+    defaultBrokerLbUrl,
+    defaultBrokerUrl,
+    defaultSyncInterval,
+    defaultSyncIntervalWhenConnected,
+    // @ts-ignore
+    __storage: storage,
     getAppId: makeGetter<string>('app-id'),
     setAppId: makeSetter<string>('app-id'),
 
@@ -40,11 +55,11 @@ export const storageFactory = () => {
     getUploadUrl: makeGetter<string>('upload-url', defaultUploadUrl),
     setUploadUrl: makeSetter<string>('upload-url'),
 
-    getSyncInterval: makeGetter<number>('sync-interval', 5000),
+    getSyncInterval: makeGetter<number>('sync-interval', defaultSyncInterval),
     setSyncInterval: makeSetter<number>('sync-interval'),
     getSyncIntervalWhenConnected: makeGetter<number>(
       'sync-interval-when-connected',
-      30000
+      defaultSyncIntervalWhenConnected
     ),
     setSyncIntervalWhenConnected: makeSetter<number>(
       'sync-interval-when-connected'

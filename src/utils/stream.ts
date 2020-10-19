@@ -1,5 +1,10 @@
 import xs, { Stream, Subscription } from 'xstream'
-import { Subscription as Subs, IQCallback as Callback } from '../defs'
+import {
+  Subscription as Subs,
+  IQCallback2 as Callback2,
+  IQCallback1 as Callback1,
+} from '../defs'
+import { isCallback1, isCallback2 } from './param-utils'
 
 export const toPromise = <T>(stream: Stream<T>): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -16,27 +21,41 @@ export const toPromise = <T>(stream: Stream<T>): Promise<T> =>
       },
     })
   })
-export const toCallback = <T>(callback: Callback<T>) => (stream: Stream<T>) => {
+export const toCallback = <T>(callback: Callback2<T> | Callback1) => (
+  stream: Stream<T>
+) => {
   let value: T
   const subscription = stream.subscribe({
     next(data) {
       value = data
     },
     error(error) {
-      callback(undefined, error)
+      if (isCallback1(callback)) {
+        callback(error)
+      }
+      if (isCallback2(callback)) {
+        callback(undefined, error)
+      }
     },
     complete() {
-      callback(value)
+      if (isCallback1(callback)) callback(undefined)
+      if (isCallback2(callback)) callback(value, undefined)
       subscription.unsubscribe()
     },
   })
 }
-export const toCallbackOrPromise = <T>(callback?: Callback<T> | null) => (
-  stream: Stream<T>
-) => {
+export const toCallbackOrPromise = <T>(
+  callback?: Callback1 | Callback2<T> | null
+) => (stream: Stream<T>) => {
   if (callback == null) return toPromise(stream)
   return toCallback(callback)(stream)
 }
+// export const toCallbackOrPromise = <T>(
+//   callback?: Callback1 | Callback2<T> | null | undefined
+// ) => {
+//   if (callback == null) return toPromise
+//   return toCallback(callback)
+// }
 
 export const tryCatch = <T>(
   fn: () => T,
@@ -52,14 +71,14 @@ export const tryCatch = <T>(
 export const process = <T>(item: T, ...checkers: Function[]): Stream<T> =>
   xs.create({
     start(listener) {
-      checkers.forEach(check => {
+      checkers.forEach((check) => {
         tryCatch(
           () => {
             const value = check(item)
             listener.next(value)
             listener.complete()
           },
-          error => listener.error(error)
+          (error) => listener.error(error)
         )
       })
     },
@@ -95,7 +114,7 @@ export const tap = <T>(
   })
 }
 
-const sleep = (time: number) => new Promise(res => setTimeout(res, time))
+const sleep = (time: number) => new Promise((res) => setTimeout(res, time))
 export const bufferUntil = <T>(fn: () => boolean) => (
   stream: Stream<T>
 ): Stream<T> => {
@@ -104,14 +123,14 @@ export const bufferUntil = <T>(fn: () => boolean) => (
   return xs.create({
     start(listener) {
       subscription = stream.subscribe({
-        next: data => {
+        next: (data) => {
           buffer.push(data)
           while (fn() && buffer.length) {
             const data = buffer.shift()
             if (data != null) listener.next(data)
           }
         },
-        error: err => listener.error(err),
+        error: (err) => listener.error(err),
         complete: async () => {
           while (buffer.length) {
             if (fn()) {
@@ -145,7 +164,7 @@ export const toEventSubscription = <T extends any[]>(
   let subscription: Subscription
   let subs: Subs
   subscription = stream.subscribe({
-    next: handler => {
+    next: (handler) => {
       subs = eventSubscribe(handler)
     },
   })
@@ -161,8 +180,8 @@ export const toEventSubscription_ = <T extends unknown>(
   onError?: (error: Error) => void
 ) => (stream: Stream<T>) => {
   const subscription = stream.subscribe({
-    next: data => handler(data),
-    error: err => {
+    next: (data) => handler(data),
+    error: (err) => {
       console.log('on error', err)
       onError?.(err)
     },

@@ -8,7 +8,8 @@ export const isChatRoom = <T extends unknown>(
   return (data as model.IQChatRoom).id != null
 }
 
-export type IQCallback<T> = (response?: T, error?: Error) => void
+export type IQCallback2<T> = (response?: T, error?: Error) => void
+export type IQCallback1 = (error?: Error) => void
 
 export type IQProgressListener<O = string> = (
   error?: Error,
@@ -61,101 +62,101 @@ export interface IQiscus {
     username: string,
     avatarUrl: string,
     extras: object,
-    callback: IQCallback<IQUser>
+    callback: IQCallback2<IQUser>
   ): void | Promise<IQUser>
   setUserWithIdentityToken(
     token: string,
-    callback?: IQCallback<IQUser>
+    callback?: IQCallback2<IQUser>
   ): void | Promise<IQUser>
   blockUser(
     userId: string,
-    callback?: IQCallback<IQUser>
+    callback?: IQCallback2<IQUser>
   ): void | Promise<IQUser>
   unblockUser(
     userId: string,
-    callback?: IQCallback<IQUser>
+    callback?: IQCallback2<IQUser>
   ): void | Promise<IQUser>
   getBlockedUsers(
     page?: number,
     limit?: number,
-    callback?: IQCallback<IQUser[]>
+    callback?: IQCallback2<IQUser[]>
   ): void | Promise<IQUser[]>
-  getUserData(callback?: IQCallback<IQUser>): void | Promise<IQUser>
+  getUserData(callback?: IQCallback2<IQUser>): void | Promise<IQUser>
   updateUser(
     username?: string,
     avatarUrl?: string,
     extras?: object,
-    callback?: IQCallback<IQUser>
+    callback?: IQCallback2<IQUser>
   ): void | Promise<IQUser>
   getUsers(
     searchUsername?: string,
     page?: number,
     limit?: number,
-    callback?: IQCallback<IQUser[]>
+    callback?: IQCallback2<IQUser[]>
   ): void | Promise<IQUser[]>
   // ------------------------------------------------
 
   // TODO: I'm not discussed yet
-  clearUser(callback?: IQCallback<void>): void
+  clearUser(callback?: IQCallback2<void>): void
 
   // from RoomAdapter ----------
   chatUser(
     userId: string,
     extras: object,
-    callback?: IQCallback<IQRoom>
+    callback?: IQCallback2<IQRoom>
   ): void | Promise<IQRoom>
   createGroupChat(
     name: string,
     userIds: string[],
     avatarUrl: string,
     extras: object,
-    callback?: IQCallback<IQRoom>
+    callback?: IQCallback2<IQRoom>
   ): void | Promise<IQRoom>
   createChannel(
     uniqueId: string,
     name: string,
     avatarUrl: string,
     extras: object,
-    callback?: IQCallback<IQRoom>
+    callback?: IQCallback2<IQRoom>
   ): void | Promise<IQRoom>
   getChannel(
     uniqueId: string,
-    callback?: IQCallback<IQRoom>
+    callback?: IQCallback2<IQRoom>
   ): void | Promise<IQRoom>
   updateChatRoom(
     roomId: number,
     name: string,
     avatarUrl: string,
     extras: object,
-    callback?: IQCallback<IQRoom>
+    callback?: IQCallback2<IQRoom>
   ): void | Promise<IQRoom>
   addParticipants(
     roomId: number,
     userIds: string[],
-    callback?: IQCallback<IQParticipant[]>
+    callback?: IQCallback2<IQParticipant[]>
   ): void | Promise<IQParticipant[]>
   removeParticipants(
     roomId: number,
     userIds: string[],
-    callback?: IQCallback<IQParticipant[]>
+    callback?: IQCallback2<IQParticipant[]>
   ): void | Promise<IQParticipant[] | string[]>
   getChatRoomWithMessages(
     roomId: number,
-    callback?: IQCallback<IQRoom>
+    callback?: IQCallback2<IQRoom>
   ): void | Promise<IQRoom>
   getChatRooms(
     roomIds: number[],
     page?: number,
     showRemoved?: boolean,
     showParticipant?: boolean,
-    callback?: IQCallback<IQRoom[]>
+    callback?: IQCallback2<IQRoom[]>
   ): void | Promise<IQRoom[]>
   getChatRooms(
     uniqueIds: string[],
     page?: number,
     showRemoved?: boolean,
     showParticipant?: boolean,
-    callback?: IQCallback<IQRoom[]>
+    callback?: IQCallback2<IQRoom[]>
   ): void | Promise<IQRoom[]>
   getAllChatRooms(
     showParticipant?: boolean,
@@ -163,13 +164,13 @@ export interface IQiscus {
     showEmpty?: boolean,
     page?: number,
     limit?: number,
-    callback?: IQCallback<IQRoom[]>
+    callback?: IQCallback2<IQRoom[]>
   ): void | Promise<IQRoom[]>
   getParticipants(
     roomUniqueId: string,
     offset?: number,
     sorting?: 'asc' | 'desc' | null,
-    callback?: IQCallback<IQParticipant[]>
+    callback?: IQCallback2<IQParticipant[]>
   ): void
   // ---------------------------
 
@@ -177,37 +178,37 @@ export interface IQiscus {
   sendMessage(
     roomId: number,
     message: IQMessageT,
-    callback?: IQCallback<IQMessage>
+    callback?: IQCallback2<IQMessage>
   ): void | Promise<IQMessage>
   markAsRead(
     roomId: number,
     messageId: number,
-    callback?: IQCallback<IQMessage>
+    callback?: IQCallback2<IQMessage>
   ): void | Promise<IQMessage>
   markAsDelivered(
     roomId: number,
     messageId: number,
-    callback?: IQCallback<IQMessage>
+    callback?: IQCallback2<IQMessage>
   ): void | Promise<IQMessage>
   getPreviouseMessagesById(
     roomId: number,
     limit?: number,
     messageId?: number,
-    callback?: IQCallback<IQMessage[]>
+    callback?: IQCallback2<IQMessage[]>
   ): void | Promise<IQMessage[]>
   getNextMessagesById(
     roomId: number,
     limit?: number,
     messageId?: number,
-    callback?: IQCallback<IQMessage[]>
+    callback?: IQCallback2<IQMessage[]>
   ): void | Promise<IQMessage[]>
   deleteMessages(
     messageUniqueIds: string[],
-    callback?: IQCallback<IQMessage[]>
+    callback?: IQCallback2<IQMessage[]>
   ): void | Promise<IQMessage[]>
   clearMessagesByChatRoomId(
     roomUniqueIds: string[],
-    callback?: IQCallback<IQRoom[]>
+    callback?: IQCallback2<IQRoom[]>
   ): void | Promise<IQRoom[]>
   // -------------------------------------------------------
 
@@ -216,17 +217,17 @@ export interface IQiscus {
   registerDeviceToken(
     token: string,
     isDevelopment: boolean,
-    callback?: IQCallback<boolean>
+    callback?: IQCallback2<boolean>
   ): void | Promise<boolean>
   removeDeviceToken(
     token: string,
     isDevelopment: boolean,
-    callback?: IQCallback<boolean>
+    callback?: IQCallback2<boolean>
   ): void | Promise<boolean>
-  getJWTNonce(callback?: IQCallback<string>): void | Promise<string>
+  getJWTNonce(callback?: IQCallback2<string>): void | Promise<string>
   synchronize(lastMessageId: number): void
   synchronizeEvent(lastEventId: number): void
-  getTotalUnreadCount(callback?: IQCallback<number>): void | Promise<number>
+  getTotalUnreadCount(callback?: IQCallback2<number>): void | Promise<number>
   setSyncInterval(interval: number): void
   hasSetupUser(callback?: (isSetup: boolean) => void): void | Promise<boolean>
   getThumbnailURL(url: string): string
@@ -242,7 +243,7 @@ export interface IQiscus {
 
   // from CustomEventAdapter
   publishCustomEvent(roomId: number, data: any): void
-  subscribeCustomEvent(roomId: number, callback: IQCallback<any>): void
+  subscribeCustomEvent(roomId: number, callback: IQCallback2<any>): void
   unsubscribeCustomEvent(roomId: number): void
 }
 
@@ -427,4 +428,16 @@ export type UploadResult = {
     }
   }
   status: number
+}
+
+export interface IAppConfig {
+  baseUrl: string
+  brokerLbUrl: string
+  brokerUrl: string
+  enableEventReport: boolean
+  enableRealtime: boolean
+  enableRealtimeCheck: boolean
+  extras: Record<string, any>
+  syncInterval: number
+  syncOnConnect: number
 }

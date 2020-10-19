@@ -439,3 +439,8 @@ export const synchronizeEvent: ApiRequest<{
     start_event_id: o.lastEventId ?? 0,
   }))
 )
+
+export const appConfig: ApiRequest<withHeaders> = compose(
+  useGetUrl('/config'),
+  useHeaders()
+)

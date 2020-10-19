@@ -1,6 +1,9 @@
 import axios, { AxiosResponse } from 'axios'
 import { atom } from 'derivable'
 import xs from 'xstream'
+import flattenConcurrently from 'xstream/extra/flattenConcurrently'
+// @ts-ignore
+import packageJson from '../package.json'
 import { getLogger } from './adapters/logger'
 import getMessageAdapter from './adapters/message'
 import getRealtimeAdapter from './adapters/realtime'
@@ -8,13 +11,14 @@ import getRoomAdapter from './adapters/room'
 import getUserAdapter from './adapters/user'
 import {
   Callback,
-  IQCallback,
+  IQCallback1,
+  IQCallback2,
   IQMessageT,
   IQMessageType,
   IQProgressListener,
+  isChatRoom,
   Subscription,
   UploadResult,
-  isChatRoom,
 } from './defs'
 import { hookAdapterFactory, Hooks } from './hook'
 import * as model from './model'
@@ -45,8 +49,6 @@ import {
   toEventSubscription,
   toEventSubscription_,
 } from './utils/stream'
-
-import flattenConcurrently from 'xstream/extra/flattenConcurrently'
 
 export default class Qiscus {
   private static _instance: Qiscus
@@ -115,7 +117,7 @@ export default class Qiscus {
     appId: string,
     callback?: (error?: null | Error) => void
   ): void | Promise<void> {
-    this.setupWithCustomServer(
+    return this.setupWithCustomServer(
       appId,
       undefined,
       undefined,
@@ -131,42 +133,115 @@ export default class Qiscus {
     brokerUrl: string = this.storage.getBrokerUrl(),
     brokerLbUrl: string = this.storage.getBrokerLbUrl(),
     syncInterval: number = 5000,
-    callback?: null | ((error?: Error | null | undefined) => void)
-  ): void {
-    const defaultBaseUrl = this.storage.getBaseUrl()
-    const defaultBrokerUrl = this.storage.getBrokerUrl()
-    const defaultBrokerLbUrl = this.storage.getBrokerLbUrl()
-
-    // We need to disable realtime load balancing if user are using custom server
-    // and did not provide a brokerLbUrl
-    const isDifferentBaseUrl = baseUrl !== defaultBaseUrl
-    const isDifferentBrokerUrl = brokerUrl !== defaultBrokerUrl
-    const isDifferentBrokerLbUrl = brokerLbUrl !== defaultBrokerLbUrl
-    // disable realtime lb if user change baseUrl or mqttUrl but did not change
-    // broker lb url
-    if (
-      (isDifferentBaseUrl || isDifferentBrokerUrl) &&
-      !isDifferentBrokerLbUrl
-    ) {
-      this.loggerAdapter.log(
-        '' +
-          'force disable load balancing for realtime server, because ' +
-          '`baseUrl` or `brokerUrl` get changed but ' +
-          'did not provide `brokerLbURL`'
-      )
-      this.storage.setBrokerLbEnabled(false)
+    callback?: (error?: Error) => void
+  ): void | Promise<void> {
+    const setterHelper = <T>(
+      fromUser: T,
+      fromServer: T,
+      defaultValue: T
+    ): T => {
+      if (typeof fromServer === 'string' && fromServer === '') {
+        if (fromUser != null) {
+          if (typeof fromUser !== 'string') return fromUser
+          if (fromUser.length > 0) return fromUser
+        }
+      }
+      if (typeof fromServer === 'string' && fromServer != null) {
+        if (fromServer.length > 0) return fromServer
+        if (typeof fromServer !== 'string') return fromServer
+      }
+      return defaultValue
     }
 
-    this.storage.setAppId(appId)
-    this.storage.setBaseUrl(baseUrl)
-    this.storage.setBrokerUrl(brokerUrl)
-    this.storage.setBrokerLbUrl(brokerLbUrl)
-    this.storage.setSyncInterval(syncInterval)
-    this.storage.setDebugEnabled(false)
-    this.storage.setVersion('3-alpha')
-    this.storage.setSyncInterval(5000)
+    const brokerUrlSetter = (mqttResult: string) => {
+      if (mqttResult.includes('wss://')) {
+        return mqttResult
+      } else {
+        return `wss://${mqttResult}:1886/mqtt`
+      }
+    }
 
-    callback?.()
+    return xs
+      .combine(
+        process(appId, isReqString({ appId })),
+        process(baseUrl, isOptString({ baseUrl })),
+        process(brokerUrl, isOptString({ brokerUrl })),
+        process(brokerLbUrl, isOptString({ brokerLbUrl })),
+        process(syncInterval, isOptNumber({ syncInterval })),
+        process(callback, isOptCallback({ callback }))
+      )
+      .map(([appId, baseUrl, brokerUrl, brokerLbUrl, syncInterval]) => {
+        const defaultBaseUrl = this.storage.getBaseUrl()
+        const defaultBrokerUrl = this.storage.getBrokerUrl()
+        const defaultBrokerLbUrl = this.storage.getBrokerLbUrl()
+
+        // We need to disable realtime load balancing if user are using custom server
+        // and did not provide a brokerLbUrl
+        const isDifferentBaseUrl = baseUrl !== defaultBaseUrl
+        const isDifferentBrokerUrl = brokerUrl !== defaultBrokerUrl
+        const isDifferentBrokerLbUrl = brokerLbUrl !== defaultBrokerLbUrl
+        // disable realtime lb if user change baseUrl or mqttUrl but did not change
+        // broker lb url
+        if (
+          (isDifferentBaseUrl || isDifferentBrokerUrl) &&
+          !isDifferentBrokerLbUrl
+        ) {
+          this.loggerAdapter.log(
+            '' +
+              'force disable load balancing for realtime server, because ' +
+              '`baseUrl` or `brokerUrl` get changed but ' +
+              'did not provide `brokerLbURL`'
+          )
+          this.storage.setBrokerLbEnabled(false)
+        }
+
+        this.storage.setAppId(appId)
+        this.storage.setBaseUrl(baseUrl)
+        this.storage.setBrokerUrl(brokerUrl)
+        this.storage.setBrokerLbUrl(brokerLbUrl)
+        this.storage.setSyncInterval(syncInterval)
+        this.storage.setDebugEnabled(false)
+        this.storage.setVersion(packageJson.version)
+
+        return xs.fromPromise(this.userAdapter.getAppConfig())
+      })
+      .compose(flattenConcurrently)
+      .map((appConfig) => {
+        this.storage.setBaseUrl(
+          setterHelper(baseUrl, appConfig.baseUrl, this.storage.defaultBaseURL)
+        )
+        this.storage.setBrokerUrl(
+          brokerUrlSetter(
+            setterHelper(
+              brokerUrl,
+              appConfig.brokerUrl,
+              this.storage.defaultBrokerUrl
+            )
+          )
+        )
+        this.storage.setBrokerLbUrl(
+          setterHelper(
+            brokerLbUrl,
+            appConfig.brokerLbUrl,
+            this.storage.defaultBrokerLbUrl
+          )
+        )
+        this.storage.setSyncInterval(
+          setterHelper(
+            syncInterval,
+            appConfig.syncInterval,
+            this.storage.defaultSyncInterval
+          )
+        )
+        this.storage.setSyncIntervalWhenConnected(
+          setterHelper(
+            this.storage.defaultSyncIntervalWhenConnected,
+            appConfig.syncOnConnect,
+            this.storage.defaultSyncIntervalWhenConnected
+          )
+        )
+      })
+      .compose(toCallbackOrPromise<void>(callback))
   }
 
   setCustomHeader(headers: Record<string, string>): void {
@@ -180,7 +255,7 @@ export default class Qiscus {
     username?: string,
     avatarUrl?: string,
     extras?: object | null,
-    callback?: null | IQCallback<model.IQAccount>
+    callback?: null | IQCallback2<model.IQAccount>
   ): void | Promise<model.IQAccount> {
     return xs
       .combine(
@@ -212,7 +287,7 @@ export default class Qiscus {
 
   blockUser(
     userId: string,
-    callback: IQCallback<model.IQUser>
+    callback: IQCallback2<model.IQUser>
   ): void | Promise<model.IQUser> {
     return xs
       .combine(
@@ -225,7 +300,7 @@ export default class Qiscus {
       .compose(toCallbackOrPromise(callback))
   }
 
-  clearUser(callback: IQCallback<void>): void | Promise<void> {
+  clearUser(callback: IQCallback1): void | Promise<void> {
     // this method should clear currentUser and token
     return xs
       .combine(process(callback, isOptCallback({ callback })))
@@ -240,12 +315,12 @@ export default class Qiscus {
       )
       .compose(flattenConcurrently)
       .map(() => undefined as void)
-      .compose(toCallbackOrPromise(callback))
+      .compose(toCallbackOrPromise<void>(callback))
   }
 
   unblockUser(
     userId: string,
-    callback?: IQCallback<model.IQUser>
+    callback?: IQCallback2<model.IQUser>
   ): void | Promise<model.IQUser> {
     return xs
       .combine(
@@ -262,7 +337,7 @@ export default class Qiscus {
     username: string,
     avatarUrl: string,
     extras?: object,
-    callback?: IQCallback<model.IQAccount>
+    callback?: IQCallback2<model.IQAccount>
   ): void | Promise<model.IQAccount> {
     // this method should update current user
     return xs
@@ -294,7 +369,7 @@ export default class Qiscus {
   getBlockedUsers(
     page?: number,
     limit?: number,
-    callback?: IQCallback<model.IQUser[]>
+    callback?: IQCallback2<model.IQUser[]>
   ): void | Promise<model.IQUser[]> {
     return xs
       .combine(
@@ -314,7 +389,7 @@ export default class Qiscus {
     searchUsername?: string,
     page?: number,
     limit?: number,
-    callback?: IQCallback<model.IQUser[]>
+    callback?: IQCallback2<model.IQUser[]>
   ): void | Promise<model.IQUser[]> {
     return xs
       .combine(
@@ -331,7 +406,7 @@ export default class Qiscus {
       .compose(toCallbackOrPromise(callback))
   }
 
-  getJWTNonce(callback?: IQCallback<string>): void | Promise<string> {
+  getJWTNonce(callback?: IQCallback2<string>): void | Promise<string> {
     return xs
       .combine(process(callback, isOptCallback({ callback })))
       .map(() => xs.fromPromise(this.userAdapter.getNonce()))
@@ -341,7 +416,7 @@ export default class Qiscus {
   }
 
   getUserData(
-    callback?: IQCallback<model.IQAccount>
+    callback?: IQCallback2<model.IQAccount>
   ): void | Promise<model.IQAccount> {
     return xs
       .combine(process(callback, isOptCallback({ callback })))
@@ -354,7 +429,7 @@ export default class Qiscus {
   registerDeviceToken(
     token: string,
     isDevelopment: boolean,
-    callback?: IQCallback<boolean>
+    callback?: IQCallback2<boolean>
   ): void | Promise<boolean> {
     return xs
       .combine(
@@ -375,7 +450,7 @@ export default class Qiscus {
   removeDeviceToken(
     token: string,
     isDevelopment: boolean,
-    callback?: IQCallback<boolean>
+    callback?: IQCallback2<boolean>
   ): void | Promise<boolean> {
     return xs
       .combine(
@@ -398,7 +473,7 @@ export default class Qiscus {
     name?: string,
     avatarUrl?: string,
     extras?: object,
-    callback?: IQCallback<model.IQChatRoom>
+    callback?: IQCallback2<model.IQChatRoom>
   ): void | Promise<model.IQChatRoom> {
     // this method should update room list
     return xs
@@ -420,7 +495,7 @@ export default class Qiscus {
 
   setUserWithIdentityToken(
     token: string,
-    callback?: IQCallback<model.IQAccount>
+    callback?: IQCallback2<model.IQAccount>
   ): void | Promise<model.IQAccount> {
     return xs
       .combine(
@@ -436,7 +511,7 @@ export default class Qiscus {
 
   getChannel(
     uniqueId: string,
-    callback?: IQCallback<model.IQChatRoom>
+    callback?: IQCallback2<model.IQChatRoom>
   ): void | Promise<model.IQChatRoom> {
     return xs
       .combine(
@@ -455,7 +530,7 @@ export default class Qiscus {
   chatUser(
     userId: string,
     extras: object,
-    callback?: IQCallback<model.IQChatRoom>
+    callback?: IQCallback2<model.IQChatRoom>
   ): void | Promise<model.IQChatRoom> {
     return xs
       .combine(
@@ -474,7 +549,7 @@ export default class Qiscus {
   addParticipants(
     roomId: number,
     userIds: string[],
-    callback?: IQCallback<model.IQParticipant[]>
+    callback?: IQCallback2<model.IQParticipant[]>
   ): void | Promise<model.IQParticipant[]> {
     return xs
       .combine(
@@ -493,7 +568,7 @@ export default class Qiscus {
   removeParticipants(
     roomId: number,
     userIds: string[],
-    callback?: IQCallback<model.IQParticipant[]>
+    callback?: IQCallback2<model.IQParticipant[]>
   ): void | Promise<model.IQParticipant[] | string[]> {
     return xs
       .combine(
@@ -511,7 +586,7 @@ export default class Qiscus {
 
   clearMessagesByChatRoomId(
     roomUniqueIds: string[],
-    callback?: IQCallback<void>
+    callback?: IQCallback1
   ): void | Promise<void> {
     return xs
       .combine(
@@ -521,7 +596,7 @@ export default class Qiscus {
       .compose(bufferUntil(() => this.isLogin))
       .map(([roomIds]) => xs.fromPromise(this.roomAdapter.clearRoom(roomIds)))
       .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .compose(toCallbackOrPromise<void>(callback))
   }
 
   createGroupChat(
@@ -529,7 +604,7 @@ export default class Qiscus {
     userIds: string[],
     avatarUrl: string,
     extras: object,
-    callback?: IQCallback<model.IQChatRoom>
+    callback?: IQCallback2<model.IQChatRoom>
   ): void | Promise<model.IQChatRoom> {
     return xs
       .combine(
@@ -554,7 +629,7 @@ export default class Qiscus {
     name: string,
     avatarUrl: string,
     extras: object,
-    callback?: IQCallback<model.IQChatRoom>
+    callback?: IQCallback2<model.IQChatRoom>
   ): void | Promise<model.IQChatRoom> {
     return xs
       .combine(
@@ -579,7 +654,7 @@ export default class Qiscus {
     page?: number,
     limit?: number,
     sorting?: 'asc' | 'desc',
-    callback?: IQCallback<model.IQParticipant[]>
+    callback?: IQCallback2<model.IQParticipant[]>
   ): void | Promise<model.IQParticipant[]> {
     return xs
       .combine(
@@ -604,21 +679,21 @@ export default class Qiscus {
     page?: number,
     showRemoved?: boolean,
     showParticipant?: boolean,
-    callback?: IQCallback<model.IQChatRoom[]>
+    callback?: IQCallback2<model.IQChatRoom[]>
   ): void | Promise<model.IQChatRoom[]>
   getChatRooms(
     uniqueIds: string[],
     page?: number,
     showRemoved?: boolean,
     showParticipant?: boolean,
-    callback?: IQCallback<model.IQChatRoom[]>
+    callback?: IQCallback2<model.IQChatRoom[]>
   ): void | Promise<model.IQChatRoom[]>
   getChatRooms(
     ids: number[] | string[],
     page?: number,
     showRemoved?: boolean,
     showParticipant?: boolean,
-    callback?: IQCallback<model.IQChatRoom[]>
+    callback?: IQCallback2<model.IQChatRoom[]>
   ): void | Promise<model.IQChatRoom[]> {
     let uniqueIds: string[] | undefined
     let roomIds: number[] | undefined
@@ -660,7 +735,7 @@ export default class Qiscus {
     showEmpty?: boolean,
     page?: number,
     limit?: number,
-    callback?: IQCallback<model.IQChatRoom[]>
+    callback?: IQCallback2<model.IQChatRoom[]>
   ): void | Promise<model.IQChatRoom[]> {
     return xs
       .combine(
@@ -689,7 +764,7 @@ export default class Qiscus {
 
   getChatRoomWithMessages(
     roomId: number,
-    callback?: IQCallback<model.IQChatRoom>
+    callback?: IQCallback2<model.IQChatRoom>
   ): void | Promise<model.IQChatRoom> {
     return xs
       .combine(
@@ -702,7 +777,7 @@ export default class Qiscus {
       .compose(toCallbackOrPromise(callback) as any)
   }
 
-  getTotalUnreadCount(callback?: IQCallback<number>): void | Promise<number> {
+  getTotalUnreadCount(callback?: IQCallback2<number>): void | Promise<number> {
     return xs
       .combine(process(callback, isOptCallback({ callback })))
       .compose(bufferUntil(() => this.isLogin))
@@ -716,7 +791,7 @@ export default class Qiscus {
   sendMessage(
     roomId: number,
     message: IQMessageT,
-    callback?: IQCallback<model.IQMessage>
+    callback?: IQCallback2<model.IQMessage>
   ): void | Promise<model.IQMessage> {
     return xs
       .combine(
@@ -747,7 +822,7 @@ export default class Qiscus {
   markAsDelivered(
     roomId: number,
     messageId: number,
-    callback?: IQCallback<void>
+    callback?: IQCallback2<void>
   ): void | Promise<void> {
     return xs
       .combine(
@@ -766,7 +841,7 @@ export default class Qiscus {
   markAsRead(
     roomId: number,
     messageId: number,
-    callback?: IQCallback<void>
+    callback?: IQCallback2<void>
   ): void | Promise<void> {
     return xs
       .combine(
@@ -784,7 +859,7 @@ export default class Qiscus {
 
   deleteMessages(
     messageUniqueIds: string[],
-    callback?: IQCallback<model.IQMessage[]>
+    callback?: IQCallback2<model.IQMessage[]>
   ): void | Promise<model.IQMessage[]> {
     return xs
       .combine(
@@ -803,7 +878,7 @@ export default class Qiscus {
     roomId: number,
     limit?: number,
     messageId?: number,
-    callback?: IQCallback<model.IQMessage[]>
+    callback?: IQCallback2<model.IQMessage[]>
   ): void | Promise<model.IQMessage[]> {
     return xs
       .combine(
@@ -826,7 +901,7 @@ export default class Qiscus {
     roomId: number,
     limit?: number,
     messageId?: number,
-    callback?: IQCallback<model.IQMessage[]>
+    callback?: IQCallback2<model.IQMessage[]>
   ): void | Promise<model.IQMessage[]> {
     return xs
       .combine(
@@ -847,11 +922,7 @@ export default class Qiscus {
   // -------------------------------------------------------
 
   // Misc --------------------------------------------------
-  publishCustomEvent(
-    roomId: number,
-    data: any,
-    callback?: Callback<void>
-  ): void {
+  publishCustomEvent(roomId: number, data: any, callback?: IQCallback1): void {
     const userId = this.currentUser?.id
     xs.combine(
       process(roomId, isReqNumber({ roomId })),
@@ -867,15 +938,19 @@ export default class Qiscus {
         )
       )
       .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .compose(toCallbackOrPromise<void>(callback))
   }
 
-  publishOnlinePresence(isOnline: boolean, callback?: Callback<void>): void {
+  publishOnlinePresence(
+    isOnline: boolean,
+    callback?: IQCallback1
+  ): void | Promise<void> {
     const userId = this.currentUser?.id
-    xs.combine(
-      process(isOnline, isReqBoolean({ isOnline })),
-      process(userId, isReqString({ userId }))
-    )
+    return xs
+      .combine(
+        process(isOnline, isReqBoolean({ isOnline })),
+        process(userId, isReqString({ userId }))
+      )
       .compose(bufferUntil(() => this.isLogin))
       .map(([isOnline, userId]) =>
         xs.fromPromise(
@@ -883,17 +958,35 @@ export default class Qiscus {
         )
       )
       .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .compose(toCallbackOrPromise<void>(callback))
   }
-  publishTyping(roomId: number, isTyping?: boolean): void {
-    this.realtimeAdapter.sendTyping(
-      roomId,
-      this.currentUser.id,
-      isTyping || true
-    )
+  publishTyping(
+    roomId: number,
+    isTyping?: boolean,
+    callback?: IQCallback1
+  ): void | Promise<void> {
+    return xs
+      .combine(
+        process(roomId, isReqNumber({ roomId })),
+        process(isTyping, isOptBoolean({ isTyping }))
+      )
+      .compose(bufferUntil(() => this.isLogin))
+      .map(([roomId, isTyping]) =>
+        xs.fromPromise(
+          Promise.resolve(
+            this.realtimeAdapter.sendTyping(
+              roomId,
+              this.currentUser.id,
+              isTyping ?? true
+            )
+          )
+        )
+      )
+      .compose(flattenConcurrently)
+      .compose(toCallbackOrPromise<void>(callback))
   }
 
-  subscribeCustomEvent(roomId: number, callback: IQCallback<any>): void {
+  subscribeCustomEvent(roomId: number, callback: IQCallback2<any>): void {
     this.realtimeAdapter.mqtt.subscribeCustomEvent(roomId, callback)
   }
 
@@ -914,17 +1007,17 @@ export default class Qiscus {
       data: data,
       onUploadProgress(event: ProgressEvent) {
         const percentage = ((event.loaded / event.total) * 100).toFixed(2)
-        callback?.(void 0, Number(percentage))
+        callback?.(undefined, Number(percentage))
       },
     })
       .then((resp: AxiosResponse<UploadResult>) => {
         const url = resp.data.results.file.url
-        callback?.(void 0, void 0, url)
+        callback?.(undefined, undefined, url)
       })
       .catch((error) => callback?.(error))
   }
 
-  hasSetupUser(callback: IQCallback<boolean>): void | Promise<boolean> {
+  hasSetupUser(callback: IQCallback2<boolean>): void | Promise<boolean> {
     return xs
       .of(this.currentUser)
       .map((user) => user != null)
@@ -975,11 +1068,11 @@ export default class Qiscus {
     this.realtimeAdapter.synchronizeEvent(lastEventId)
   }
 
-  enableDebugMode(enable: boolean, callback: Callback<void>) {
+  enableDebugMode(enable: boolean, callback: IQCallback1) {
     process(enable, isReqBoolean({ enable }))
       .compose(bufferUntil(() => this.isLogin))
       .map((enable: boolean) => this.loggerAdapter.setEnable(enable))
-      .compose(toCallbackOrPromise(callback))
+      .compose(toCallbackOrPromise<void>(callback))
   }
   static Interceptor = Hooks
   get Interceptor() {

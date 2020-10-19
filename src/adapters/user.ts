@@ -1,4 +1,4 @@
-import { IQUserExtraProps } from '../defs'
+import { IQUserExtraProps, IAppConfig } from '../defs'
 import * as Decoder from '../decoder'
 import * as model from '../model'
 import * as Api from '../api'
@@ -168,6 +168,14 @@ const getUserAdapter = (s: Storage) => ({
       })
     ).then(resp => resp.results.changed)
   },
+  async getAppConfig(): Promise<IAppConfig> {
+    return Api.request<AppConfigResponse.RootObject>(
+      Api.appConfig({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withHeaders(s),
+      })
+    ).then(r => Decoder.appConfig(r.results))
+  },
 })
 
 export default getUserAdapter
@@ -315,6 +323,24 @@ declare module DeviceTokenResponse {
     changed: boolean
     pn_android_configured: boolean
     pn_ios_configured: boolean
+  }
+
+  export interface RootObject {
+    results: Results
+    status: number
+  }
+}
+declare module AppConfigResponse {
+  export interface Results {
+    base_url: string
+    broker_lb_url: string
+    broker_url: string
+    enable_event_report: boolean
+    sync_interval: number
+    sync_on_connect: number
+    enable_realtime: boolean
+    enable_realtime_check: boolean
+    extras: string
   }
 
   export interface RootObject {
