@@ -785,6 +785,14 @@ export default class Qiscus {
       .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
+  getRoomUnreadCount(callback?: IQCallback2<number>): void | Promise<number> {
+    return xs
+      .combine(process(callback, isOptCallback({ callback })))
+      .compose(bufferUntil(() => this.isLogin))
+      .map(() => xs.fromPromise(this.roomAdapter.getRoomUnreadCount()))
+      .compose(flattenConcurrently)
+      .compose(toCallbackOrPromise(callback))
+  }
   // ------------------------------------------------------
 
   // Message Adapter --------------------------------------

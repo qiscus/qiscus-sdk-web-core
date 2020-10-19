@@ -5,7 +5,7 @@ import * as Decoder from '../decoder'
 import { Storage } from '../storage'
 
 const getRoomAdapter = (s: Storage) => ({
-  addParticipants(
+  async addParticipants(
     roomId: number,
     participantIds: string[]
   ): Promise<model.IQParticipant[]> {
@@ -15,66 +15,66 @@ const getRoomAdapter = (s: Storage) => ({
       id: roomId,
       userIds: participantIds,
     })
-    return Api.request<AddParticipantsResponse.RootObject>(
+    const resp = await Api.request<AddParticipantsResponse.RootObject>(
       apiConfig
-    ).then(resp => resp.results.participants_added.map(Decoder.participant))
+    )
+    return resp.results.participants_added.map(Decoder.participant)
   },
-  removeParticipants(
+  async removeParticipants(
     id: model.IQChatRoom['id'],
     participantIds: model.IQParticipant['id'][]
   ): Promise<model.IQParticipant[]> {
-    return Api.request<RemoveParticipantResponse.RootObject>(
+    const resp = await Api.request<RemoveParticipantResponse.RootObject>(
       Api.removeRoomParticipants({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
         id,
         userIds: participantIds,
       })
-    ).then(resp =>
-      resp.results.participants_removed.map(email =>
-        Decoder.participant({
-          email,
-        } as any)
-      )
+    )
+    return resp.results.participants_removed.map((email) =>
+      Decoder.participant({
+        email,
+      } as any)
     )
   },
-  chatUser(
+  async chatUser(
     userId: model.IQUser['id'],
     extras?: model.IQChatRoom['extras']
   ): Promise<model.IQChatRoom> {
-    return Api.request<ChatUserResponse.RootObject>(
+    const resp = await Api.request<ChatUserResponse.RootObject>(
       Api.getOrCreateRoomWithTarget({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
         userIds: [userId],
         extras,
       })
-    ).then(resp =>
-      Decoder.room({
-        ...resp.results.room,
-        is_removed: false,
-        last_comment: resp.results.comments.find(
-          it => it.id === resp.results.room.last_comment_id
-        ),
-      })
     )
+    return Decoder.room({
+      ...resp.results.room,
+      is_removed: false,
+      last_comment: resp.results.comments.find(
+        (it) => it.id === resp.results.room.last_comment_id
+      ),
+    })
   },
-  clearRoom(uniqueIds: string[]): Promise<void> {
-    return Api.request<ClearRoomResponse.RootObject>(
+  async clearRoom(uniqueIds: string[]): Promise<void> {
+    await Api.request<ClearRoomResponse.RootObject>(
       Api.clearRooms({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
         uniqueIds,
       })
-    ).then(() => undefined as void)
+    )
+    return undefined as void
   },
-  createGroup(
+  async createGroup(
     name: model.IQChatRoom['name'],
     userIds: model.IQUser['id'][],
     avatarUrl?: model.IQChatRoom['avatarUrl'],
     extras?: model.IQChatRoom['extras']
   ): Promise<model.IQChatRoom> {
-    return Api.request<CreateRoomResponse.RootObject>(
+    const resp = await Api.request<CreateRoomResponse.RootObject>(
       Api.createRoom({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
@@ -83,21 +83,20 @@ const getRoomAdapter = (s: Storage) => ({
         avatarUrl,
         extras,
       })
-    ).then(resp =>
-      Decoder.room({
-        ...resp.results.room,
-        is_removed: false,
-        last_comment: resp.results.comments.pop(),
-      })
     )
+    return Decoder.room({
+      ...resp.results.room,
+      is_removed: false,
+      last_comment: resp.results.comments.pop(),
+    })
   },
-  getChannel(
+  async getChannel(
     uniqueId: model.IQChatRoom['uniqueId'],
     name?: model.IQChatRoom['name'],
     avatarUrl?: model.IQChatRoom['avatarUrl'],
     extras?: model.IQChatRoom['extras']
   ): Promise<model.IQChatRoom> {
-    return Api.request<GetChannelResponse.RootObject>(
+    const resp = await Api.request<GetChannelResponse.RootObject>(
       Api.getOrCreateRoomWithUniqueId({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
@@ -106,23 +105,22 @@ const getRoomAdapter = (s: Storage) => ({
         avatarUrl,
         options: extras,
       })
-    ).then(resp =>
-      Decoder.room({
-        ...resp.results.room,
-        is_removed: false,
-        last_comment: resp.results.comments.find(
-          it => it.id === resp.results.room.last_comment_id
-        ),
-      })
     )
+    return Decoder.room({
+      ...resp.results.room,
+      is_removed: false,
+      last_comment: resp.results.comments.find(
+        (it) => it.id === resp.results.room.last_comment_id
+      ),
+    })
   },
-  getParticipantList(
+  async getParticipantList(
     uniqueId: string,
     page?: number,
     limit?: number,
     sorting?: 'asc' | 'desc'
   ): Promise<model.IQParticipant[]> {
-    return Api.request<GetParticipantResponse.RootObject>(
+    const resp = await Api.request<GetParticipantResponse.RootObject>(
       Api.getRoomParticipants({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
@@ -131,31 +129,31 @@ const getRoomAdapter = (s: Storage) => ({
         limit,
         sorting,
       })
-    ).then(resp => resp.results.participants.map(Decoder.participant))
+    )
+    return resp.results.participants.map(Decoder.participant)
   },
-  getRoom(roomId: number): Promise<model.IQChatRoom> {
-    return Api.request<GetRoomResponse.RootObject>(
+  async getRoom(roomId: number): Promise<model.IQChatRoom> {
+    const resp = await Api.request<GetRoomResponse.RootObject>(
       Api.getRoomById({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
         id: roomId,
       })
-    ).then(resp =>
-      Decoder.room({
-        ...resp.results.room,
-        is_removed: false,
-        last_comment: resp.results.comments.pop(),
-      })
     )
+    return Decoder.room({
+      ...resp.results.room,
+      is_removed: false,
+      last_comment: resp.results.comments.pop(),
+    })
   },
-  getRoomInfo(
+  async getRoomInfo(
     roomIds?: number[],
     roomUniqueIds?: string[],
     page?: number,
     showRemoved: boolean = false,
     showParticipants: boolean = false
   ): Promise<model.IQChatRoom[]> {
-    return Api.request<GetRoomInfoResponse.RootObject>(
+    const resp = await Api.request<GetRoomInfoResponse.RootObject>(
       Api.getRoomInfo({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
@@ -165,9 +163,10 @@ const getRoomAdapter = (s: Storage) => ({
         roomUniqueIds,
         page,
       })
-    ).then(resp => resp.results.rooms_info.map(Decoder.room))
+    )
+    return resp.results.rooms_info.map(Decoder.room)
   },
-  getRoomList(
+  async getRoomList(
     showParticipants?: boolean,
     showRemoved?: boolean,
     showEmpty?: boolean,
@@ -183,27 +182,34 @@ const getRoomAdapter = (s: Storage) => ({
       page,
       limit,
     })
-    return Api.request<GetRoomListResponse.RootObject>(apiConfig).then(res => {
-      return res.results.rooms_info.map<model.IQChatRoom>((it: any) =>
-        Decoder.room(it)
-      )
-    })
+    const res = await Api.request<GetRoomListResponse.RootObject>(apiConfig)
+    return res.results.rooms_info.map<model.IQChatRoom>((it: any) =>
+      Decoder.room(it)
+    )
   },
-  getUnreadCount(): Promise<number> {
-    return Api.request<GetUnreadResponse.RootObject>(
+  async getUnreadCount(): Promise<number> {
+    const resp = await Api.request<GetUnreadResponse.RootObject>(
       Api.getTotalUnreadCount({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
       })
-    ).then(resp => resp.results.total_unread_count)
+    )
+    return resp.results.total_unread_count
   },
-  updateRoom(
+  async getRoomUnreadCount(): Promise<number> {
+    const resp = await Api.request<GetUnreadResponse.RootObject>({
+      ...Provider.withBaseUrl(s),
+      ...Provider.withCredentials(s),
+    })
+    return resp.results.total_unread_count
+  },
+  async updateRoom(
     roomId: model.IQChatRoom['id'],
     name?: model.IQChatRoom['name'],
     avatarUrl?: model.IQChatRoom['avatarUrl'],
     extras?: model.IQChatRoom['extras']
   ): Promise<model.IQChatRoom> {
-    return Api.request<UpdateRoomResponse.RootObject>(
+    const resp = await Api.request<UpdateRoomResponse.RootObject>(
       Api.updateRoom({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
@@ -212,7 +218,8 @@ const getRoomAdapter = (s: Storage) => ({
         name,
         id: roomId,
       })
-    ).then(resp => Decoder.room(resp.results.room as any))
+    )
+    return Decoder.room(resp.results.room as any)
   },
 })
 
