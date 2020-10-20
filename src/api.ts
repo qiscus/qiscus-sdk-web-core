@@ -500,3 +500,65 @@ export const appConfig: ApiRequest<withHeaders> = compose(
   useGetUrl('/config'),
   useHeaders()
 )
+
+export const searchMessagesV2: ApiRequest<
+  {
+    query: string
+    roomIds: number[]
+    userId?: string
+    type?: string
+    roomType?: string
+    page?: number
+    limit?: number
+  } & withCredentials
+> = compose(
+  usePostUrl('/search'),
+  useCredentials(),
+  useBody(function (o) {
+    const room = ((roomType) => {
+      const rType =
+        roomType == null
+          ? undefined
+          : roomType === 'single'
+          ? 'single'
+          : 'group'
+      const isPublic =
+        roomType == null ? undefined : roomType === 'channel' ? true : false
+
+      return {
+        type: rType,
+        isPublic: isPublic,
+      }
+    })(o.roomType)
+    return {
+      query: o.query,
+      sender: o.userId,
+      type: o.type,
+      room_ids: o.roomIds.map((it) => String(it)),
+      room_type: room.type,
+      is_public: room.isPublic,
+      page: o.page,
+      limit: o.limit,
+    }
+  })
+)
+
+export const getFileList: ApiRequest<
+  {
+    roomIds?: number[]
+    fileType?: string
+    page?: number
+    limit?: number
+    sender: string
+  } & withCredentials
+> = compose(
+  usePostUrl('file_list'),
+  useCredentials(),
+  useBody((o) => ({
+    room_ids: o.roomIds?.map((it) => String(it)),
+    sender: o.sender,
+    file_type: o.fileType,
+    page: o.page,
+    limit: o.limit,
+  }))
+)

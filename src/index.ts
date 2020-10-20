@@ -32,6 +32,7 @@ import {
   isOptJson,
   isOptNumber,
   isOptString,
+  isReqArrayNumber,
   isReqArrayOfStringOrNumber,
   isReqArrayString,
   isReqBoolean,
@@ -924,6 +925,96 @@ export default class Qiscus {
           this.messageAdapter.getMessages(roomId, messageId, limit, true)
         )
       )
+      .compose(flattenConcurrently)
+      .compose(toCallbackOrPromise(callback))
+  }
+  searchMessage({
+    query,
+    roomIds = [],
+    userId,
+    type,
+    roomType,
+    page,
+    limit,
+    callback,
+  }: {
+    query: string
+    roomIds: number[]
+    userId?: string
+    type?: string
+    roomType?: string
+    page?: number
+    limit?: number
+    callback?: (messages?: model.IQMessage[], error?: Error) => void
+  }): void | Promise<model.IQMessage[]> {
+    return xs
+      .combine(
+        process(query, isReqString({ query })),
+        process(
+          roomIds,
+          isReqArrayString({
+            roomIds,
+          })
+        ),
+        process(userId, isOptString({ userId })),
+        process(type, isOptString({ type })),
+        process(roomType, isOptString({ roomType })),
+        process(page, isOptNumber({ page })),
+        process(limit, isOptNumber({ limit })),
+        process(callback, isOptCallback({ callback }))
+      )
+      .map(([query, roomIds, userId, type, roomType, page, limit]) => {
+        return xs.fromPromise(
+          this.messageAdapter.searchMessages({
+            query,
+            roomIds,
+            userId,
+            type,
+            roomType,
+            page,
+            limit,
+          })
+        )
+      })
+      .compose(flattenConcurrently)
+      .compose(toCallbackOrPromise(callback))
+  }
+  getFileList({
+    roomIds = [],
+    fileType,
+    page,
+    limit,
+    callback,
+  }: {
+    roomIds?: number[]
+    fileType?: string
+    page?: number
+    limit?: number
+    callback?: (messages?: model.IQMessage[], error?: Error) => void
+  }): void | Promise<model.IQMessage[]> {
+    return xs
+      .combine(
+        process(roomIds, isReqArrayNumber({ roomIds })),
+        process(
+          fileType,
+          isOptString({
+            fileType,
+          })
+        ),
+        process(page, isOptNumber({ page })),
+        process(limit, isOptNumber({ limit })),
+        process(callback, isOptCallback({ callback }))
+      )
+      .map(([roomIds, fileType, page, limit]) => {
+        return xs.fromPromise(
+          this.messageAdapter.getFileList({
+            roomIds,
+            fileType,
+            page,
+            limit,
+          })
+        )
+      })
       .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }

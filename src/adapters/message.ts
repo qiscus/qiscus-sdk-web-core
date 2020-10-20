@@ -18,7 +18,7 @@ const getMessageAdapter = (s: Storage) => ({
       uniqueId: cuid(),
       extras: messageT.extras as model.IQMessage['extras'],
     })
-    return Api.request<PostCommentResponse.RootObject>(apiConfig).then(resp =>
+    return Api.request<PostCommentResponse.RootObject>(apiConfig).then((resp) =>
       Decoder.message(resp.results.comment)
     )
   },
@@ -37,7 +37,7 @@ const getMessageAdapter = (s: Storage) => ({
         after,
         limit,
       })
-    ).then(resp =>
+    ).then((resp) =>
       resp.results.comments
         .map(Decoder.message)
         .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
@@ -50,7 +50,7 @@ const getMessageAdapter = (s: Storage) => ({
         ...Provider.withCredentials(s),
         uniqueIds,
       })
-    ).then(resp => resp.results.comments.map(Decoder.message))
+    ).then((resp) => resp.results.comments.map(Decoder.message))
   },
   markAsRead(roomId: number, messageId: number): Promise<void> {
     return Api.request<UpdateCommentStatusResponse.RootObject>(
@@ -73,6 +73,68 @@ const getMessageAdapter = (s: Storage) => ({
         lastReadId: undefined,
       })
     ).then(() => undefined)
+  },
+  async searchMessages({
+    query,
+    roomIds = [],
+    userId,
+    type,
+    roomType,
+    page,
+    limit,
+  }: {
+    query: string
+    roomIds: number[]
+    userId?: string
+    type?: string
+    roomType?: string
+    page?: number
+    limit?: number
+  }): Promise<model.IQMessage[]> {
+    const messages = await Api.request<SearchMessagesV2Response.RootObject>(
+      Api.searchMessagesV2({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        query: query,
+        roomIds: roomIds,
+        userId: userId,
+        type: type,
+        roomType: roomType,
+        page: page,
+        limit: limit,
+      })
+    )
+      .then((r) => r.results.comments)
+      .then((comments) => comments.map((it) => Decoder.message(it as any)))
+
+    return messages
+  },
+  async getFileList({
+    roomIds = [],
+    fileType,
+    page,
+    limit,
+  }: {
+    roomIds?: number[]
+    fileType?: string
+    page?: number
+    limit?: number
+  }): Promise<model.IQMessage[]> {
+    const messages = Api.request<SearchMessagesV2Response.RootObject>(
+      Api.getFileList({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        roomIds,
+        fileType,
+        page,
+        limit,
+        sender: s.getCurrentUser().id,
+      })
+    )
+      .then((r) => r.results.comments)
+      .then((r) => r.map((it) => Decoder.message(it as any)))
+
+    return messages
   },
 })
 export default getMessageAdapter
@@ -253,4 +315,62 @@ export declare module UpdateCommentStatusResponse {
     status: number
   }
 }
+declare module SearchMessagesV2Response {
+  export interface Extras {}
+
+  export interface Payload {}
+
+  export interface Avatar {
+    url: string
+  }
+
+  export interface UserAvatar {
+    avatar: Avatar
+  }
+
+  export interface Comment {
+    comment_before_id: number
+    comment_before_id_str: string
+    disable_link_preview: boolean
+    email: string
+    extras: Extras
+    id: number
+    id_str: string
+    is_deleted: boolean
+    is_public_channel: boolean
+    message: string
+    payload: Payload
+    room_avatar: string
+    room_id: number
+    room_id_str: string
+    room_name: string
+    room_type: string
+    status: string
+    timestamp: Date
+    topic_id: number
+    topic_id_str: string
+    type: string
+    unique_temp_id: string
+    unix_nano_timestamp: any
+    unix_timestamp: number
+    user_avatar: UserAvatar
+    user_avatar_url: string
+    user_id: number
+    user_id_str: string
+    username: string
+  }
+
+  export interface Results {
+    comments: Comment[]
+    limit: number
+    page: number
+    total: string
+  }
+
+  export interface RootObject {
+    results: Results
+    status: number
+  }
+}
+
 // endregion

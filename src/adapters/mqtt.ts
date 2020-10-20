@@ -4,7 +4,7 @@ import debounce from 'lodash.debounce'
 import { EventEmitter } from 'pietile-eventemitter'
 // @ts-ignore
 import connect from 'mqtt/lib/connect'
-import { IClientPublishOptions, MqttClient, IClientOptions, QoS } from 'mqtt'
+import { IClientPublishOptions, MqttClient, IClientOptions } from 'mqtt'
 import { Callback, Subscription } from '../defs'
 import * as m from '../model'
 import * as Decoder from '../decoder'
@@ -145,7 +145,7 @@ function getMqttHandler(emitter: EventEmitter<Events>): IQMqttHandler {
 
 export default function getMqttAdapter(
   s: Storage,
-  { getClientId }: { getClientId?: () => string }
+  opts?: { getClientId?: () => string }
 ) {
   let mqtt: _MqttClient | undefined = undefined
   let cacheUrl: string = s.getBrokerUrl()
@@ -192,7 +192,7 @@ export default function getMqttAdapter(
   }
   let intervalId = -1
   const _getClientId = () => {
-    if (getClientId != null) getClientId()
+    if (opts?.getClientId != null) opts?.getClientId()
     const appId = s.getAppId()
     const userId = s.getCurrentUser().id
     const now = Date.now()
