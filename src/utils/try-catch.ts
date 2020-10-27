@@ -6,10 +6,10 @@ export const tryCatch = <T>(
 ) => {
   try {
     const resp = fn()
-    if (onSuccess != null) onSuccess(resp)
+    onSuccess?.(resp)
     return resp
   } catch (error) {
-    if (onError != null) onError(error)
+    onError?.(error)
     return default_
   }
 }

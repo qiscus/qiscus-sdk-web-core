@@ -19,6 +19,7 @@ export default function QUrlBuilder(basePath: string): IQUrlBuilder {
         .map(key => {
           if (Array.isArray(params[key])) {
             return (params[key] as string[])
+              .filter(value => value != null)
               .map(value => getQuery(`${key}[]`, value))
               .join('&')
           }

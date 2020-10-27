@@ -1,4 +1,4 @@
-import { Storage } from './storage'
+import { Storage } from 'storage'
 
 export const withHeaders = (s: Storage) => ({
   headers: {
