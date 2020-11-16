@@ -4,26 +4,26 @@ import xs from 'xstream'
 import flattenConcurrently from 'xstream/extra/flattenConcurrently'
 // @ts-ignore
 import packageJson from '../package.json'
-import { getLogger } from './adapters/logger'
-import getMessageAdapter from './adapters/message'
-import getRealtimeAdapter from './adapters/realtime'
-import getRoomAdapter from './adapters/room'
-import getUserAdapter from './adapters/user'
+import { getLogger } from 'adapters/logger'
+import getMessageAdapter from 'adapters/message'
+import getRealtimeAdapter from 'adapters/realtime'
+import getRoomAdapter from 'adapters/room'
+import getUserAdapter from 'adapters/user'
 import {
   Callback,
   IQCallback1,
   IQCallback2,
+  IQMessageStatus,
   IQMessageT,
   IQMessageType,
   IQProgressListener,
-  isChatRoom,
   Subscription,
   UploadResult,
-} from './defs'
-import { hookAdapterFactory, Hooks } from './hook'
-import * as model from './model'
+} from 'defs.d.ts'
+import { hookAdapterFactory, Hooks } from 'hook'
+import * as model from 'model.d.ts'
 import * as Provider from './provider'
-import { storageFactory } from './storage'
+import { storageFactory } from 'storage'
 import {
   isArrayOfNumber,
   isArrayOfString,
@@ -40,7 +40,7 @@ import {
   isReqNumber,
   isReqString,
   isRequired,
-} from './utils/param-utils'
+} from 'utils/param-utils'
 import {
   bufferUntil,
   process,
@@ -49,7 +49,8 @@ import {
   toCallbackOrPromise,
   toEventSubscription,
   toEventSubscription_,
-} from './utils/stream'
+} from 'utils/stream'
+import { isChatRoom } from 'utils/try-catch'
 
 export default class Qiscus {
   private static _instance: Qiscus
@@ -1307,5 +1308,135 @@ export default class Qiscus {
           this.realtimeAdapter.mqtt.unsubscribeUserPresence(userId)
         )
       )
+  }
+
+  _generateUniqueId(): string {
+    return `javascript-${Date.now()}`
+  }
+
+  generateMessage({
+    roomId,
+    text,
+    extras,
+  }: {
+    roomId: number
+    text: string
+    extras: Record<string, any>
+  }): model.IQMessage {
+    const id = Math.ceil(Math.random() * 1e4)
+    return {
+      chatRoomId: roomId,
+      text: text,
+      extras: extras,
+      timestamp: new Date(),
+      uniqueId: this._generateUniqueId(),
+      //
+      id: id,
+      payload: undefined,
+      previousMessageId: 0,
+      sender: this.currentUser,
+      status: IQMessageStatus.Sending,
+      type: IQMessageType.Text,
+    }
+  }
+  generateFileAttachmentMessage({
+    roomId,
+    caption,
+    url,
+    text = 'File attachment',
+    extras,
+    filename,
+    size,
+  }: {
+    roomId: number
+    caption: string
+    url: string
+    text: string
+    extras: Record<string, unknown>
+    filename: string
+    size: number
+  }): model.IQMessage {
+    const id = Math.ceil(Math.random() * 1e4)
+    return {
+      chatRoomId: roomId,
+      text: text,
+      extras: extras,
+      timestamp: new Date(),
+      uniqueId: this._generateUniqueId(),
+      //
+      id: id,
+      payload: {
+        url,
+        file_name: filename,
+        size,
+        caption,
+      },
+      previousMessageId: 0,
+      sender: this.currentUser,
+      status: IQMessageStatus.Sending,
+      type: IQMessageType.Attachment,
+    }
+  }
+  generateCustomMessage({
+    roomId,
+    text,
+    type,
+    payload,
+    extras,
+  }: {
+    roomId: number
+    text: string
+    type: string
+    extras: Record<string, unknown>
+    payload: Record<string, any>
+  }): model.IQMessage {
+    const id = Math.ceil(Math.random() * 1e4)
+    return {
+      chatRoomId: roomId,
+      text: text,
+      extras: extras,
+      timestamp: new Date(),
+      uniqueId: this._generateUniqueId(),
+      //
+      id: id,
+      payload: {
+        type,
+        payload,
+      },
+      previousMessageId: 0,
+      sender: this.currentUser,
+      status: IQMessageStatus.Sending,
+      type: IQMessageType.Custom,
+    }
+  }
+  generateReplyMessage({
+    roomId,
+    text,
+    repliedMessage,
+    extras,
+  }: {
+    roomId: number
+    text: string
+    repliedMessage: model.IQMessage
+    extras: Record<string, unknown>
+  }): model.IQMessage {
+    const id = Math.ceil(Math.random() * 1e4)
+    return {
+      chatRoomId: roomId,
+      text: text,
+      extras: extras,
+      timestamp: new Date(),
+      uniqueId: this._generateUniqueId(),
+      //
+      id: id,
+      payload: {
+        type: 'reply',
+        replied_comment_id: repliedMessage.id,
+      },
+      previousMessageId: 0,
+      sender: this.currentUser,
+      status: IQMessageStatus.Sending,
+      type: IQMessageType.Reply,
+    }
   }
 }
