@@ -2074,6 +2074,123 @@ class QiscusSDK {
       limit: limit,
     }).then((res) => res.body)
   }
+
+  _generateUniqueId() {
+    return `javascript-${Date.now()}`
+  }
+
+  generateMessage({ roomId, text, extras }) {
+    const id = Math.ceil(Math.random() * 1e4)
+    /*
+    this.id = comment.id
+    this.before_id = comment.comment_before_id
+    this.message = escapeHTML(comment.message)
+    this.username_as = comment.username_as || comment.username
+    this.username_real = comment.username_real || comment.email
+    this.user_extras = comment.user_extras
+    this.date = format(comment.timestamp, 'YYYY-MM-DD')
+    this.time = format(comment.timestamp, 'HH:mm')
+    this.timestamp = comment.timestamp
+    this.unique_id = comment.unique_temp_id || comment.unique_id
+    this.avatar = comment.user_avatar_url
+    this.room_id = comment.room_id
+    this.isChannel = comment.is_public_channel
+    this.unix_timestamp = comment.unix_timestamp
+    this.extras = comment.extras
+
+    this.is_deleted = comment.is_deleted
+    this.isPending = false
+    this.isFailed = false
+    this.isDelivered = false
+    this.isRead = false
+    this.isSent = false
+    this.attachment = null
+    this.payload = comment.payload
+    this.status = comment.status
+    */
+    const comment = new Comment({
+      id,
+      room_id: roomId,
+      extras: extras,
+      timestamp: new Date(),
+      unique_id: this._generateUniqueId(),
+      before_id: 0,
+      username: this.userData.username,
+      email: this.userData.email,
+      status: 'pending',
+      type: 'text',
+    })
+    return comment
+  }
+  generateFileAttachmentMessage({
+    roomId,
+    caption,
+    url,
+    text = 'File attachment',
+    extras,
+    filename,
+    size,
+  }) {
+    const id = Math.ceil(Math.random() * 1e4)
+    const comment = new Comment({
+      id,
+      room_id: roomId,
+      extras: extras,
+      timestamp: new Date(),
+      unique_id: this._generateUniqueId(),
+      before_id: 0,
+      username: this.userData.username,
+      email: this.userData.email,
+      status: 'pending',
+      type: 'file_attachment',
+      payload: {
+        url,
+        file_name: filename,
+        size,
+        caption,
+      },
+    })
+    return comment
+  }
+  generateCustomMessage({ roomId, text, type, payload, extras }) {
+    const id = Math.ceil(Math.random() * 1e4)
+    const comment = new Comment({
+      id,
+      room_id: roomId,
+      extras: extras,
+      timestamp: new Date(),
+      unique_id: this._generateUniqueId(),
+      before_id: 0,
+      username: this.userData.username,
+      email: this.userData.email,
+      status: 'pending',
+      type: 'custom',
+      payload: { type, payload },
+    })
+    return comment
+  }
+  generateReplyMessage({ roomId, text, repliedMessage, extras }) {
+    const id = Math.ceil(Math.random() * 1e4)
+
+    const comment = new Comment({
+      id,
+      room_id: roomId,
+      extras: extras,
+      timestamp: new Date(),
+      unique_id: this._generateUniqueId(),
+      before_id: 0,
+      username: this.userData.username,
+      email: this.userData.email,
+      status: 'pending',
+      type: 'reply',
+      payload: {
+        type: 'reply',
+        replied_comment_id: repliedMessage.id,
+        replied_comment_message: repliedMessage,
+      },
+    })
+    return comment
+  }
 }
 
 class FileUploaded {
