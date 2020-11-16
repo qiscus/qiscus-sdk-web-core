@@ -1,11 +1,11 @@
-import { IAppConfig } from 'defs'
+import { IAppConfig } from 'defs.d.ts'
 import {
   IQAccount,
   IQChatRoom,
   IQMessage,
   IQParticipant,
   IQUser,
-} from './model'
+} from 'model.d.ts'
 import { tryCatch } from './utils/try-catch'
 
 export const loginOrRegister = <T extends Record<string, any>>(

@@ -40,7 +40,7 @@ export const toCallback = <T>(callback: Callback2<T> | Callback1) => (
     complete() {
       if (isCallback1(callback)) callback(undefined)
       if (isCallback2(callback)) callback(value, undefined)
-      subscription.unsubscribe()
+      subscription?.unsubscribe()
     },
   })
 }
@@ -95,15 +95,15 @@ export const tap = <T>(
     start(listener) {
       subscription = stream.subscribe({
         next(value) {
-          if (onNext != null) onNext(value)
+          onNext?.(value)
           listener.next(value)
         },
         error(error) {
-          if (onError != null) onError(error)
+          onError?.(error)
           listener.error(error)
         },
         complete() {
-          if (onComplete != null) onComplete()
+          onComplete?.()
           listener.complete()
         },
       })
@@ -136,8 +136,9 @@ export const bufferUntil = <T>(fn: () => boolean) => (
             if (fn()) {
               const data = buffer.shift()
               if (data != null) listener.next(data)
+            } else {
+              await sleep(300)
             }
-            await sleep(300)
           }
           listener.complete()
         },
@@ -149,9 +150,9 @@ export const bufferUntil = <T>(fn: () => boolean) => (
   })
 }
 
-export const subscribeOnNext = <T extends any[]>(
-  onNext: (value: T) => void
-) => (stream: Stream<T>) => {
+export const subscribeOnNext = <T extends any>(onNext: (value: T) => void) => (
+  stream: Stream<T>
+) => {
   return stream.subscribe({
     next: (data: T) => onNext(data),
   })
@@ -182,7 +183,6 @@ export const toEventSubscription_ = <T extends unknown>(
   const subscription = stream.subscribe({
     next: (data) => handler(data),
     error: (err) => {
-      console.log('on error', err)
       onError?.(err)
     },
   })

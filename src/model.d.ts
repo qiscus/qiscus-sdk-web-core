@@ -20,7 +20,7 @@ export interface IQMessage {
   text: string
   status: 'sending' | 'pending' | 'sent' | 'delivered' | 'read' | 'failed'
   timestamp: Date
-  type: 'text' | 'file_attachment' | 'custom'
+  type: 'text' | 'file_attachment' | 'reply' | 'custom'
   sender: IQUser
   chatRoomId: IQChatRoom['id']
   extras?: Record<string, unknown>

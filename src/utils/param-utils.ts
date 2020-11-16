@@ -1,4 +1,4 @@
-import { IQCallback1, IQCallback2 } from 'defs'
+import { IQCallback1, IQCallback2 } from 'defs.d.ts'
 import is from 'is_js'
 export const every = <T>(...checkers: Array<Function>) => (item: T) =>
   checkers.every((check) => check(item))

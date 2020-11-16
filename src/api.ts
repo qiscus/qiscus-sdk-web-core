@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { IQUser, IQChatRoom, IQMessage } from './model'
+import { IQUser, IQChatRoom, IQMessage } from 'model.d.ts'
 import * as Encode from './encoder'
 import { tryCatch } from './utils/try-catch'
 

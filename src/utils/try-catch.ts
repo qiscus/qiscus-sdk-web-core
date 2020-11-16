@@ -1,3 +1,5 @@
+import * as model from 'model'
+
 export const tryCatch = <T>(
   fn: () => T,
   default_: T,
@@ -20,4 +22,11 @@ export const wrapP = <T>(promise: Promise<T>) =>
 export const getOrThrow = <T>(item: T | null | undefined, msg: string): T => {
   if (item != null) return item
   else throw new Error(msg)
+}
+
+
+export const isChatRoom = <T extends unknown>(
+  data: T | model.IQChatRoom
+): data is model.IQChatRoom => {
+  return (data as model.IQChatRoom).id != null
 }

@@ -1,12 +1,6 @@
 import { Atom, Derivable, Lens } from 'derivable'
-import { PostCommentResponse } from './adapters/message'
-import * as model from './model'
-
-export const isChatRoom = <T extends unknown>(
-  data: T | model.IQChatRoom
-): data is model.IQChatRoom => {
-  return (data as model.IQChatRoom).id != null
-}
+import { PostCommentResponse } from 'adapters/message'
+import * as model from 'model.d.ts'
 
 export type IQCallback2<T> = (response?: T, error?: Error) => void
 export type IQCallback1 = (error?: Error) => void
@@ -385,6 +379,7 @@ export enum IQMessageType {
   Text = 'text',
   Custom = 'custom',
   Attachment = 'file_attachment',
+  Reply = 'reply',
 }
 
 export interface IQMessage {

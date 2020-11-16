@@ -1,4 +1,4 @@
-import { IQUser } from 'model'
+import { IQUser } from 'model.d.ts'
 import { loginOrRegisterParams } from 'api'
 
 export const loginOrRegister = (o: loginOrRegisterParams) => ({

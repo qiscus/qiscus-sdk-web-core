@@ -1,4 +1,4 @@
-import { IQAccount, IQChatRoom, IQMessage } from './model'
+import { IQAccount, IQChatRoom, IQMessage } from 'model.d.ts'
 
 export type Storage = ReturnType<typeof storageFactory>
 
@@ -18,7 +18,6 @@ export const storageFactory = () => {
   // const storage = new Map<string, any>()
   const storage: Record<string, any> = {}
   const makeSetter = <T>(name: string) => (value: T): void => {
-    console.log('setting new value:', name, value)
     // storage.set(name, value)
     storage[name] = value
   }
