@@ -1,4 +1,4 @@
-import { IQCallback1, IQCallback2 } from 'defs.d.ts'
+import { IQCallback1, IQCallback2 } from 'defs'
 import is from 'is_js'
 export const every = <T>(...checkers: Array<Function>) => (item: T) =>
   checkers.every((check) => check(item))
@@ -67,11 +67,25 @@ export const isReqArrayOfStringOrNumber = (item: any) => {
 export const isOptArrayNumber = (item: any) => {
   const msg = getMsg(item, 'need to be array of number or null')
   // return compose(msg, some(is.null, is.undefined, is.array, is.all.number))
-  return compose(msg, some(is.null, is.undefined, every(is.not.null, is.not.undefined, is.array, is.all.number,)))
+  return compose(
+    msg,
+    some(
+      is.null,
+      is.undefined,
+      every(is.not.null, is.not.undefined, is.array, is.all.number)
+    )
+  )
 }
 export const isOptArrayString = (item: any) => {
   const msg = getMsg(item, 'need to be array of string or null')
-  return compose(msg, some(is.null, is.undefined, every(is.not.null, is.not.undefined, is.array, is.all.string)))
+  return compose(
+    msg,
+    some(
+      is.null,
+      is.undefined,
+      every(is.not.null, is.not.undefined, is.array, is.all.string)
+    )
+  )
 }
 export const isOptString = (item: any) => {
   const msg = getMsg(item, 'need to be string or null')

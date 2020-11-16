@@ -1,4 +1,4 @@
-import { IQAccount, IQChatRoom, IQMessage } from 'model.d.ts'
+import { IQAccount, IQChatRoom, IQMessage } from 'model'
 
 export type Storage = ReturnType<typeof storageFactory>
 

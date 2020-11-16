@@ -19,9 +19,9 @@ import {
   IQProgressListener,
   Subscription,
   UploadResult,
-} from 'defs.d.ts'
+} from 'defs'
 import { hookAdapterFactory, Hooks } from 'hook'
-import * as model from 'model.d.ts'
+import * as model from 'model'
 import * as Provider from './provider'
 import { storageFactory } from 'storage'
 import {

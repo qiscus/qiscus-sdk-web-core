@@ -3,7 +3,7 @@ const webpack = require('webpack')
 const forkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin')
 const pkg = require('./package')
 
-module.exports = env => {
+module.exports = (env) => {
   const filename = env.production
     ? 'qiscus-sdk-javascript.{module}.min.js'
     : 'qiscus-sdk-javascript.{module}.js'
@@ -28,7 +28,8 @@ module.exports = env => {
           test: /\.js$/,
           use: 'babel-loader',
           exclude: /node_modules/,
-        }, {
+        },
+        {
           test: /\.ts$/,
           use: [
             { loader: 'babel-loader' },
@@ -39,9 +40,11 @@ module.exports = env => {
             // },
           ],
           exclude: /node_modules/,
-        }],
+        },
+      ],
     },
     resolve: {
+      modules: ['node_modules', 'src'],
       extensions: ['.ts', '.js'],
     },
     plugins: [

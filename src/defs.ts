@@ -1,6 +1,6 @@
 import { Atom, Derivable, Lens } from 'derivable'
 import { PostCommentResponse } from 'adapters/message'
-import * as model from 'model.d.ts'
+import * as model from 'model'
 
 export type IQCallback2<T> = (response?: T, error?: Error) => void
 export type IQCallback1 = (error?: Error) => void
