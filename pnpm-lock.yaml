@@ -39,9 +39,9 @@ devDependencies:
   npm-run-all: 4.1.5
   rimraf: 2.7.1
   serve: 11.3.2
-  webpack: 4.44.1_7d74d9f6ceb0e540c1e44d9709220c58
+  webpack: 4.44.1_webpack-cli@3.3.12
   webpack-cli: 3.3.12_webpack@4.44.1
-lockfileVersion: 5.1
+lockfileVersion: 5.2
 packages:
   /@babel/cli/7.10.5_@babel+core@7.11.4:
     dependencies:
@@ -1810,7 +1810,7 @@ packages:
       loader-utils: 1.4.0
       mkdirp: 0.5.5
       pify: 4.0.1
-      webpack: 4.44.1_7d74d9f6ceb0e540c1e44d9709220c58
+      webpack: 4.44.1_webpack-cli@3.3.12
     dev: true
     engines:
       node: '>= 6.9'
@@ -1829,7 +1829,7 @@ packages:
     dependencies:
       babel-core: 6.26.3
       babel-preset-minify: 0.2.0
-      webpack: 4.44.1_7d74d9f6ceb0e540c1e44d9709220c58
+      webpack: 4.44.1_webpack-cli@3.3.12
       webpack-sources: 1.4.3
     dev: true
     engines:
@@ -7245,7 +7245,7 @@ packages:
       serialize-javascript: 4.0.0
       source-map: 0.6.1
       terser: 4.3.8
-      webpack: 4.44.1_7d74d9f6ceb0e540c1e44d9709220c58
+      webpack: 4.44.1_webpack-cli@3.3.12
       webpack-sources: 1.4.3
       worker-farm: 1.7.0
     dev: true
@@ -7657,7 +7657,7 @@ packages:
       loader-utils: 1.4.0
       supports-color: 6.1.0
       v8-compile-cache: 2.1.1
-      webpack: 4.44.1_7d74d9f6ceb0e540c1e44d9709220c58
+      webpack: 4.44.1_webpack-cli@3.3.12
       yargs: 13.3.2
     dev: true
     engines:
@@ -7674,7 +7674,7 @@ packages:
     dev: true
     resolution:
       integrity: sha512-lgTS3Xhv1lCOKo7SA5TjKXMjpSM4sBjNV5+q2bqesbSPs5FjGmU6jjtBSkX9b4qW87vDIsCIlUPOEhbZrMdjeQ==
-  /webpack/4.44.1_7d74d9f6ceb0e540c1e44d9709220c58:
+  /webpack/4.44.1_webpack-cli@3.3.12:
     dependencies:
       '@webassemblyjs/ast': 1.9.0
       '@webassemblyjs/helper-module-context': 1.9.0
@@ -7705,7 +7705,6 @@ packages:
       node: '>=6.11.5'
     hasBin: true
     peerDependencies:
-      webpack: '*'
       webpack-cli: '*'
       webpack-command: '*'
     peerDependenciesMeta:

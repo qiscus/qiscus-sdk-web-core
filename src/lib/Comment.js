@@ -8,11 +8,13 @@ class Comment {
     this.message = escapeHTML(comment.message)
     this.username_as = comment.username_as || comment.username
     this.username_real = comment.username_real || comment.email
+    this.email = this.username_real
     this.user_extras = comment.user_extras
     this.date = format(comment.timestamp, 'YYYY-MM-DD')
     this.time = format(comment.timestamp, 'HH:mm')
     this.timestamp = comment.timestamp
     this.unique_id = comment.unique_temp_id || comment.unique_id
+    this.unique_temp_id = comment.unique_temp_id || comment.unique_id
     this.avatar = comment.user_avatar_url
     this.room_id = comment.room_id
     this.isChannel = comment.is_public_channel
