@@ -27,17 +27,20 @@ export default class User {
     })
   }
 
-  updateCommentStatus = throttle((roomId, lastReadCommentId, lastReceivedCommentId) => {
-    const body = {
-      room_id: roomId,
-    }
-    if (lastReadCommentId) body.last_comment_read_id = lastReadCommentId
-    if (lastReceivedCommentId) {
-      body.last_comment_received_id = lastReceivedCommentId
-    }
+  updateCommentStatus = throttle(
+    (roomId, lastReadCommentId, lastReceivedCommentId) => {
+      const body = {
+        room_id: roomId,
+      }
+      if (lastReadCommentId) body.last_comment_read_id = lastReadCommentId
+      if (lastReceivedCommentId) {
+        body.last_comment_received_id = lastReceivedCommentId
+      }
 
-    return this.HTTPAdapter.post('api/v2/sdk/update_comment_status', body)
-  }, 500)
+      return this.HTTPAdapter.post('api/v2/sdk/update_comment_status', body)
+    },
+    500
+  )
 
   loadRoomList(params = {}) {
     const url = UrlBuilder('api/v2/sdk/user_rooms')
@@ -45,6 +48,7 @@ export default class User {
       .param('show_participants', params.show_participants || true)
       .param('limit', params.limit)
       .param('show_empty', params.show_empty)
+      .param('room_type', params.room_type ?? 'default')
       .build()
 
     return this.HTTPAdapter.get(url).then((res) => {
