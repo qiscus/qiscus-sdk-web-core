@@ -25,7 +25,8 @@
     "useTabs": false,
     "tabWidth": 2,
     "singleQuote": true,
-    "trailingComma": "es5"
+    "trailingComma": "es5",
+    "printWidth": 120
   },
   "dependencies": {
     "@babel/runtime": "^7.7.4",
