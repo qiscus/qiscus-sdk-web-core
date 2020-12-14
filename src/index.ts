@@ -2,28 +2,25 @@ import axios, { AxiosResponse } from 'axios'
 import { atom } from 'derivable'
 import xs from 'xstream'
 import flattenConcurrently from 'xstream/extra/flattenConcurrently'
-// @ts-ignore
-import packageJson from '../package.json'
-import { getLogger } from 'adapters/logger'
-import getMessageAdapter from 'adapters/message'
-import getRealtimeAdapter from 'adapters/realtime'
-import getRoomAdapter from 'adapters/room'
-import getUserAdapter from 'adapters/user'
+import { getLogger } from './adapters/logger'
+import getMessageAdapter from './adapters/message'
+import getRealtimeAdapter from './adapters/realtime'
+import getRoomAdapter from './adapters/room'
+import getUserAdapter from './adapters/user'
 import {
   Callback,
   IQCallback1,
   IQCallback2,
   IQMessageStatus,
-  IQMessageT,
   IQMessageType,
   IQProgressListener,
   Subscription,
   UploadResult,
-} from 'defs'
-import { hookAdapterFactory, Hooks } from 'hook'
-import * as model from 'model'
+} from './defs'
+import { hookAdapterFactory, Hooks } from './hook'
+import * as model from './model'
 import * as Provider from './provider'
-import { storageFactory } from 'storage'
+import { storageFactory } from './storage'
 import {
   isArrayOfNumber,
   isArrayOfString,
@@ -40,7 +37,7 @@ import {
   isReqNumber,
   isReqString,
   isRequired,
-} from 'utils/param-utils'
+} from './utils/param-utils'
 import {
   bufferUntil,
   process,
@@ -49,8 +46,8 @@ import {
   toCallbackOrPromise,
   toEventSubscription,
   toEventSubscription_,
-} from 'utils/stream'
-import { isChatRoom } from 'utils/try-catch'
+} from './utils/stream'
+import { isChatRoom } from './utils/try-catch'
 
 export default class Qiscus {
   private static _instance: Qiscus
@@ -202,7 +199,7 @@ export default class Qiscus {
         this.storage.setBrokerLbUrl(brokerLbUrl)
         this.storage.setSyncInterval(syncInterval)
         this.storage.setDebugEnabled(false)
-        this.storage.setVersion(packageJson.version)
+        this.storage.setVersion('javascript-3.1.x')
 
         return xs.fromPromise(this.userAdapter.getAppConfig())
       })
@@ -498,7 +495,7 @@ export default class Qiscus {
         process(callback, isOptCallback({ callback }))
       )
       .compose(bufferUntil(() => this.isLogin))
-      .map(([userId, extras]) => xs.fromPromise(this.roomAdapter.chatUser(userId, extras as any)))
+      .map(([userId, extras]) => xs.fromPromise(this.roomAdapter.chatUser(userId, extras)))
       .compose(flattenConcurrently)
       .compose(toCallbackOrPromise(callback))
   }
@@ -734,9 +731,12 @@ export default class Qiscus {
       .compose(toCallbackOrPromise(callback))
   }
 
-  getChatRoomWithMessages(roomId: number): Promise<model.IQChatRoom>
-  getChatRoomWithMessages(roomId: number, callback?: IQCallback2<model.IQChatRoom>): void
-  getChatRoomWithMessages(roomId: number, callback?: IQCallback2<model.IQChatRoom>): void | Promise<model.IQChatRoom> {
+  getChatRoomWithMessages(roomId: number): Promise<[model.IQChatRoom, model.IQMessage[]]>
+  getChatRoomWithMessages(roomId: number, callback?: IQCallback2<[model.IQChatRoom, model.IQMessage[]]>): void
+  getChatRoomWithMessages(
+    roomId: number,
+    callback?: IQCallback2<[model.IQChatRoom, model.IQMessage[]]>
+  ): void | Promise<[model.IQChatRoom, model.IQMessage[]]> {
     return xs
       .combine(process(roomId, isReqNumber({ roomId })), process(callback, isOptCallback({ callback })))
       .compose(bufferUntil(() => this.isLogin))
@@ -769,9 +769,10 @@ export default class Qiscus {
   // ------------------------------------------------------
 
   // Message Adapter --------------------------------------
-  sendMessage(roomId: number, message: IQMessageT): Promise<model.IQMessage>
-  sendMessage(roomId: number, message: IQMessageT, callback?: IQCallback2<model.IQMessage>): void
-  sendMessage(roomId: number, message: IQMessageT, callback?: IQCallback2<model.IQMessage>) {
+  sendMessage(message: model.IQMessage): Promise<model.IQMessage>
+  sendMessage(message: model.IQMessage, callback?: IQCallback2<model.IQMessage>): void
+  sendMessage(message: model.IQMessage, callback?: IQCallback2<model.IQMessage>) {
+    const roomId = message.chatRoomId
     return xs
       .combine(
         process(roomId, isReqNumber({ roomId })),
@@ -1099,23 +1100,22 @@ export default class Qiscus {
       .compose(toCallbackOrPromise(callback))
   }
 
-  sendFileMessage(roomId: number, message: string, file: File, callback?: IQProgressListener<model.IQMessage>): void {
+  sendFileMessage(message: model.IQMessage, file: File, callback?: IQProgressListener<model.IQMessage>): void {
     this.upload(file, (error, progress, url) => {
       if (error) return callback?.(error)
       if (progress) callback?.(undefined, progress)
       if (url) {
-        const _message = {
-          payload: {
-            url,
-            file_name: file.name,
-            size: file.size,
-            caption: message,
-          },
-          extras: {},
-          type: IQMessageType.Attachment,
-          message: `[file] ${url} [/file]`,
-        }
-        this.sendMessage(roomId, _message, (msg) => {
+        const _message = this.generateFileAttachmentMessage({
+          roomId: message.chatRoomId,
+          caption: message.payload?.['caption'] as string,
+          url,
+          text: message.text,
+          extras: message.extras ?? {},
+          filename: file.name,
+          size: file.size,
+        })
+
+        this.sendMessage(_message, (msg) => {
           callback?.(undefined, undefined, msg)
         })
       }

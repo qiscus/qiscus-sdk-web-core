@@ -1,11 +1,9 @@
 import axios from 'axios'
-import { IQUser, IQChatRoom, IQMessage } from 'model'
+import { IQUser, IQChatRoom, IQMessage } from './model'
 import * as Encode from './encoder'
 import { tryCatch } from './utils/try-catch'
 
-export const request = <Resp extends unknown>(
-  api: Partial<Api>
-): Promise<Resp> => {
+export const request = <Resp extends unknown>(api: Partial<Api>): Promise<Resp> => {
   return axios({
     method: api.method,
     baseURL: api.baseUrl,
@@ -50,9 +48,7 @@ const useHeaders: FnHeaders = () => (o) => ({
 type FnParams = <O>(fn: (o: O) => Json<any>) => ApiRequest<O>
 const useParams: FnParams = (fn) => (o) => ({ params: fn(o) })
 
-type FnUrl = (
-  method: Api['method']
-) => <O extends Partial<Api>>(url: Api['url']) => ApiRequest<O>
+type FnUrl = (method: Api['method']) => <O extends Partial<Api>>(url: Api['url']) => ApiRequest<O>
 const useUrl: FnUrl = (method) => (url) => (o) => ({
   method,
   url,
@@ -88,36 +84,22 @@ export type loginOrRegisterParams = {
   deviceToken?: string
   extras?: Record<string, unknown>
 }
-export const loginOrRegister: ApiRequest<
-  loginOrRegisterParams & withHeaders
-> = compose(
+export const loginOrRegister: ApiRequest<loginOrRegisterParams & withHeaders> = compose(
   usePostUrl('/login_or_register'),
   useHeaders(),
   useBody(Encode.loginOrRegister)
 )
 
-export const getNonce: ApiRequest<withHeaders> = compose(
-  usePostUrl('/auth/nonce'),
-  useHeaders()
-)
+export const getNonce: ApiRequest<withHeaders> = compose(usePostUrl('/auth/nonce'), useHeaders())
 
 export const verifyIdentityToken: ApiRequest<
   {
     identityToken: string
   } & withHeaders
-> = compose(
-  usePostUrl('/auth/verify_identity_token'),
-  useHeaders(),
-  useBody(Encode.verifyIdentityToken)
-)
+> = compose(usePostUrl('/auth/verify_identity_token'), useHeaders(), useBody(Encode.verifyIdentityToken))
 
-export const getProfile: ApiRequest<withCredentials> = compose(
-  useGetUrl('/my_profile'),
-  useHeaders()
-)
-export const patchProfile: ApiRequest<
-  Partial<IQUser> & withCredentials
-> = compose(
+export const getProfile: ApiRequest<withCredentials> = compose(useGetUrl('/my_profile'), useHeaders())
+export const patchProfile: ApiRequest<Partial<IQUser> & withCredentials> = compose(
   usePatchUrl('/my_profile'),
   useCredentials(),
   useBody((o) => Encode.patchProfile(o))
@@ -214,7 +196,7 @@ export const getOrCreateRoomWithTarget: ApiRequest<
   useCredentials(),
   useBody((o) => ({
     emails: o.userIds,
-    options: o.extras,
+    options: JSON.stringify(o.extras),
   }))
 )
 
@@ -496,10 +478,7 @@ export const synchronizeEvent: ApiRequest<
   }))
 )
 
-export const appConfig: ApiRequest<withHeaders> = compose(
-  useGetUrl('/config'),
-  useHeaders()
-)
+export const appConfig: ApiRequest<withHeaders> = compose(useGetUrl('/config'), useHeaders())
 
 export const searchMessagesV2: ApiRequest<
   {
@@ -516,14 +495,8 @@ export const searchMessagesV2: ApiRequest<
   useCredentials(),
   useBody(function (o) {
     const room = ((roomType) => {
-      const rType =
-        roomType == null
-          ? undefined
-          : roomType === 'single'
-          ? 'single'
-          : 'group'
-      const isPublic =
-        roomType == null ? undefined : roomType === 'channel' ? true : false
+      const rType = roomType == null ? undefined : roomType === 'single' ? 'single' : 'group'
+      const isPublic = roomType == null ? undefined : roomType === 'channel' ? true : false
 
       return {
         type: rType,

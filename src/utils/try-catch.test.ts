@@ -1,10 +1,12 @@
-import * as U from 'utils/try-catch'
+import * as U from './try-catch'
 
 test('tryCatch', () => {
   const r1 = U.tryCatch(() => 'some-data', 'default-value')
   expect(r1).toBe('some-data')
 
-  const r2 = U.tryCatch(() => { throw Error() }, 'default-value')
+  const r2 = U.tryCatch(() => {
+    throw Error()
+  }, 'default-value')
   expect(r2).toBe('default-value')
 })
 
@@ -22,7 +24,14 @@ test('tryCatch with failure callback', () => {
   const mockSuccessCb1 = jest.fn((_r) => 'mocked')
   const mockFailureCb1 = jest.fn((_err) => 'mocked-err')
 
-  const r1 = U.tryCatch(() => { throw new Error('some error') }, 'default', mockFailureCb1, mockSuccessCb1)
+  const r1 = U.tryCatch(
+    () => {
+      throw new Error('some error')
+    },
+    'default',
+    mockFailureCb1,
+    mockSuccessCb1
+  )
 
   expect(r1).toBe('default')
   expect(mockSuccessCb1.mock.calls.length).toBe(0)

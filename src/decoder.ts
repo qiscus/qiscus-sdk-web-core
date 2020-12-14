@@ -1,10 +1,8 @@
-import { IAppConfig } from 'defs'
-import { IQAccount, IQChatRoom, IQMessage, IQParticipant, IQUser } from 'model'
+import { IAppConfig } from './defs'
+import { IQAccount, IQChatRoom, IQMessage, IQParticipant, IQUser } from './model'
 import { tryCatch } from './utils/try-catch'
 
-export const loginOrRegister = <T extends Record<string, any>>(
-  json: T
-): IQAccount => ({
+export const loginOrRegister = <T extends Record<string, any>>(json: T): IQAccount => ({
   id: json.email,
   avatarUrl: json.avatar_url,
   extras: json.extras as Record<string, any>,
@@ -29,9 +27,7 @@ interface AccountJson {
   username: string
 }
 
-export const account = <T extends AccountJson>(
-  json: T
-): [IQAccount, AccountJson['token']] => [
+export const account = <T extends AccountJson>(json: T): [IQAccount, AccountJson['token']] => [
   {
     name: json.username,
     avatarUrl: json.avatar_url,
@@ -96,9 +92,7 @@ interface ParticipantJson {
   username: string
 }
 
-export const participant = <T extends ParticipantJson>(
-  json: T
-): IQParticipant => ({
+export const participant = <T extends ParticipantJson>(json: T): IQParticipant => ({
   lastMessageReceivedId: json.last_comment_received_id,
   lastMessageReadId: json.last_comment_read_id,
   id: json.email,

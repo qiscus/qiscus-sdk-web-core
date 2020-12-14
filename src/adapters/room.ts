@@ -5,19 +5,14 @@ import * as Decoder from '../decoder'
 import { Storage } from '../storage'
 
 const getRoomAdapter = (s: Storage) => ({
-  async addParticipants(
-    roomId: number,
-    participantIds: string[]
-  ): Promise<model.IQParticipant[]> {
+  async addParticipants(roomId: number, participantIds: string[]): Promise<model.IQParticipant[]> {
     const apiConfig = Api.addRoomParticipants({
       ...Provider.withBaseUrl(s),
       ...Provider.withCredentials(s),
       id: roomId,
       userIds: participantIds,
     })
-    const resp = await Api.request<AddParticipantsResponse.RootObject>(
-      apiConfig
-    )
+    const resp = await Api.request<AddParticipantsResponse.RootObject>(apiConfig)
     return resp.results.participants_added.map(Decoder.participant)
   },
   async removeParticipants(
@@ -38,10 +33,7 @@ const getRoomAdapter = (s: Storage) => ({
       } as any)
     )
   },
-  async chatUser(
-    userId: model.IQUser['id'],
-    extras?: model.IQChatRoom['extras']
-  ): Promise<model.IQChatRoom> {
+  async chatUser(userId: model.IQUser['id'], extras?: model.IQChatRoom['extras']): Promise<model.IQChatRoom> {
     const resp = await Api.request<ChatUserResponse.RootObject>(
       Api.getOrCreateRoomWithTarget({
         ...Provider.withBaseUrl(s),
@@ -53,9 +45,7 @@ const getRoomAdapter = (s: Storage) => ({
     return Decoder.room({
       ...resp.results.room,
       is_removed: false,
-      last_comment: resp.results.comments.find(
-        (it) => it.id === resp.results.room.last_comment_id
-      ),
+      last_comment: resp.results.comments.find((it) => it.id === resp.results.room.last_comment_id),
     })
   },
   async clearRoom(uniqueIds: string[]): Promise<void> {
@@ -109,9 +99,7 @@ const getRoomAdapter = (s: Storage) => ({
     return Decoder.room({
       ...resp.results.room,
       is_removed: false,
-      last_comment: resp.results.comments.find(
-        (it) => it.id === resp.results.room.last_comment_id
-      ),
+      last_comment: resp.results.comments.find((it) => it.id === resp.results.room.last_comment_id),
     })
   },
   async getParticipantList(
@@ -132,7 +120,7 @@ const getRoomAdapter = (s: Storage) => ({
     )
     return resp.results.participants.map(Decoder.participant)
   },
-  async getRoom(roomId: number): Promise<model.IQChatRoom> {
+  async getRoom(roomId: number): Promise<[model.IQChatRoom, model.IQMessage[]]> {
     const resp = await Api.request<GetRoomResponse.RootObject>(
       Api.getRoomById({
         ...Provider.withBaseUrl(s),
@@ -140,11 +128,10 @@ const getRoomAdapter = (s: Storage) => ({
         id: roomId,
       })
     )
-    return Decoder.room({
-      ...resp.results.room,
-      is_removed: false,
-      last_comment: resp.results.comments.pop(),
-    })
+    const room = Decoder.room({ ...resp.results.room, is_removed: false, last_comment: resp.results.comments.pop() })
+    const comments = resp.results.comments.map((c) => Decoder.message(c))
+
+    return [room, comments]
   },
   async getRoomInfo(
     roomIds?: number[],
@@ -183,9 +170,7 @@ const getRoomAdapter = (s: Storage) => ({
       limit,
     })
     const res = await Api.request<GetRoomListResponse.RootObject>(apiConfig)
-    return res.results.rooms_info.map<model.IQChatRoom>((it: any) =>
-      Decoder.room(it)
-    )
+    return res.results.rooms_info.map<model.IQChatRoom>((it: any) => Decoder.room(it))
   },
   async getUnreadCount(): Promise<number> {
     const resp = await Api.request<GetUnreadResponse.RootObject>(

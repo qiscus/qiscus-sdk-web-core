@@ -1,5 +1,5 @@
-import { IQUser } from 'model'
-import { loginOrRegisterParams } from 'api'
+import { IQUser } from './model'
+import { loginOrRegisterParams } from './api'
 
 export const loginOrRegister = (o: loginOrRegisterParams) => ({
   email: o.userId,

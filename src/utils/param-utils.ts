@@ -1,12 +1,8 @@
-import { IQCallback1, IQCallback2 } from 'defs'
+import { IQCallback1, IQCallback2 } from '../defs'
 import is from 'is_js'
-export const every = <T>(...checkers: Array<Function>) => (item: T) =>
-  checkers.every((check) => check(item))
-export const some = <T>(...checkers: Array<Function>) => (item: T) =>
-  checkers.some((check) => check(item))
-export const compose = <T>(msg: string, checker: (it: T) => boolean) => (
-  item: T
-) => {
+export const every = <T>(...checkers: Array<Function>) => (item: T) => checkers.every((check) => check(item))
+export const some = <T>(...checkers: Array<Function>) => (item: T) => checkers.some((check) => check(item))
+export const compose = <T>(msg: string, checker: (it: T) => boolean) => (item: T) => {
   const isFullfiled = checker(item)
   if (isFullfiled) return item
   throw new TypeError(msg)
@@ -37,55 +33,24 @@ export const isReqJson = (item: any) => {
 }
 export const isReqArrayNumber = (item: any) => {
   const msg = getMsg(item, 'are required and need to be array of number')
-  return compose(
-    msg,
-    every(is.not.null, is.not.undefined, is.array, is.all.number)
-  )
+  return compose(msg, every(is.not.null, is.not.undefined, is.array, is.all.number))
 }
 export const isReqArrayString = (item: any) => {
   const msg = getMsg(item, 'are required and need to be array of string')
-  return compose(
-    msg,
-    every(is.not.null, is.not.undefined, is.array, is.all.string)
-  )
+  return compose(msg, every(is.not.null, is.not.undefined, is.array, is.all.string))
 }
 export const isReqArrayOfStringOrNumber = (item: any) => {
-  const msg = getMsg(
-    item,
-    'are required and need to be array of string or array of number'
-  )
-  return compose(
-    msg,
-    every(
-      is.not.null,
-      is.not.undefined,
-      is.array,
-      some(is.all.number, is.all.string)
-    )
-  )
+  const msg = getMsg(item, 'are required and need to be array of string or array of number')
+  return compose(msg, every(is.not.null, is.not.undefined, is.array, some(is.all.number, is.all.string)))
 }
 export const isOptArrayNumber = (item: any) => {
   const msg = getMsg(item, 'need to be array of number or null')
   // return compose(msg, some(is.null, is.undefined, is.array, is.all.number))
-  return compose(
-    msg,
-    some(
-      is.null,
-      is.undefined,
-      every(is.not.null, is.not.undefined, is.array, is.all.number)
-    )
-  )
+  return compose(msg, some(is.null, is.undefined, every(is.not.null, is.not.undefined, is.array, is.all.number)))
 }
 export const isOptArrayString = (item: any) => {
   const msg = getMsg(item, 'need to be array of string or null')
-  return compose(
-    msg,
-    some(
-      is.null,
-      is.undefined,
-      every(is.not.null, is.not.undefined, is.array, is.all.string)
-    )
-  )
+  return compose(msg, some(is.null, is.undefined, every(is.not.null, is.not.undefined, is.array, is.all.string)))
 }
 export const isOptString = (item: any) => {
   const msg = getMsg(item, 'need to be string or null')
@@ -114,13 +79,9 @@ export function isArrayOfNumber(ids: number[] | string[]): ids is number[] {
 export function isArrayOfString(ids: number[] | string[]): ids is string[] {
   return is.all.truthy(is.array(ids), is.all.string(ids))
 }
-export function isCallback1<T = unknown>(
-  cb: IQCallback1 | IQCallback2<T>
-): cb is IQCallback1 {
+export function isCallback1<T = unknown>(cb: IQCallback1 | IQCallback2<T>): cb is IQCallback1 {
   return cb.length === 1
 }
-export function isCallback2<T = unknown>(
-  cb: IQCallback1 | IQCallback2<T>
-): cb is IQCallback2<T> {
+export function isCallback2<T = unknown>(cb: IQCallback1 | IQCallback2<T>): cb is IQCallback2<T> {
   return cb.length === 2
 }

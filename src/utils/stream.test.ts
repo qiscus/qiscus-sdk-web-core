@@ -1,6 +1,6 @@
 import xs, { Listener } from 'xstream'
-import * as S from 'utils/stream'
-import { toCallbackOrPromise } from 'utils/stream'
+import * as S from './stream'
+import { toCallbackOrPromise } from './stream'
 import flattenConcurrently from 'xstream/extra/flattenConcurrently'
 
 test('toPromise success', async () => {

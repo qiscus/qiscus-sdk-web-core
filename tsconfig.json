@@ -21,10 +21,6 @@
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
     "baseUrl": "./",
-    "paths": {
-      "*": ["src/*", "node_modules/*"],
-      "$$": ["../*"],
-    },
     "declarationDir": "./typings",
     "esModuleInterop": true,
     "resolveJsonModule": true

@@ -1,5 +1,5 @@
-import { Storage, storageFactory } from 'storage'
-import { withCredentials, withHeaders } from 'provider'
+import { Storage, storageFactory } from './storage'
+import { withCredentials, withHeaders } from './provider'
 
 let storage: Storage
 beforeEach(() => {

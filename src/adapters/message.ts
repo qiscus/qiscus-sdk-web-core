@@ -1,4 +1,4 @@
-import cuid from 'cuid'
+// @ts-ignore
 import { IQMessageT } from '../defs'
 import { Storage } from '../storage'
 import * as Api from '../api'
@@ -7,20 +7,18 @@ import * as Decoder from '../decoder'
 import * as model from '../model'
 
 const getMessageAdapter = (s: Storage) => ({
-  sendMessage(roomId: number, messageT: IQMessageT): Promise<model.IQMessage> {
+  sendMessage(roomId: number, message: model.IQMessage): Promise<model.IQMessage> {
     const apiConfig = Api.postComment({
       ...Provider.withBaseUrl(s),
       ...Provider.withCredentials(s),
       roomId,
-      type: messageT.type as model.IQMessage['type'],
-      text: messageT.message,
-      payload: messageT.payload as model.IQMessage['payload'],
-      uniqueId: cuid(),
-      extras: messageT.extras as model.IQMessage['extras'],
+      type: message.type as model.IQMessage['type'],
+      text: message.text,
+      payload: message.payload as model.IQMessage['payload'],
+      uniqueId: message.uniqueId ?? `javascript-${Date.now()}-${Math.random()}`,
+      extras: message.extras as model.IQMessage['extras'],
     })
-    return Api.request<PostCommentResponse.RootObject>(apiConfig).then((resp) =>
-      Decoder.message(resp.results.comment)
-    )
+    return Api.request<PostCommentResponse.RootObject>(apiConfig).then((resp) => Decoder.message(resp.results.comment))
   },
   getMessages(
     roomId: number,
@@ -38,9 +36,7 @@ const getMessageAdapter = (s: Storage) => ({
         limit,
       })
     ).then((resp) =>
-      resp.results.comments
-        .map(Decoder.message)
-        .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+      resp.results.comments.map(Decoder.message).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
     )
   },
   deleteMessage(uniqueIds: string[]): Promise<model.IQMessage[]> {

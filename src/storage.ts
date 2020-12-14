@@ -1,4 +1,4 @@
-import { IQAccount, IQChatRoom, IQMessage } from 'model'
+import { IQAccount, IQChatRoom, IQMessage } from './model'
 
 export type Storage = ReturnType<typeof storageFactory>
 
@@ -56,13 +56,8 @@ export const storageFactory = () => {
 
     getSyncInterval: makeGetter<number>('sync-interval', defaultSyncInterval),
     setSyncInterval: makeSetter<number>('sync-interval'),
-    getSyncIntervalWhenConnected: makeGetter<number>(
-      'sync-interval-when-connected',
-      defaultSyncIntervalWhenConnected
-    ),
-    setSyncIntervalWhenConnected: makeSetter<number>(
-      'sync-interval-when-connected'
-    ),
+    getSyncIntervalWhenConnected: makeGetter<number>('sync-interval-when-connected', defaultSyncIntervalWhenConnected),
+    setSyncIntervalWhenConnected: makeSetter<number>('sync-interval-when-connected'),
     getVersion: makeGetter<string>('version'),
     setVersion: makeSetter<string>('version'),
     getAccSyncInterval: makeGetter<number>('acc-sync-interval', 1000),
