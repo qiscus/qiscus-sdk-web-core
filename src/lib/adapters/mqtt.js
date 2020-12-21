@@ -97,6 +97,7 @@ export default class MqttAdapter {
       mqtt.addListener('message', __mqtt_message_handler)
       // #endregion
 
+      this.logger(`resubscribe to old topics ${topics}`)
       topics.forEach((topic) => mqtt.subscribe(topic))
 
       return mqtt
@@ -143,7 +144,6 @@ export default class MqttAdapter {
           this.logger('trying to reconnect to', url)
           this.mqtt = __mqtt_conneck(url)
         }
-        this.logger(`resubscribe to old topics ${topics}`)
       }, 300)
     )
   }
