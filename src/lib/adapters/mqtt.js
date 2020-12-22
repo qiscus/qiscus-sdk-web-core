@@ -26,6 +26,15 @@ export default class MqttAdapter {
   constructor(url, core, login, { shouldConnect = true, brokerLbUrl, enableLb, getClientId }) {
     const emitter = mitt()
 
+    // Define a read-only property so user cannot accidentially
+    // overwrite it's value
+    Object.defineProperties(this, {
+      core: { value: core },
+      emitter: { value: emitter },
+      mqtt: { value: null, writable: true },
+      brokerLbUrl: { value: brokerLbUrl },
+    })
+
     const _getClientId = () => {
       if (getClientId == null) return `${core.AppId}_${core.user_id}_${Date.now()}`
       return getClientId()
@@ -106,6 +115,7 @@ export default class MqttAdapter {
     this.__mqtt_conneck = __mqtt_conneck
     this.__url = url
     let mqtt = __mqtt_conneck(url)
+    this.mqtt = mqtt;
 
     // if appConfig set realtimeEnabled to false,
     // we intentionally end mqtt connection here.
@@ -115,14 +125,7 @@ export default class MqttAdapter {
 
     this.willConnectToRealtime = false
     this.cacheRealtimeURL = url
-    // Define a read-only property so user cannot accidentially
-    // overwrite it's value
-    Object.defineProperties(this, {
-      core: { value: core },
-      emitter: { value: emitter },
-      mqtt: { value: mqtt, writable: true },
-      brokerLbUrl: { value: brokerLbUrl },
-    })
+
 
     // handle load balencer
     emitter.on(
