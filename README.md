@@ -5,9 +5,9 @@ This library contains core functionalities needed to create a chat application u
 ## Installing
 
 ```
-$ npm i qiscus-sdk-core
+$ npm i qiscus-sdk-javascript
 // or if you're using yarn
-$ yarn add qiscus-sdk-core
+$ yarn add qiscus-sdk-javascript
 ```
 
 then you need to import this library into your application.
