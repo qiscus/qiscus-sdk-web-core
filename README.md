@@ -1,6 +1,8 @@
 # Qiscus Web SDK Core
 
-This library contains core functionalities needed to create a chat application using qiscus. 
+This library contains core functionalities needed to create a chat application using qiscus.
+
+Check out the V3 migration guide with Typescript details here: [V3 Migration Guide](https://github.com/qiscus/qiscus-sdk-web-core/blob/v3/MIGRATION_GUIDE.md)
 
 ## Installing
 
