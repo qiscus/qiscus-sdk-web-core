@@ -13,7 +13,7 @@ $ yarn add qiscus-sdk-javascript
 then you need to import this library into your application.
 
 ```
-import QiscusSDK from 'qiscus-sdk-core';
+import QiscusSDK from 'qiscus-sdk-javascript';
 
 const qiscus = new QiscusSDK();
 ```
