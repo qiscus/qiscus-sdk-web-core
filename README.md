@@ -2,6 +2,10 @@
 
 This library contains core functionalities needed to create a chat application using qiscus. 
 
+## V3 Migration
+
+Note: V3 of this SDK is available and contains breaking changes. The migration guide is available in the v3 tag here: [V3 Migration Guide](https://github.com/qiscus/qiscus-sdk-web-core/blob/v3/MIGRATION_GUIDE.md)
+
 ## Installing
 
 ```
