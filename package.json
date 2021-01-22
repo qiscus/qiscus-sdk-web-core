@@ -16,12 +16,12 @@
   "scripts": {
     "serve": "serve dist -l 1235",
     "clean": "rimraf dist lib lib-esm",
-    "build": "npm-run-all clean build:lib:cjs build:lib:esm build:bundle build:bundle:-dev",
+    "build": "run-s clean build:lib:cjs build:lib:esm build:bundle build:bundle:dev",
     "build:lib:cjs": "tsc --build tsconfig.json",
     "build:lib:esm": "tsc -m es2015 --outDir lib-esm",
     "build:bundle": "webpack --env.production --env.target=web",
-    "build:bundle:dev": "webpack --env.development --env.target=web --watch",
-    "build:bundle:-dev": "webpack --env.development --env.target=web",
+    "build:bundle:watch": "webpack --env.development --env.target=web --watch",
+    "build:bundle:dev": "webpack --env.development --env.target=web",
     "test": "jest"
   },
   "prettier": {
