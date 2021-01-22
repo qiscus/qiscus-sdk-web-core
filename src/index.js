@@ -361,6 +361,11 @@ class QiscusSDK {
         room_id: data.roomId,
       })
     )
+    this.realtimeAdapter.on('message:updated', (message) => {
+      if (this.options.messageUpdatedCallback != null) {
+        this.options.messageUpdatedCallback(message)
+      }
+    })
 
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
       getToken: () => this.userData.token,
@@ -2141,7 +2146,7 @@ class QiscusSDK {
       email: this.userData.email,
       status: 'pending',
       type: 'custom',
-      payload: { type, payload },
+      payload: { type, content: payload },
     })
     return comment
   }
@@ -2171,6 +2176,14 @@ class QiscusSDK {
       },
     })
     return comment
+  }
+
+  async updateMessage(message) {
+    return this.userAdapter.updateMessage(message)
+  }
+  onMessageUpdated(handler) {
+    this.realtimeAdapter.on('message:updated', handler)
+    return () => this.realtimeAdapter.off('message:updated', handler)
   }
 }
 

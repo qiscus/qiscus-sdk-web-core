@@ -23,7 +23,12 @@ export default class MqttAdapter {
    * @param {boolean} login
    * @param {MqttAdapterParams} obj
    */
-  constructor(url, core, login, { shouldConnect = true, brokerLbUrl, enableLb, getClientId }) {
+  constructor(
+    url,
+    core,
+    login,
+    { shouldConnect = true, brokerLbUrl, enableLb, getClientId }
+  ) {
     const emitter = mitt()
 
     // Define a read-only property so user cannot accidentially
@@ -36,7 +41,8 @@ export default class MqttAdapter {
     })
 
     const _getClientId = () => {
-      if (getClientId == null) return `${core.AppId}_${core.user_id}_${Date.now()}`
+      if (getClientId == null)
+        return `${core.AppId}_${core.user_id}_${Date.now()}`
       return getClientId()
     }
 
@@ -53,6 +59,8 @@ export default class MqttAdapter {
         this.onlinePresenceHandler.bind(this, topic),
       [when(this.reChannelMessage)]: (topic) =>
         this.channelMessageHandler.bind(this, topic),
+      [when(this.reMessageUpdated)]: (topic) =>
+        this.messageUpdatedHandler.bind(this, topic),
       [when()]: (topic) => this.logger('topic not handled', topic),
     })
 
@@ -93,7 +101,7 @@ export default class MqttAdapter {
           payload: 0,
           retain: true,
         },
-        clientId: _getClientId()
+        clientId: _getClientId(),
       }
 
       const mqtt = connect(brokerUrl, opts)
@@ -115,17 +123,16 @@ export default class MqttAdapter {
     this.__mqtt_conneck = __mqtt_conneck
     this.__url = url
     let mqtt = __mqtt_conneck(url)
-    this.mqtt = mqtt;
+    this.mqtt = mqtt
 
     // if appConfig set realtimeEnabled to false,
     // we intentionally end mqtt connection here.
     // TODO: Make a better way to not connect
     //       to broker, but still having mqtt client initiated.
-    if (!shouldConnect) mqtt.end(true);
+    if (!shouldConnect) mqtt.end(true)
 
     this.willConnectToRealtime = false
     this.cacheRealtimeURL = url
-
 
     // handle load balencer
     emitter.on(
@@ -215,6 +222,9 @@ export default class MqttAdapter {
   on(...args) {
     this.emitter.on(...args)
   }
+  off(...args) {
+    this.emitter.off(...args)
+  }
 
   get logger() {
     if (!this.core.debugMQTTMode) return this.noop
@@ -243,9 +253,12 @@ export default class MqttAdapter {
   get reChannelMessage() {
     return /^(.+)\/(.+)\/c$/i
   }
+  get reMessageUpdated() {
+    return /^(.+)\/update$/i
+  }
   // #endregion
 
-  noop() { }
+  noop() {}
 
   newMessageHandler(topic, message) {
     message = JSON.parse(message)
@@ -351,6 +364,12 @@ export default class MqttAdapter {
     this.emit('new-message', JSON.parse(message))
   }
 
+  messageUpdatedHandler(topic, message) {
+    message = JSON.parse(message)
+    this.logger('on:message-updated', topic, message)
+    this.emit('message:updated', message)
+  }
+
   // #region old-methods
   subscribeChannel(appId, uniqueId) {
     this.subscribe(`${appId}/${uniqueId}/c`)
@@ -383,6 +402,7 @@ export default class MqttAdapter {
   subscribeUserChannel() {
     this.subscribe(`${this.core.userData.token}/c`)
     this.subscribe(`${this.core.userData.token}/n`)
+    this.subscribe(`${this.core.userData.token}/update`)
   }
 
   publishPresence(userId, isOnline = true) {

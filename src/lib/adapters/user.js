@@ -205,4 +205,17 @@ export default class User {
       }
     )
   }
+
+  updateMessage(message) {
+    const data = {
+      token: this.token,
+      comment: message.message,
+      unique_id: message.unique_id || message.unique_temp_id,
+    }
+    if (message.extras != null) data['extras'] = message.extras
+    if (message.payload != null) data['payload'] = message.payload
+    return this.HTTPAdapter.post_json('api/v2/sdk/update_message', data).then(
+      (r) => r.body.results.comment
+    )
+  }
 }
