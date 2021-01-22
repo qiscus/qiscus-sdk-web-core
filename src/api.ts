@@ -535,3 +535,25 @@ export const getFileList: ApiRequest<
     limit: o.limit,
   }))
 )
+
+export const updateMessage: ApiRequest<
+  {
+    token: string
+    roomId: number
+    comment: string
+    extras?: Record<string, any>
+    payload?: Record<string, any>
+  } & withCredentials
+> = compose(
+  usePostUrl('update_message'),
+  useCredentials(),
+  useBody((o) => {
+    const body: Record<string, any> = {}
+    body.token = o.token
+    body.comment = o.comment
+    body.room_id = o.roomId
+    if (o.extras != null) body.extras = o.extras
+    if (o.payload != null) body.payload = o.payload
+    return body
+  })
+)

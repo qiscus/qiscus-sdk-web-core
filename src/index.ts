@@ -75,6 +75,7 @@ export default class Qiscus {
         }
       })
     )
+  private readonly _onMessageUpdated$ = this.realtimeAdapter.onMessageUpdated$
   private readonly _onMessageRead$ = this.realtimeAdapter
     .onMessageRead$()
     .map(this.hookAdapter.triggerBeforeReceived$)
@@ -348,6 +349,18 @@ export default class Qiscus {
         })
       )
       .compose(toCallbackOrPromise(callback))
+  }
+
+  updateMessage(message: model.IQMessage): Promise<void>
+  updateMessage(message: model.IQMessage, callback?: IQCallback1): void
+  updateMessage(message: model.IQMessage, callback?: IQCallback1) {
+    return xs
+      .combine(process(message, isReqJson({ message })), process(callback, isOptCallback({ callback })))
+      .compose(bufferUntil(() => this.isLogin))
+      .map(([message]) => xs.fromPromise(this.messageAdapter.updateMessage(message)))
+      .compose(flattenConcurrently)
+      .mapTo(undefined as void)
+      .compose(toCallbackOrPromise<void>(callback))
   }
 
   getBlockedUsers(page?: number, limit?: number): Promise<model.IQUser[]>
@@ -1156,6 +1169,14 @@ export default class Qiscus {
     return process(handler, isRequired({ handler }))
       .compose(bufferUntil(() => this.isLogin))
       .mapTo(this._onMessageReceived$)
+      .compose(flattenConcurrently)
+      .compose(toEventSubscription_(handler))
+  }
+
+  onMessageUpdated(handler: (message: model.IQMessage) => void): () => void {
+    return process(handler, isRequired({ handler }))
+      .compose(bufferUntil(() => this.isLogin))
+      .mapTo(this._onMessageUpdated$)
       .compose(flattenConcurrently)
       .compose(toEventSubscription_(handler))
   }

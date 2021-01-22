@@ -132,6 +132,21 @@ const getMessageAdapter = (s: Storage) => ({
 
     return messages
   },
+  async updateMessage(message: model.IQMessage): Promise<model.IQMessage> {
+    return Api.request<PostCommentResponse.RootObject>(
+      Api.updateMessage({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        token: s.getToken(),
+        roomId: message.chatRoomId,
+        comment: message.text,
+        extras: message.extras,
+        payload: message.payload,
+      })
+    )
+      .then((r) => r.results.comment)
+      .then((r) => Decoder.message(r))
+  },
 })
 export default getMessageAdapter
 export type MessageAdapter = ReturnType<typeof getMessageAdapter>

@@ -8,7 +8,7 @@ import * as Provider from '../provider'
 import { Storage } from '../storage'
 
 const noop = () => {}
-const sleep = (period: number) => new Promise(res => setTimeout(res, period))
+const sleep = (period: number) => new Promise((res) => setTimeout(res, period))
 
 export interface IQSyncEvent {
   'room.cleared': (room: m.IQChatRoom) => void
@@ -16,6 +16,7 @@ export interface IQSyncEvent {
   'message.delivered': (data: m.IQMessage) => void
   'message.deleted': (message: m.IQMessage) => void
   'message.read': (message: m.IQMessage) => void
+  'message.updated': (message: m.IQMessage) => void
   'last-message-id': (id: m.IQAccount['lastMessageId']) => void
   'last-event-id': (id: m.IQAccount['lastSyncEventId']) => void
 }
@@ -34,32 +35,20 @@ export default function getSyncAdapter(o: {
     return o.s.getSyncIntervalWhenConnected()
   }
 
-  const sync = synchronizeFactory(
-    getInterval,
-    enableSync,
-    () => o.s.getLastMessageId(),
-    o.logger,
-    o.s
-  )
-  sync.on('last-message-id.new', id => o.s.setLastMessageId(id))
-  sync.on('message.new', m => {
+  const sync = synchronizeFactory(getInterval, enableSync, () => o.s.getLastMessageId(), o.logger, o.s)
+  sync.on('last-message-id.new', (id) => o.s.setLastMessageId(id))
+  sync.on('message.new', (m) => {
     emitter.emit('message.new', m)
   })
-  sync.run().catch(err => o.logger('got error when sync', err))
+  sync.run().catch((err) => o.logger('got error when sync', err))
 
-  const syncEvent = synchronizeEventFactory(
-    getInterval,
-    enableSync,
-    () => o.s.getLastEventId(),
-    o.logger,
-    o.s
-  )
-  syncEvent.on('last-event-id.new', id => o.s.setLastEventId(id))
-  syncEvent.on('message.read', it => emitter.emit('message.read', it))
-  syncEvent.on('message.delivered', it => emitter.emit('message.delivered', it))
-  syncEvent.on('message.deleted', it => emitter.emit('message.deleted', it))
-  syncEvent.on('room.cleared', it => emitter.emit('room.cleared', it))
-  syncEvent.run().catch(err => o.logger('got error when sync event', err))
+  const syncEvent = synchronizeEventFactory(getInterval, enableSync, () => o.s.getLastEventId(), o.logger, o.s)
+  syncEvent.on('last-event-id.new', (id) => o.s.setLastEventId(id))
+  syncEvent.on('message.read', (it) => emitter.emit('message.read', it))
+  syncEvent.on('message.delivered', (it) => emitter.emit('message.delivered', it))
+  syncEvent.on('message.deleted', (it) => emitter.emit('message.deleted', it))
+  syncEvent.on('room.cleared', (it) => emitter.emit('room.cleared', it))
+  syncEvent.run().catch((err) => o.logger('got error when sync event', err))
 
   return {
     synchronize(messageId: m.IQAccount['lastMessageId']): void {
@@ -71,6 +60,10 @@ export default function getSyncAdapter(o: {
     onNewMessage(callback: (message: m.IQMessage) => void): () => void {
       emitter.on('message.new', callback)
       return () => emitter.off('message.new', callback)
+    },
+    onMessageUpdated(callback: (message: m.IQMessage) => void): () => void {
+      emitter.on('message.updated', callback)
+      return () => emitter.off('message.updated', callback)
     },
     onMessageDelivered(callback: (m: m.IQMessage) => void): () => void {
       emitter.on('message.delivered', callback)
@@ -123,8 +116,8 @@ const synchronizeFactory = (
         lastMessageId: messageId,
         limit: 20,
       })
-    ).then(resp => {
-      const messages = resp.results.comments.map(it =>
+    ).then((resp) => {
+      const messages = resp.results.comments.map((it) =>
         Decoder.message({
           ...it,
           room_type: it.chat_type,
@@ -170,7 +163,7 @@ const synchronizeFactory = (
             emitter.emit('last-message-id.new', messageId)
             messages
               .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-              .forEach(m => {
+              .forEach((m) => {
                 emitter.emit('message.new', m)
               })
           }
@@ -207,19 +200,19 @@ const synchronizeEventFactory = (
         ...Provider.withCredentials(s),
         lastEventId: eventId,
       })
-    ).then(resp => {
+    ).then((resp) => {
       const events = resp.events
       const lastId =
         events
-          .map(it => it.id)
+          .map((it) => it.id)
           .sort((a, b) => a - b)
           .pop() ?? 0
 
       //region Delivered
       const messageDelivered = events
-        .filter(it => it.action_topic === 'delivered')
-        .map(it => it.payload.data as SyncEventResponse.DataMessageDelivered)
-        .map(it =>
+        .filter((it) => it.action_topic === 'delivered')
+        .map((it) => it.payload.data as SyncEventResponse.DataMessageDelivered)
+        .map((it) =>
           Decoder.message({
             id: it.comment_id,
             unique_temp_id: it.comment_unique_id,
@@ -230,9 +223,9 @@ const synchronizeEventFactory = (
       //endregion
       //region Read
       const messageRead = events
-        .filter(it => it.action_topic === 'read')
-        .map(it => it.payload.data as SyncEventResponse.DataMessageDelivered)
-        .map(it =>
+        .filter((it) => it.action_topic === 'read')
+        .map((it) => it.payload.data as SyncEventResponse.DataMessageDelivered)
+        .map((it) =>
           Decoder.message({
             id: it.comment_id,
             unique_temp_id: it.comment_unique_id,
@@ -252,11 +245,11 @@ const synchronizeEventFactory = (
       //     } as any))))
       //   .map(it => flatten(it))
       const messageDeleted = events
-        .filter(it => it.action_topic === 'deleted_message')
-        .map(it => it.payload.data as SyncEventResponse.DataMessageDeleted)
-        .map(p1 => {
-          const msgs = p1.deleted_messages.map(it =>
-            it.message_unique_ids.map(id =>
+        .filter((it) => it.action_topic === 'deleted_message')
+        .map((it) => it.payload.data as SyncEventResponse.DataMessageDeleted)
+        .map((p1) => {
+          const msgs = p1.deleted_messages.map((it) =>
+            it.message_unique_ids.map((id) =>
               Decoder.message({
                 unique_temp_id: id,
                 room_id: parseInt(it.room_id),
@@ -268,9 +261,9 @@ const synchronizeEventFactory = (
       //endregion
       //region Room Cleared
       const roomCleared = events
-        .filter(it => it.action_topic === 'clear_room')
-        .map(it => it.payload.data as SyncEventResponse.DataRoomCleared)
-        .map(p1 => p1.deleted_rooms.map((r: any) => Decoder.room(r)))
+        .filter((it) => it.action_topic === 'clear_room')
+        .map((it) => it.payload.data as SyncEventResponse.DataRoomCleared)
+        .map((p1) => p1.deleted_rooms.map((r: any) => Decoder.room(r)))
       //endregion
       return {
         lastId,
@@ -314,16 +307,10 @@ const synchronizeEventFactory = (
           const eventId = result.lastId
           if (eventId > getId()) {
             emitter.emit('last-event-id.new', eventId)
-            result.messageDelivered.forEach(it =>
-              emitter.emit('message.delivered', it)
-            )
-            result.messageDeleted.forEach(it =>
-              it.forEach(m => emitter.emit('message.deleted', m))
-            )
-            result.messageRead.forEach(it => emitter.emit('message.read', it))
-            result.roomCleared.forEach(it =>
-              it.forEach(room => emitter.emit('room.cleared', room))
-            )
+            result.messageDelivered.forEach((it) => emitter.emit('message.delivered', it))
+            result.messageDeleted.forEach((it) => it.forEach((m) => emitter.emit('message.deleted', m)))
+            result.messageRead.forEach((it) => emitter.emit('message.read', it))
+            result.roomCleared.forEach((it) => it.forEach((room) => emitter.emit('room.cleared', room)))
           }
         } catch (e) {
           logger('error when sync event', e)

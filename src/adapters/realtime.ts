@@ -7,9 +7,7 @@ import * as model from '../model'
 import { getLogger } from './logger'
 import { Storage } from '../storage'
 
-export type SyncMethod<T extends any[]> = (
-  callback: (...data: T) => void
-) => Subscription
+export type SyncMethod<T extends any[]> = (callback: (...data: T) => void) => Subscription
 
 function fromSync<T extends any[]>(method: SyncMethod<T>) {
   let subscription: Subscription
@@ -34,11 +32,7 @@ function isNumber(data: model.IQChatRoom | number): data is number {
 }
 
 export type RealtimeAdapter = ReturnType<typeof getRealtimeAdapter>
-export default function getRealtimeAdapter(
-  //region Params
-  storage: Storage
-  //endregion
-) {
+export default function getRealtimeAdapter(storage: Storage) {
   const mqtt = getMqttAdapter(storage)
   const logger = getLogger(storage)
   const sync = getSyncAdapter({
@@ -51,26 +45,12 @@ export default function getRealtimeAdapter(
   })
 
   // region emitter
-  const newMessage$ = xs.merge(
-    fromSync(sync.onNewMessage),
-    fromSync(mqtt.onNewMessage)
-  )
-  const onMessageRead$ = xs.merge(
-    fromSync(sync.onMessageRead),
-    fromSync(mqtt.onMessageRead)
-  )
-  const onMessageDelivered$ = xs.merge(
-    fromSync(sync.onMessageDelivered),
-    fromSync(mqtt.onMessageDelivered)
-  )
-  const onMessageDeleted$ = xs.merge(
-    fromSync(sync.onMessageDeleted),
-    fromSync(mqtt.onMessageDeleted)
-  )
-  const onRoomCleared$ = xs.merge(
-    fromSync(sync.onRoomCleared),
-    fromSync(mqtt.onRoomDeleted)
-  )
+  const newMessage$ = xs.merge(fromSync(sync.onNewMessage), fromSync(mqtt.onNewMessage))
+  const onMessageRead$ = xs.merge(fromSync(sync.onMessageRead), fromSync(mqtt.onMessageRead))
+  const onMessageDelivered$ = xs.merge(fromSync(sync.onMessageDelivered), fromSync(mqtt.onMessageDelivered))
+  const onMessageDeleted$ = xs.merge(fromSync(sync.onMessageDeleted), fromSync(mqtt.onMessageDeleted))
+  const onRoomCleared$ = xs.merge(fromSync(sync.onRoomCleared), fromSync(mqtt.onRoomDeleted))
+  const onMessageUpdated$ = xs.merge(fromSync(sync.onMessageUpdated), fromSync(mqtt.onMessageUpdated))
   // endregion
 
   return {
@@ -82,31 +62,30 @@ export default function getRealtimeAdapter(
       mqtt.clear()
     },
     onMessageDeleted(callback: Callback<model.IQMessage>): Subscription {
-      const subscription = onMessageDeleted$.compose(
-        subscribeOnNext(([message]) => callback(message))
-      )
+      const subscription = onMessageDeleted$.compose(subscribeOnNext(([message]) => callback(message)))
       return () => subscription.unsubscribe()
     },
     onMessageDelivered(callback: Callback<model.IQMessage>): Subscription {
-      const subscription = onMessageDelivered$.compose(
-        subscribeOnNext(([it]) => callback(it))
-      )
+      const subscription = onMessageDelivered$.compose(subscribeOnNext(([it]) => callback(it)))
       return () => subscription.unsubscribe()
     },
     onMessageRead(callback: Callback<model.IQMessage>): Subscription {
-      const subscription = onMessageRead$.compose(
-        subscribeOnNext(([it]) => callback(it))
-      )
+      const subscription = onMessageRead$.compose(subscribeOnNext(([it]) => callback(it)))
       return () => subscription.unsubscribe()
     },
     onNewMessage(callback: Callback<model.IQMessage>): Subscription {
-      const subscription = newMessage$.compose(
-        subscribeOnNext(([message]) => callback(message))
-      )
+      const subscription = newMessage$.compose(subscribeOnNext(([message]) => callback(message)))
+      return () => subscription.unsubscribe()
+    },
+    onMessageUpdated(callback: Callback<model.IQMessage>): Subscription {
+      const subscription = onMessageUpdated$.compose(subscribeOnNext(([message]) => callback(message)))
       return () => subscription.unsubscribe()
     },
     onNewMessage$() {
       return newMessage$.map(([msg]) => msg)
+    },
+    get onMessageUpdated$() {
+      return onMessageUpdated$.map(([msg]) => msg)
     },
     onMessageRead$() {
       return onMessageRead$.map(([it]) => it)
@@ -120,13 +99,10 @@ export default function getRealtimeAdapter(
     onRoomCleared$() {
       return onRoomCleared$.map(([it]) => it)
     },
-    onPresence(
-      callback: (userId: string, isOnline: boolean, lastSeen: Date) => void
-    ): Subscription {
+
+    onPresence(callback: (userId: string, isOnline: boolean, lastSeen: Date) => void): Subscription {
       const subscription = fromSync(mqtt.onUserPresence).compose(
-        subscribeOnNext(([userId, isOnline, lastSeen]) =>
-          callback(userId, isOnline, lastSeen)
-        )
+        subscribeOnNext(([userId, isOnline, lastSeen]) => callback(userId, isOnline, lastSeen))
       )
       return () => subscription.unsubscribe()
     },
@@ -139,13 +115,9 @@ export default function getRealtimeAdapter(
       )
       return () => subscription.unsubscribe()
     },
-    onTyping(
-      callback: (userId: string, roomId: number, isTyping: boolean) => void
-    ): Subscription {
+    onTyping(callback: (userId: string, roomId: number, isTyping: boolean) => void): Subscription {
       const subscription = fromSync(mqtt.onUserTyping).compose(
-        subscribeOnNext(([userId, roomId, isTyping]) =>
-          callback(userId, roomId, isTyping)
-        )
+        subscribeOnNext(([userId, roomId, isTyping]) => callback(userId, roomId, isTyping))
       )
       return () => subscription.unsubscribe()
     },
