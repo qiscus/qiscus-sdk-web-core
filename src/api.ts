@@ -539,7 +539,7 @@ export const getFileList: ApiRequest<
 export const updateMessage: ApiRequest<
   {
     token: string
-    roomId: number
+    uniqueId: string
     comment: string
     extras?: Record<string, any>
     payload?: Record<string, any>
@@ -551,7 +551,7 @@ export const updateMessage: ApiRequest<
     const body: Record<string, any> = {}
     body.token = o.token
     body.comment = o.comment
-    body.room_id = o.roomId
+    body.unique_id = o.uniqueId
     if (o.extras != null) body.extras = o.extras
     if (o.payload != null) body.payload = o.payload
     return body

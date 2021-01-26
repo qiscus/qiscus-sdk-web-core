@@ -138,7 +138,7 @@ const getMessageAdapter = (s: Storage) => ({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
         token: s.getToken(),
-        roomId: message.chatRoomId,
+        uniqueId: message.uniqueId,
         comment: message.text,
         extras: message.extras,
         payload: message.payload,

@@ -1,11 +1,11 @@
-import getSyncAdapter from './sync'
-import { Callback, Subscription } from '../defs'
 import xs from 'xstream'
-import getMqttAdapter from './mqtt'
-import { subscribeOnNext } from '../utils/stream'
+import { Callback, Subscription } from '../defs'
 import * as model from '../model'
-import { getLogger } from './logger'
 import { Storage } from '../storage'
+import { subscribeOnNext } from '../utils/stream'
+import { getLogger } from './logger'
+import getMqttAdapter from './mqtt'
+import getSyncAdapter from './sync'
 
 export type SyncMethod<T extends any[]> = (callback: (...data: T) => void) => Subscription
 
