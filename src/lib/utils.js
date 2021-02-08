@@ -1,12 +1,16 @@
-export function searchAndReplace (str, find, replace) {
+export function searchAndReplace(str, find, replace) {
   return str.split(find).join(replace)
 }
 
-export function escapeHTML (text) {
-  let comment
-  comment = searchAndReplace(text, '<', '&lt;')
-  comment = searchAndReplace(comment, '>', '&gt;')
-  return comment
+export function escapeHTML(str) {
+  return str.replace(/(<([^>]+)>)/gi, function (match) {
+    return match
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
+  })
 }
 
 export class GroupChatBuilder {
@@ -16,7 +20,7 @@ export class GroupChatBuilder {
    * @param {RoomAdapter} roomAdapter - Room adapter to be used to call backend
    *  API.
    */
-  constructor (roomAdapter) {
+  constructor(roomAdapter) {
     this.roomAdapter = roomAdapter
     this.name = null
     this.emails = []
@@ -28,7 +32,7 @@ export class GroupChatBuilder {
    * @param {string} name - Room name
    * @returns {GroupChatBuilder}
    */
-  withName (name) {
+  withName(name) {
     this.name = name
     return this
   }
@@ -38,7 +42,7 @@ export class GroupChatBuilder {
    * @param {object} options - Any data that is `JSON.stringify` able
    * @returns {GroupChatBuilder}
    */
-  withOptions (options) {
+  withOptions(options) {
     this.options = options
     return this
   }
@@ -50,9 +54,9 @@ export class GroupChatBuilder {
    * eg: addParticipants('email1@gg.com', 'email2@gg.com')
    * @param {string} emails - Email of participant to be added.
    */
-  addParticipants (...emails) {
+  addParticipants(...emails) {
     this.emails = this.emails
-      .filter(email => emails.indexOf(email) === -1)
+      .filter((email) => emails.indexOf(email) === -1)
       .concat(...emails)
     return this
   }
@@ -61,16 +65,20 @@ export class GroupChatBuilder {
    * Real create group chat room by calling the backend API.
    * @returns {Promise.<Room, Error>}
    */
-  create () {
+  create() {
     const name = this.name
     const emails = this.emails
     const options = this.options
-    return this.roomAdapter
-      .createRoom(name, emails, { avatarURL: options.avatarURL }, options)
+    return this.roomAdapter.createRoom(
+      name,
+      emails,
+      { avatarURL: options.avatarURL },
+      options
+    )
   }
 }
 
-export function scrollToBottom (latestCommentId) {
+export function scrollToBottom(latestCommentId) {
   requestAnimationFrame(function () {
     if (latestCommentId > 0) {
       const elementToScroll = document.getElementById(latestCommentId)
@@ -78,6 +86,11 @@ export function scrollToBottom (latestCommentId) {
       elementToScroll.scrollIntoView({ block: 'end', behavior: 'smooth' })
     }
     // on entering the room, wait for data processed then focus on comment form
-    document.getElementsByClassName('qcw-comment-form').item(0).getElementsByTagName('textarea').item(0).focus()
+    document
+      .getElementsByClassName('qcw-comment-form')
+      .item(0)
+      .getElementsByTagName('textarea')
+      .item(0)
+      .focus()
   })
 }
