@@ -3,7 +3,7 @@ export function searchAndReplace(str, find, replace) {
 }
 
 export function escapeHTML(str) {
-  return str.replace(/(<([^>]+)>)/gi, function (match) {
+  return str.replace(/<[^>]*\/?>([\s\S]*)?<\/.*?>/gi, function (match) {
     return match
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
