@@ -2065,19 +2065,26 @@ class QiscusSDK {
   /**
    * @param {GetFileListParams} param0
    */
-  async getFileList({ roomIds = [], fileType, page, limit } = {}) {
+  async getFileList({ roomIds = [], fileType, page, limit, sender } = {}) {
     const url = 'api/v2/sdk/file_list'
 
     if (!this.isLogin)
       return Promise.reject('You need to login to use this method')
 
-    return this.HTTPAdapter.post_json(url, {
+    if (sender === undefined) {
+      sender = this.user_id
+    }
+
+    let opts = {
       room_ids: roomIds.map((it) => String(it)),
-      sender: this.user_id,
       file_type: fileType,
       page: page,
       limit: limit,
-    }).then((res) => res.body)
+    }
+
+    if (sender != null) opts['sender'] = sender
+
+    return this.HTTPAdapter.post_json(url, opts).then((res) => res.body)
   }
 
   _generateUniqueId() {
