@@ -288,18 +288,6 @@ class QiscusSDK {
       getClientId: this._getMqttClientId,
     })
     this.realtimeAdapter.on('connected', () => {
-      if (this.options.onReconnectCallback) {
-        this.options.onReconnectCallback()
-      }
-      if (this.enableRealtime == false) {
-        this.realtimeAdapter.mqtt.connected = false
-        this.realtimeAdapter = new MqttAdapter(null, this, this.isLogin, {
-          brokerLbUrl: null,
-          enableLb: null,
-          shouldConnect: this.enableRealtime,
-          getClientId: this._getMqttClientId,
-        })
-      }
       if (this.isLogin || !this.realtimeAdapter.connected) {
         this.last_received_comment_id = this.userData.last_comment_id
         this.updateLastReceivedComment(this.last_received_comment_id)
@@ -307,26 +295,7 @@ class QiscusSDK {
     })
     this.realtimeAdapter.on('close', () => {})
     this.realtimeAdapter.on('reconnect', () => {
-      const isLogin = this.isLogin
-      const isConnected = this.realtimeAdapter.connected
-      const isEnabled = this.enableRealtime
-      if (!isLogin && isConnected && !isEnabled) return
-      if (this.realtimeAdapter.connected == false) {
-        this.realtimeAdapter.getMqttNode().then((res) => {
-          this.mqttURL = res
-          this.realtimeAdapter = new MqttAdapter(
-            this.mqttURL,
-            this,
-            this.isLogin,
-            {
-              brokerLbUrl: this.brokerLbUrl,
-              enableLb: this.enableLb,
-              shouldConnect: this.enableRealtime,
-              getClientId: this._getMqttClientId,
-            }
-          )
-        })
-      }
+      this.options.onReconnectCallback?.()
     })
     this.realtimeAdapter.on(
       'message-delivered',

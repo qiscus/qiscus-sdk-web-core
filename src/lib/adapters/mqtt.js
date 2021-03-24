@@ -29,24 +29,14 @@ export default class MqttAdapter {
     login,
     { shouldConnect = true, brokerLbUrl, enableLb, getClientId }
   ) {
-    const emitter = mitt()
-
-    // Define a read-only property so user cannot accidentially
-    // overwrite it's value
-    Object.defineProperties(this, {
-      core: { value: core },
-      emitter: { value: emitter },
-      mqtt: { value: null, writable: true },
-      brokerLbUrl: { value: brokerLbUrl },
-    })
-
-    const _getClientId = () => {
-      if (getClientId == null)
-        return `${core.AppId}_${core.user_id}_${Date.now()}`
-      return getClientId()
-    }
-
-    const matcher = match({
+    this.emitter = mitt()
+    this.core = core
+    this.mqtt = null
+    this.brokerLbUrl = brokerLbUrl
+    this.getClientId = getClientId
+    this.enableLb = enableLb
+    this.shouldConnect = shouldConnect
+    this.matcher = match({
       [when(this.reNewMessage)]: (topic) =>
         this.newMessageHandler.bind(this, topic),
       [when(this.reNotification)]: (topic) =>
@@ -64,65 +54,7 @@ export default class MqttAdapter {
       [when()]: (topic) => this.logger('topic not handled', topic),
     })
 
-    const __mqtt_connected_handler = () => {
-      emitter.emit('connected')
-    }
-    const __mqtt_reconnect_handler = () => {
-      emitter.emit('reconnect')
-    }
-    const __mqtt_closed_handler = (...args) => {
-      emitter.emit('close', args)
-    }
-    const __mqtt_message_handler = (t, m) => {
-      const message = m.toString()
-      const func = matcher(t)
-      this.logger('message', t, m)
-      if (func != null) func(message)
-    }
-    const __mqtt_error_handler = (err) => {
-      if (err && err.message === 'client disconnecting') return
-      emitter.emit('error', err.message)
-      this.logger('error', err.message)
-    }
-    const __mqtt_conneck = (brokerUrl) => {
-      const topics = []
-
-      if (brokerUrl == null) brokerUrl = this.cacheRealtimeURL
-      if (this.mqtt != null) {
-        const _topics = Object.keys(this.mqtt._resubscribeTopics)
-        topics.push(..._topics)
-
-        this.mqtt.removeAllListeners()
-        this.mqtt = null
-      }
-      const opts = {
-        will: {
-          topic: `u/${core.user_id}/s`,
-          payload: 0,
-          retain: true,
-        },
-        clientId: _getClientId(),
-      }
-
-      const mqtt = connect(brokerUrl, opts)
-
-      // #region Mqtt Listener
-      mqtt.addListener('connect', __mqtt_connected_handler)
-      mqtt.addListener('reconnect', __mqtt_reconnect_handler)
-      mqtt.addListener('close', __mqtt_closed_handler)
-      mqtt.addListener('error', __mqtt_error_handler)
-      mqtt.addListener('message', __mqtt_message_handler)
-      // #endregion
-
-      this.logger(`resubscribe to old topics ${topics}`)
-      topics.forEach((topic) => mqtt.subscribe(topic))
-
-      return mqtt
-    }
-
-    this.__mqtt_conneck = __mqtt_conneck
-    this.__url = url
-    let mqtt = __mqtt_conneck(url)
+    let mqtt = this.__mqtt_conneck(url)
     this.mqtt = mqtt
 
     // if appConfig set realtimeEnabled to false,
@@ -135,28 +67,111 @@ export default class MqttAdapter {
     this.cacheRealtimeURL = url
 
     // handle load balencer
-    emitter.on(
-      'close',
-      debounce(async () => {
-        if (enableLb == null) return
-        if (login != null && login == false) return
-        if (shouldConnect == false) return
-        this.willConnectToRealtime = true
-
-        const [url, err] = await wrapP(this.getMqttNode())
-        if (err) {
-          this.logger(
-            `cannot get new brokerURL, using old url instead (${this.cacheRealtimeURL})`
-          )
-          this.mqtt = __mqtt_conneck(this.cacheRealtimeURL)
-        } else {
-          this.cacheRealtimeURL = url
-          this.logger('trying to reconnect to', url)
-          this.mqtt = __mqtt_conneck(url)
-        }
-      }, 300)
-    )
+    this.emitter.on('close', this._on_close_handler)
+    // this.emitter.on('connected', () => {
+    //   this.willConnectToRealtime = false
+    // })
   }
+
+  _getClientId() {
+    if (this.getClientId == null)
+      return `${this.core.AppId}_${this.core.user_id}_${Date.now()}`
+    return this.getClientId()
+  }
+
+  __mqtt_connected_handler = () => {
+    this.emitter.emit('connected')
+  }
+  __mqtt_reconnect_handler = () => {
+    this.emitter.emit('reconnect')
+  }
+  __mqtt_closed_handler = (...args) => {
+    this.emitter.emit('close', args)
+  }
+  __mqtt_message_handler = (t, m) => {
+    const message = m.toString()
+    const func = matcher(t)
+    this.logger('message', t, m)
+    if (func != null) func(message)
+  }
+  __mqtt_error_handler = (err) => {
+    if (err && err.message === 'client disconnecting') return
+    this.emitter.emit('error', err.message)
+    this.logger('error', err.message)
+  }
+  __mqtt_conneck = (brokerUrl) => {
+    const topics = []
+    const opts = {
+      will: {
+        topic: `u/${this.core.user_id}/s`,
+        payload: 0,
+        retain: true,
+      },
+      clientId: this._getClientId(),
+      // reconnectPeriod: 0,
+      // connectTimeout: 1 * 1000,
+    }
+
+    if (brokerUrl == null) brokerUrl = this.cacheRealtimeURL
+    if (this.mqtt != null) {
+      const _topics = Object.keys(this.mqtt._resubscribeTopics)
+      topics.push(..._topics)
+
+      this.mqtt.removeAllListeners()
+      this.mqtt.end(true)
+      delete this.mqtt
+      this.mqtt = null
+    }
+
+    const mqtt = connect(brokerUrl, opts)
+
+    // #region Mqtt Listener
+    mqtt.addListener('connect', this.__mqtt_connected_handler)
+    mqtt.addListener('reconnect', this.__mqtt_reconnect_handler)
+    mqtt.addListener('close', this.__mqtt_closed_handler)
+    mqtt.addListener('error', this.__mqtt_error_handler)
+    mqtt.addListener('message', this.__mqtt_message_handler)
+    // #endregion
+
+    this.logger(`resubscribe to old topics ${topics}`)
+    topics.forEach((topic) => mqtt.subscribe(topic))
+
+    return mqtt
+  }
+  _on_close_handler = debounce(async () => {
+    const shouldReconnect =
+      this.enableLb === true && // appConfig enabling realtime lb
+      this.core.isLogin === true && // is logged in
+      this.shouldConnect === true && // should reconnect?
+      !this.willConnectToRealtime // is there still reconnect process in progress?
+
+    if (this.logEnabled) {
+      console.group('@mqtt.closed')
+      console.log(`this.enableLb(${this.enableLb})`)
+      console.log(`this.core.isLogin(${this.core.isLogin})`)
+      console.log(`this.shouldConnect(${this.shouldConnect})`)
+      console.log(`this.willConnectToRealtime(${this.willConnectToRealtime})`)
+      console.log(`shouldReconnect(${shouldReconnect})`)
+      console.groupEnd()
+    }
+
+    if (!shouldReconnect) return
+    this.willConnectToRealtime = true
+
+    const [url, err] = await wrapP(this.getMqttNode())
+    if (err) {
+      this.logger(
+        `cannot get new brokerURL, using old url instead (${this.cacheRealtimeURL})`
+      )
+      this.mqtt = this.__mqtt_conneck(this.cacheRealtimeURL)
+    } else {
+      this.cacheRealtimeURL = url
+      this.logger('trying to reconnect to', url)
+      this.mqtt = this.__mqtt_conneck(url)
+    }
+
+    this.willConnectToRealtime = false
+  }, 1000)
 
   connect() {
     this.mqtt = this.__mqtt_conneck()
@@ -226,6 +241,9 @@ export default class MqttAdapter {
     this.emitter.off(...args)
   }
 
+  get logEnabled() {
+    return this.core.debugMQTTMode
+  }
   get logger() {
     if (!this.core.debugMQTTMode) return this.noop
     return console.log.bind(console, 'QRealtime ->')

@@ -66,7 +66,7 @@
     "lodash.debounce": "^4.0.8",
     "lodash.throttle": "^4.1.1",
     "mitt": "^1.2.0",
-    "mqtt": "^3.0.0",
+    "mqtt": "^4.2.6",
     "qiscus-sdk-core": "^2.9.5",
     "store": "^2.0.12",
     "superagent": "^3.6.3"
