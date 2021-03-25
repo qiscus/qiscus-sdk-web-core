@@ -64,7 +64,6 @@ export default class MqttAdapter {
     if (!shouldConnect) mqtt.end(true)
 
     this.willConnectToRealtime = false
-    this.cacheRealtimeURL = url
 
     // handle load balencer
     this.emitter.on('close', this._on_close_handler)
@@ -73,7 +72,7 @@ export default class MqttAdapter {
     // })
   }
 
-  _getClientId() {
+  _getClientId = () => {
     if (this.getClientId == null)
       return `${this.core.AppId}_${this.core.user_id}_${Date.now()}`
     return this.getClientId()
@@ -90,7 +89,7 @@ export default class MqttAdapter {
   }
   __mqtt_message_handler = (t, m) => {
     const message = m.toString()
-    const func = matcher(t)
+    const func = this.matcher(t)
     this.logger('message', t, m)
     if (func != null) func(message)
   }
@@ -172,6 +171,13 @@ export default class MqttAdapter {
 
     this.willConnectToRealtime = false
   }, 1000)
+
+  get cacheRealtimeURL() {
+    return this.core.mqttURL
+  }
+  set cacheRealtimeURL(url) {
+    this.core.mqttURL = url
+  }
 
   connect() {
     this.mqtt = this.__mqtt_conneck()

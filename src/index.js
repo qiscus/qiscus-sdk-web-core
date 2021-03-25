@@ -52,7 +52,7 @@ class QiscusSDK {
     // SDK Configuration
     this.AppId = null
     this.baseURL = 'https://api.qiscus.com'
-    this.mqttURL = 'wss://mqtt.qiscus.com:1886/mqtt'
+    this.mqttURL = 'wss://realtime-jogja.qiscus.com:1886/mqtt'
     this.brokerLbUrl = 'https://realtime-lb.qiscus.com'
     this.syncOnConnect = 10000
     this.enableEventReport = false
