@@ -2040,6 +2040,9 @@ class QiscusSDK {
     if (!this.isLogin)
       return Promise.reject('You need to login to use this method')
 
+    // intended to check for undefined, so user can provide user
+    // with null. If null, backend can determine that we want to
+    // list files for all users
     if (sender === undefined) {
       sender = this.user_id
     }

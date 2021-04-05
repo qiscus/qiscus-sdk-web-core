@@ -3,5 +3,7 @@ node_modules/
 /.idea/
 /dist/
 /lib/
+/lib-esm/
+/typings/
 yarn-error.log
 .DS_Store
