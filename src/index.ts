@@ -24,6 +24,7 @@ import { storageFactory } from './storage'
 import {
   isArrayOfNumber,
   isArrayOfString,
+  isOptArrayString,
   isOptBoolean,
   isOptCallback,
   isOptJson,
@@ -993,12 +994,18 @@ export default class Qiscus {
     fileType,
     page,
     limit,
+    userId,
+    includeExtensions,
+    excludeExtensions,
     callback,
   }: {
     roomIds?: number[]
     fileType?: string
     page?: number
     limit?: number
+    userId?: string
+    includeExtensions?: string[]
+    excludeExtensions?: string[]
     callback?: (messages?: model.IQMessage[], error?: Error) => void
   }): void | Promise<model.IQMessage[]> {
     return xs
@@ -1012,15 +1019,21 @@ export default class Qiscus {
         ),
         process(page, isOptNumber({ page })),
         process(limit, isOptNumber({ limit })),
+        process(userId, isOptString({ userId })),
+        process(includeExtensions, isOptArrayString({ includeExtensions })),
+        process(excludeExtensions, isOptArrayString({ excludeExtensions })),
         process(callback, isOptCallback({ callback }))
       )
-      .map(([roomIds, fileType, page, limit]) => {
+      .map(([roomIds, fileType, page, limit, userId, includeExtensions, excludeExtensions]) => {
         return xs.fromPromise(
           this.messageAdapter.getFileList({
             roomIds,
             fileType,
             page,
             limit,
+            userId,
+            includeExtensions,
+            excludeExtensions,
           })
         )
       })

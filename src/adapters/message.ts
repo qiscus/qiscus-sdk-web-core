@@ -110,12 +110,22 @@ const getMessageAdapter = (s: Storage) => ({
     fileType,
     page,
     limit,
+    userId,
+    includeExtensions,
+    excludeExtensions,
   }: {
     roomIds?: number[]
     fileType?: string
     page?: number
     limit?: number
+    userId?: string
+    includeExtensions?: string[]
+    excludeExtensions?: string[]
   }): Promise<model.IQMessage[]> {
+    if (userId === undefined) {
+      userId = s.getCurrentUser().id
+    }
+
     const messages = Api.request<SearchMessagesV2Response.RootObject>(
       Api.getFileList({
         ...Provider.withBaseUrl(s),
@@ -124,7 +134,9 @@ const getMessageAdapter = (s: Storage) => ({
         fileType,
         page,
         limit,
-        sender: s.getCurrentUser().id,
+        sender: userId,
+        includeExtensions,
+        excludeExtensions,
       })
     )
       .then((r) => r.results.comments)

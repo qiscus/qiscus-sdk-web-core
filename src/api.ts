@@ -523,6 +523,8 @@ export const getFileList: ApiRequest<
     page?: number
     limit?: number
     sender: string
+    includeExtensions?: string[]
+    excludeExtensions?: string[]
   } & withCredentials
 > = compose(
   usePostUrl('file_list'),
@@ -533,6 +535,8 @@ export const getFileList: ApiRequest<
     file_type: o.fileType,
     page: o.page,
     limit: o.limit,
+    include_extensions: o.includeExtensions,
+    exclude_extensions: o.excludeExtensions,
   }))
 )
 
