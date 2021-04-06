@@ -2030,11 +2030,23 @@ class QiscusSDK {
    * @property {String} fileType
    * @property {Number} page
    * @property {Number} limit
+   * @property {String} includeExtensions
+   * @property {String} excludeExtensions
+   * @property {String} userId
    */
   /**
    * @param {GetFileListParams} param0
    */
-  async getFileList({ roomIds = [], fileType, page, limit, sender } = {}) {
+  async getFileList({
+    roomIds = [],
+    fileType,
+    page,
+    limit,
+    sender,
+    userId,
+    includeExtensions,
+    excludeExtensions,
+  } = {}) {
     const url = 'api/v2/sdk/file_list'
 
     if (!this.isLogin)
@@ -2046,12 +2058,17 @@ class QiscusSDK {
     if (sender === undefined) {
       sender = this.user_id
     }
+    if (userId === undefined) {
+      sender = userId = this.user_id
+    }
 
     let opts = {
       room_ids: roomIds.map((it) => String(it)),
       file_type: fileType,
       page: page,
       limit: limit,
+      include_extensions: includeExtensions,
+      exclude_extensions: excludeExtensions,
     }
 
     if (sender != null) opts['sender'] = sender
