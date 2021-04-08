@@ -526,7 +526,7 @@ Called when our opponent's online or offline
 qiscus.init({
   AppId: ...,
   options: {
-    presenceCallback(data) {
+    presenceCallback(data, userId) {
       // doing something here
     }
   }
