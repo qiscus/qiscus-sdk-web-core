@@ -13,8 +13,11 @@
       {
         "modules": false,
         "useBuiltIns": "usage",
-        "corejs": 3,
-        "targets": "> 0.25%, not dead"
+        // "corejs": 3,
+        "targets": {
+          "browsers": "> 0.25%, not dead",
+          "node": "10"
+        }
       }
     ],
     "@babel/preset-typescript"

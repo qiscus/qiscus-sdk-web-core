@@ -3,6 +3,7 @@ import axios from 'axios'
 import debounce from 'lodash.debounce'
 import { EventEmitter } from 'pietile-eventemitter'
 // @ts-ignore
+// import connect from 'mqtt/lib/connect'
 import connect from 'mqtt/lib/connect'
 import { IClientPublishOptions, MqttClient, IClientOptions } from 'mqtt'
 import { Callback, Subscription } from '../defs'
@@ -188,11 +189,11 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
     mqtt_.addListener('error', __mqtt_error_handler)
     mqtt_.addListener('message', __mqtt_message_handler)
 
-    intervalId = (setInterval(() => {
+    intervalId = setInterval(() => {
       if (s.getCurrentUser() != null) {
         sendPresence(mqtt, s.getCurrentUser().id, true)
       }
-    }, 3500) as unknown) as number
+    }, 3500) as unknown as number
 
     return mqtt_ as _MqttClient
   }

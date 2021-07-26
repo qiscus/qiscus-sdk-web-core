@@ -1,10 +1,12 @@
 {
-  "include": ["src", "types", "test"],
+  "include": ["src", "test"],
   "compilerOptions": {
-    "target": "es5",
+    "target": "esnext",
     "module": "CommonJS",
     "lib": ["dom", "esnext"],
+    "composite": true,
     "declaration": true,
+    "emitDeclarationOnly": true,
     "sourceMap": true,
     "rootDir": "./src",
     "outDir": "lib",
@@ -20,8 +22,8 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
-    "baseUrl": "./",
-    "declarationDir": "./typings",
+    "baseUrl": ".",
+    "declarationDir": "./types",
     "esModuleInterop": true,
     "resolveJsonModule": true
   }

@@ -1,5 +1,3 @@
-import xs, { Stream } from 'xstream'
-
 export const Hooks = {
   MESSAGE_BEFORE_SENT: 'message::before-sent',
   MESSAGE_BEFORE_RECEIVED: 'message::before-received',
@@ -30,8 +28,9 @@ export function hookAdapterFactory() {
     )
   }
 
-  const triggerBeforeReceived$ = <T extends unknown>(payload: T): Stream<T> =>
-    xs.fromPromise(trigger(Hooks.MESSAGE_BEFORE_RECEIVED, payload))
+  async function triggerBeforeReceived$<T extends unknown>(payload: T): Promise<T> {
+    return trigger(Hooks.MESSAGE_BEFORE_RECEIVED, payload)
+  }
 
   return {
     trigger,

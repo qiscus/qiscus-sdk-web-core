@@ -1,7 +1,8 @@
+import 'core-js/stable'
+import 'regenerator-runtime/runtime'
 import axios, { AxiosResponse } from 'axios'
 import { atom } from 'derivable'
-import xs from 'xstream'
-import flattenConcurrently from 'xstream/extra/flattenConcurrently'
+import Kefir from 'kefir'
 import { getLogger } from './adapters/logger'
 import getMessageAdapter from './adapters/message'
 import getRealtimeAdapter from './adapters/realtime'
@@ -43,12 +44,24 @@ import {
   bufferUntil,
   process,
   subscribeOnNext,
-  tap,
   toCallbackOrPromise,
   toEventSubscription,
   toEventSubscription_,
 } from './utils/stream'
-import { isChatRoom } from './utils/try-catch'
+
+// @ts-ignore
+function polyfillGlobalThis() {
+  if (typeof globalThis !== 'undefined') return globalThis
+  Object.defineProperty(Object.prototype, 'globalThis', {
+    get: function () {
+      // @ts-ignore
+      delete Object.prototype.globalThis
+      this.globalThis = this
+    },
+    configurable: true,
+  })
+  return globalThis
+}
 
 export default class Qiscus {
   private static _instance: Qiscus
@@ -67,31 +80,25 @@ export default class Qiscus {
 
   private readonly _onMessageReceived$ = this.realtimeAdapter
     .onNewMessage$()
-    .map((it) => this.hookAdapter.triggerBeforeReceived$(it))
-    .compose(flattenConcurrently)
-    .compose(
-      tap((message) => {
-        if (this.currentUser?.id !== message.sender.id) {
-          this.messageAdapter.markAsDelivered(message.chatRoomId, message.id)
-        }
-      })
-    )
+    .flatMap((it) => Kefir.fromPromise(this.hookAdapter.triggerBeforeReceived$(it)))
+    .onValue((message) => {
+      if (this.currentUser?.id !== message.sender.id) {
+        this.messageAdapter.markAsDelivered(message.chatRoomId, message.id)
+      }
+    })
   private readonly _onMessageUpdated$ = this.realtimeAdapter.onMessageUpdated$
   private readonly _onMessageRead$ = this.realtimeAdapter
     .onMessageRead$()
-    .map(this.hookAdapter.triggerBeforeReceived$)
-    .compose(flattenConcurrently)
+    .flatMap((it) => Kefir.fromPromise(this.hookAdapter.triggerBeforeReceived$(it)))
   private readonly _onMessageDelivered$ = this.realtimeAdapter
     .onMessageDelivered$()
-    .map(this.hookAdapter.triggerBeforeReceived$)
-    .compose(flattenConcurrently)
-  private readonly _onMessageDeleted$ = this.realtimeAdapter.onMessageDeleted$
-    .map(this.hookAdapter.triggerBeforeReceived$)
-    .compose(flattenConcurrently)
+    .flatMap((it) => Kefir.fromPromise(this.hookAdapter.triggerBeforeReceived$(it)))
+  private readonly _onMessageDeleted$ = this.realtimeAdapter.onMessageDeleted$.flatMap((it) =>
+    Kefir.fromPromise(this.hookAdapter.triggerBeforeReceived$(it))
+  )
   private readonly _onRoomCleared$ = this.realtimeAdapter
     .onRoomCleared$()
-    .map(this.hookAdapter.triggerBeforeReceived$)
-    .compose(flattenConcurrently)
+    .flatMap((it) => Kefir.fromPromise(this.hookAdapter.triggerBeforeReceived$(it)))
   // endregion
 
   public static get instance(): Qiscus {
@@ -164,16 +171,15 @@ export default class Qiscus {
       }
     }
 
-    return xs
-      .combine(
-        process(appId, isReqString({ appId })),
-        process(baseUrl, isOptString({ baseUrl })),
-        process(brokerUrl, isOptString({ brokerUrl })),
-        process(brokerLbUrl, isOptString({ brokerLbUrl })),
-        process(syncInterval, isOptNumber({ syncInterval })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .map(([appId, baseUrl, brokerUrl, brokerLbUrl, syncInterval]) => {
+    return Kefir.combine([
+      process(appId, isReqString({ appId })),
+      process(baseUrl, isOptString({ baseUrl })),
+      process(brokerUrl, isOptString({ brokerUrl })),
+      process(brokerLbUrl, isOptString({ brokerLbUrl })),
+      process(syncInterval, isOptNumber({ syncInterval })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .flatMap(([appId, baseUrl, brokerUrl, brokerLbUrl, syncInterval]) => {
         const defaultBaseUrl = this.storage.getBaseUrl()
         const defaultBrokerUrl = this.storage.getBrokerUrl()
         const defaultBrokerLbUrl = this.storage.getBrokerLbUrl()
@@ -203,10 +209,9 @@ export default class Qiscus {
         this.storage.setDebugEnabled(false)
         this.storage.setVersion('javascript-3.1.x')
 
-        return xs.fromPromise(this.userAdapter.getAppConfig())
+        return Kefir.fromPromise(this.userAdapter.getAppConfig())
       })
-      .compose(flattenConcurrently)
-      .map((appConfig) => {
+      .onValue((appConfig) => {
         this.storage.setBaseUrl(setterHelper(baseUrl, appConfig.baseUrl, this.storage.defaultBaseURL))
         this.storage.setBrokerUrl(
           brokerUrlSetter(setterHelper(brokerUrl, appConfig.brokerUrl, this.storage.defaultBrokerUrl))
@@ -223,7 +228,8 @@ export default class Qiscus {
           )
         )
       })
-      .compose(toCallbackOrPromise<void>(callback))
+      .map(() => undefined)
+      .thru(toCallbackOrPromise<void>(callback))
   }
 
   setCustomHeader(headers: Record<string, string>): void {
@@ -254,17 +260,16 @@ export default class Qiscus {
     extras?: object | null,
     callback?: null | IQCallback2<model.IQAccount>
   ): void | Promise<model.IQAccount> {
-    return xs
-      .combine(
-        process(userId, isReqString({ userId })),
-        process(userKey, isReqString({ userKey })),
-        process(username, isOptString({ username })),
-        process(avatarUrl, isOptString({ avatarUrl })),
-        process(extras, isOptJson({ extras })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .map(([userId, userKey, username, avatarUrl, extras]) =>
-        xs.fromPromise(
+    return Kefir.combine([
+      process(userId, isReqString({ userId })),
+      process(userKey, isReqString({ userKey })),
+      process(username, isOptString({ username })),
+      process(avatarUrl, isOptString({ avatarUrl })),
+      process(extras, isOptJson({ extras })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .flatMap(([userId, userKey, username, avatarUrl, extras]) =>
+        Kefir.fromPromise(
           this.userAdapter.login(userId, userKey, {
             name: username,
             avatarUrl,
@@ -272,35 +277,29 @@ export default class Qiscus {
           } as { name: string; avatarUrl: string; extras: any })
         )
       )
-      .compose(flattenConcurrently)
-      .compose(
-        tap(() => {
-          this.realtimeAdapter.mqtt.conneck()
-          this.realtimeAdapter.mqtt.subscribeUser(this.storage.getToken())
-        })
-      )
-      .compose(toCallbackOrPromise(callback))
+      .onValue(() => {
+        this.realtimeAdapter.mqtt.conneck()
+        this.realtimeAdapter.mqtt.subscribeUser(this.storage.getToken())
+      })
+      .thru(toCallbackOrPromise<model.IQAccount>(callback))
   }
 
   blockUser(userId: string): Promise<model.IQUser>
   blockUser(userId: string, callback?: IQCallback2<model.IQUser>): void
   blockUser(userId: string, callback?: IQCallback2<model.IQUser>) {
-    return xs
-      .combine(process(userId, isReqString({ userId })), process(callback, isOptCallback({ callback })))
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([userId]) => xs.fromPromise(this.userAdapter.blockUser(userId)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([process(userId, isReqString({ userId })), process(callback, isOptCallback({ callback }))])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([userId]) => Kefir.fromPromise(this.userAdapter.blockUser(userId)))
+      .thru(toCallbackOrPromise(callback))
   }
 
   clearUser(): Promise<void>
   clearUser(callback?: IQCallback1): void
   clearUser(callback?: IQCallback1): void | Promise<void> {
     // this method should clear currentUser and token
-    return xs
-      .combine(process(callback, isOptCallback({ callback })))
-      .map(() =>
-        xs.fromPromise(
+    return Kefir.combine([process(callback, isOptCallback({ callback }))])
+      .flatMap(() =>
+        Kefir.fromPromise(
           Promise.all([
             Promise.resolve(this.publishOnlinePresence(false)),
             Promise.resolve(this.userAdapter.clear()),
@@ -308,143 +307,126 @@ export default class Qiscus {
           ])
         )
       )
-      .compose(flattenConcurrently)
       .map(() => undefined as void)
-      .compose(toCallbackOrPromise<void>(callback))
+      .thru(toCallbackOrPromise<void>(callback))
   }
 
   unblockUser(userId: string): Promise<model.IQUser>
   unblockUser(userId: string, callback: IQCallback2<model.IQUser>): void
   unblockUser(userId: string, callback?: IQCallback2<model.IQUser>) {
-    return xs
-      .combine(process(userId, isReqString({ userId })), process(callback, isOptCallback({ callback })))
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([userId]) => xs.fromPromise(this.userAdapter.unblockUser(userId)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([process(userId, isReqString({ userId })), process(callback, isOptCallback({ callback }))])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([userId]) => Kefir.fromPromise(this.userAdapter.unblockUser(userId)))
+      .thru(toCallbackOrPromise(callback))
   }
 
   updateUser(username: string, avatarUrl: string, extras?: object): Promise<model.IQAccount>
   updateUser(username: string, avatarUrl: string, extras?: object, callback?: IQCallback2<model.IQAccount>): void
   updateUser(username: string, avatarUrl: string, extras?: object, callback?: IQCallback2<model.IQAccount>) {
     // this method should update current user
-    return xs
-      .combine(
-        process(username, isOptString({ username })),
-        process(avatarUrl, isOptString({ avatarUrl })),
-        process(extras, isOptJson({ extras })),
-        process(callback, isOptCallback({ callback }))
+    return Kefir.combine([
+      process(username, isOptString({ username })),
+      process(avatarUrl, isOptString({ avatarUrl })),
+      process(extras, isOptJson({ extras })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([username, avatarUrl, extras]) =>
+        Kefir.fromPromise(this.userAdapter.updateUser(username, avatarUrl, extras as any))
       )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([username, avatarUrl, extras]) =>
-        xs.fromPromise(this.userAdapter.updateUser(username, avatarUrl, extras as any))
-      )
-      .compose(flattenConcurrently)
-      .compose(
-        tap((user: model.IQAccount) => {
-          const currentUser = this.storage.getCurrentUser()
-          this.storage.setCurrentUser({
-            ...currentUser,
-            ...user,
-          })
+      .onValue((user) => {
+        const currentUser = this.storage.getCurrentUser()
+        this.storage.setCurrentUser({
+          ...currentUser,
+          ...user,
         })
-      )
-      .compose(toCallbackOrPromise(callback))
+      })
+      .thru(toCallbackOrPromise(callback))
   }
 
   updateMessage(message: model.IQMessage): Promise<void>
   updateMessage(message: model.IQMessage, callback?: IQCallback1): void
   updateMessage(message: model.IQMessage, callback?: IQCallback1) {
-    return xs
-      .combine(process(message, isReqJson({ message })), process(callback, isOptCallback({ callback })))
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([message]) => xs.fromPromise(this.messageAdapter.updateMessage(message)))
-      .compose(flattenConcurrently)
-      .mapTo(undefined as void)
-      .compose(toCallbackOrPromise<void>(callback))
+    return Kefir.combine([process(message, isReqJson({ message })), process(callback, isOptCallback({ callback }))])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([message]) => Kefir.fromPromise(this.messageAdapter.updateMessage(message)))
+      .map(() => undefined)
+      .thru(toCallbackOrPromise<void>(callback))
   }
 
   getBlockedUsers(page?: number, limit?: number): Promise<model.IQUser[]>
   getBlockedUsers(page?: number, limit?: number, callback?: IQCallback2<model.IQUser[]>): void
   getBlockedUsers(page?: number, limit?: number, callback?: IQCallback2<model.IQUser[]>) {
-    return xs
-      .combine(
-        process(page, isOptNumber({ page })),
-        process(limit, isOptNumber({ limit })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([page, limit]) => xs.fromPromise(this.userAdapter.getBlockedUser(page, limit)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([
+      process(page, isOptNumber({ page })),
+      process(limit, isOptNumber({ limit })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([page, limit]) => Kefir.fromPromise(this.userAdapter.getBlockedUser(page, limit)))
+      .thru(toCallbackOrPromise(callback))
   }
 
   getUsers(searchUsername?: string, page?: number, limit?: number): Promise<model.IQUser[]>
   getUsers(searchUsername?: string, page?: number, limit?: number, callback?: IQCallback2<model.IQUser[]>): void
   getUsers(searchUsername?: string, page?: number, limit?: number, callback?: IQCallback2<model.IQUser[]>) {
-    return xs
-      .combine(
-        process(searchUsername, isOptString({ searchUsername })),
-        process(page, isOptNumber({ page })),
-        process(limit, isOptNumber({ limit })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([search, page, limit]) => xs.fromPromise(this.userAdapter.getUserList(search, page, limit)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([
+      process(searchUsername, isOptString({ searchUsername })),
+      process(page, isOptNumber({ page })),
+      process(limit, isOptNumber({ limit })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([search, page, limit]) => Kefir.fromPromise(this.userAdapter.getUserList(search, page, limit)))
+      .thru(toCallbackOrPromise(callback))
   }
 
   getJWTNonce(): Promise<string>
   getJWTNonce(callback: IQCallback2<string>): void
   getJWTNonce(callback?: IQCallback2<string>): void | Promise<string> {
-    return xs
-      .combine(process(callback, isOptCallback({ callback })))
-      .map(() => xs.fromPromise(this.userAdapter.getNonce()))
-      .compose(flattenConcurrently)
-      .map((nonce) => nonce)
-      .compose(toCallbackOrPromise(callback))
+    return process(callback, isOptCallback({ callback }))
+      .flatMap(() => Kefir.fromPromise(this.userAdapter.getNonce()))
+      .thru(toCallbackOrPromise(callback))
   }
 
   getUserData(): Promise<model.IQAccount>
   getUserData(callback: IQCallback2<model.IQAccount>): void
   getUserData(callback?: IQCallback2<model.IQAccount>) {
-    return xs
-      .combine(process(callback, isOptCallback({ callback })))
-      .compose(bufferUntil(() => this.isLogin))
-      .map(() => xs.fromPromise(this.userAdapter.getUserData()))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return process(callback, isOptCallback({ callback }))
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(() => Kefir.fromPromise(this.userAdapter.getUserData()))
+      .thru(toCallbackOrPromise(callback))
   }
 
   registerDeviceToken(token: string, isDevelopment: boolean): Promise<boolean>
   registerDeviceToken(token: string, isDevelopment: boolean, callback: IQCallback2<boolean>): void
   registerDeviceToken(token: string, isDevelopment: boolean, callback?: IQCallback2<boolean>) {
-    return xs
-      .combine(
-        process(token, isReqString({ token })),
-        process(isDevelopment, isOptBoolean({ isDevelopment })),
-        process(callback, isOptCallback({ callback }))
+    return Kefir.combine([
+      process(token, isReqString({ token })),
+      process(isDevelopment, isOptBoolean({ isDevelopment })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([token, isDevelopment]) =>
+        Kefir.fromPromise(this.userAdapter.registerDeviceToken(token, isDevelopment))
       )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([token, isDevelopment]) => xs.fromPromise(this.userAdapter.registerDeviceToken(token, isDevelopment)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .thru(toCallbackOrPromise(callback))
   }
 
   removeDeviceToken(token: string, isDevelopment: boolean): Promise<boolean>
   removeDeviceToken(token: string, isDevelopment: boolean, callback: IQCallback2<boolean>): void
   removeDeviceToken(token: string, isDevelopment: boolean, callback?: IQCallback2<boolean>) {
-    return xs
-      .combine(
-        process(token, isReqString({ token })),
-        process(isDevelopment, isOptBoolean({ isDevelopment })),
-        process(callback, isOptCallback({ callback }))
+    return Kefir.combine([
+      process(token, isReqString({ token })),
+      process(isDevelopment, isOptBoolean({ isDevelopment })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([token, isDevelopment]) =>
+        Kefir.fromPromise(this.userAdapter.unregisterDeviceToken(token, isDevelopment))
       )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([token, isDevelopment]) => xs.fromPromise(this.userAdapter.unregisterDeviceToken(token, isDevelopment)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+
+      .thru(toCallbackOrPromise(callback))
   }
   updateChatRoom(roomId: number, name?: string, avatarUrl?: string, extras?: object): Promise<model.IQChatRoom>
   updateChatRoom(
@@ -462,39 +444,33 @@ export default class Qiscus {
     callback?: IQCallback2<model.IQChatRoom>
   ) {
     // this method should update room list
-    return xs
-      .combine(
-        process(roomId, isReqNumber({ roomId })),
-        process(name, isOptString({ name })),
-        process(avatarUrl, isOptString({ avatarUrl })),
-        process(extras, isOptJson({ extras }))
+    return Kefir.combine([
+      process(roomId, isReqNumber({ roomId })),
+      process(name, isOptString({ name })),
+      process(avatarUrl, isOptString({ avatarUrl })),
+      process(extras, isOptJson({ extras })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomId, name, avatarUrl, extras]) =>
+        Kefir.fromPromise(this.roomAdapter.updateRoom(roomId, name, avatarUrl, extras as any))
       )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId, name, avatarUrl, extras]) =>
-        xs.fromPromise(this.roomAdapter.updateRoom(roomId, name, avatarUrl, extras as any))
-      )
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .thru(toCallbackOrPromise(callback))
   }
 
   setUserWithIdentityToken(token: string): Promise<model.IQAccount>
   setUserWithIdentityToken(token: string, callback?: IQCallback2<model.IQAccount>): void
   setUserWithIdentityToken(token: string, callback?: IQCallback2<model.IQAccount>): void | Promise<model.IQAccount> {
-    return xs
-      .combine(process(token, isReqString({ token })), process(callback, isOptCallback({ callback })))
-      .map(([token]) => xs.fromPromise(this.userAdapter.setUserFromIdentityToken(token)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([process(token, isReqString({ token })), process(callback, isOptCallback({ callback }))])
+      .flatMap(([token]) => Kefir.fromPromise(this.userAdapter.setUserFromIdentityToken(token)))
+      .thru(toCallbackOrPromise(callback))
   }
 
   getChannel(uniqueId: string): Promise<model.IQChatRoom>
   getChannel(uniqueId: string, callback?: IQCallback2<model.IQChatRoom>): void
   getChannel(uniqueId: string, callback?: IQCallback2<model.IQChatRoom>) {
-    return xs
-      .combine(process(uniqueId, isReqString({ uniqueId })), process(callback, isOptCallback({ callback })))
-      .map(([uniqueId]) => xs.fromPromise(this.roomAdapter.getChannel(uniqueId)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([process(uniqueId, isReqString({ uniqueId })), process(callback, isOptCallback({ callback }))])
+      .flatMap(([uniqueId]) => Kefir.fromPromise(this.roomAdapter.getChannel(uniqueId)))
+      .thru(toCallbackOrPromise(callback))
   }
   // -------------------------------------------------------
 
@@ -502,30 +478,26 @@ export default class Qiscus {
   chatUser(userId: string, extras: Record<string, any>): Promise<model.IQChatRoom>
   chatUser(userId: string, extras: Record<string, any>, callback?: IQCallback2<model.IQChatRoom>): void
   chatUser(userId: string, extras: Record<string, any>, callback?: IQCallback2<model.IQChatRoom>) {
-    return xs
-      .combine(
-        process(userId, isReqString({ userId })),
-        process(extras, isOptJson({ extras })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([userId, extras]) => xs.fromPromise(this.roomAdapter.chatUser(userId, extras)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([
+      process(userId, isReqString({ userId })),
+      process(extras, isOptJson({ extras })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([userId, extras]) => Kefir.fromPromise(this.roomAdapter.chatUser(userId, extras)))
+      .thru(toCallbackOrPromise(callback))
   }
   addParticipants(roomId: number, userIds: string[]): Promise<model.IQParticipant[]>
   addParticipants(roomId: number, userIds: string[], callback?: IQCallback2<model.IQParticipant[]>): void
   addParticipants(roomId: number, userIds: string[], callback?: IQCallback2<model.IQParticipant[]>) {
-    return xs
-      .combine(
-        process(roomId, isReqNumber({ roomId })),
-        process(userIds, isReqArrayString({ userIds })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId, userIds]) => xs.fromPromise(this.roomAdapter.addParticipants(roomId, userIds)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([
+      process(roomId, isReqNumber({ roomId })),
+      process(userIds, isReqArrayString({ userIds })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomId, userIds]) => Kefir.fromPromise(this.roomAdapter.addParticipants(roomId, userIds)))
+      .thru(toCallbackOrPromise(callback))
   }
 
   removeParticipants(roomId: number, userIds: string[]): Promise<model.IQParticipant[] | string[]>
@@ -535,30 +507,26 @@ export default class Qiscus {
     userIds: string[],
     callback?: IQCallback2<model.IQParticipant[]>
   ): void | Promise<model.IQParticipant[] | string[]> {
-    return xs
-      .combine(
-        process(roomId, isReqNumber({ roomId })),
-        process(userIds, isReqArrayString({ userIds })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId, userIds]) => xs.fromPromise(this.roomAdapter.removeParticipants(roomId, userIds)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([
+      process(roomId, isReqNumber({ roomId })),
+      process(userIds, isReqArrayString({ userIds })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomId, userIds]) => Kefir.fromPromise(this.roomAdapter.removeParticipants(roomId, userIds)))
+      .thru(toCallbackOrPromise(callback))
   }
 
   clearMessagesByChatRoomId(roomUniqueIds: string[]): Promise<void>
   clearMessagesByChatRoomId(roomUniqueIds: string[], callback?: IQCallback1): void
   clearMessagesByChatRoomId(roomUniqueIds: string[], callback?: IQCallback1): void | Promise<void> {
-    return xs
-      .combine(
-        process(roomUniqueIds, isReqArrayString({ roomIds: roomUniqueIds })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomIds]) => xs.fromPromise(this.roomAdapter.clearRoom(roomIds)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise<void>(callback))
+    return Kefir.combine([
+      process(roomUniqueIds, isReqArrayString({ roomIds: roomUniqueIds })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomIds]) => Kefir.fromPromise(this.roomAdapter.clearRoom(roomIds)))
+      .thru(toCallbackOrPromise<void>(callback))
   }
 
   createGroupChat(name: string, userIds: string[], avatarUrl?: string, extras?: object): Promise<model.IQChatRoom>
@@ -576,20 +544,18 @@ export default class Qiscus {
     extras?: object,
     callback?: IQCallback2<model.IQChatRoom>
   ): void | Promise<model.IQChatRoom> {
-    return xs
-      .combine(
-        process(name, isReqString({ name })),
-        process(userIds, isReqArrayString({ userIds })),
-        process(avatarUrl, isOptString({ avatarUrl })),
-        process(extras, isOptJson({ extras })),
-        process(callback, isOptCallback({ callback }))
+    return Kefir.combine([
+      process(name, isReqString({ name })),
+      process(userIds, isReqArrayString({ userIds })),
+      process(avatarUrl, isOptString({ avatarUrl })),
+      process(extras, isOptJson({ extras })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([name, userIds, avatarUrl, extras]) =>
+        Kefir.fromPromise(this.roomAdapter.createGroup(name, userIds, avatarUrl, extras as any))
       )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([name, userIds, avatarUrl, extras]) =>
-        xs.fromPromise(this.roomAdapter.createGroup(name, userIds, avatarUrl, extras as any))
-      )
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .thru(toCallbackOrPromise(callback))
   }
 
   createChannel(uniqueId: string, name?: string, avatarUrl?: string, extras?: object): Promise<model.IQChatRoom>
@@ -607,20 +573,18 @@ export default class Qiscus {
     extras?: object,
     callback?: IQCallback2<model.IQChatRoom>
   ): void | Promise<model.IQChatRoom> {
-    return xs
-      .combine(
-        process(uniqueId, isReqString({ uniqueId })),
-        process(name, isReqString({ name })),
-        process(avatarUrl, isOptString({ avatarUrl })),
-        process(extras, isOptJson({ extras })),
-        process(callback, isOptCallback({ callback }))
+    return Kefir.combine([
+      process(uniqueId, isReqString({ uniqueId })),
+      process(name, isReqString({ name })),
+      process(avatarUrl, isOptString({ avatarUrl })),
+      process(extras, isOptJson({ extras })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([uniqueId, name, avatarUrl, extras]) =>
+        Kefir.fromPromise(this.roomAdapter.getChannel(uniqueId, name, avatarUrl, extras as any))
       )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([uniqueId, name, avatarUrl, extras]) =>
-        xs.fromPromise(this.roomAdapter.getChannel(uniqueId, name, avatarUrl, extras as any))
-      )
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .thru(toCallbackOrPromise(callback))
   }
 
   getParticipants(
@@ -643,20 +607,19 @@ export default class Qiscus {
     sorting?: 'asc' | 'desc',
     callback?: IQCallback2<model.IQParticipant[]>
   ): void | Promise<model.IQParticipant[]> {
-    return xs
-      .combine(
-        process(roomUniqueId, isReqString({ roomUniqueId })),
-        process(page, isOptNumber({ page })),
-        process(limit, isOptNumber({ limit })),
-        process(sorting, isOptString({ sorting })),
-        process(callback, isOptCallback({ callback }))
+    return Kefir.combine([
+      process(roomUniqueId, isReqString({ roomUniqueId })),
+      process(page, isOptNumber({ page })),
+      process(limit, isOptNumber({ limit })),
+      process(sorting, isOptString({ sorting })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomId, page, limit, sorting]) =>
+        Kefir.fromPromise(this.roomAdapter.getParticipantList(roomId, page, limit, sorting))
       )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId, page, limit, sorting]) =>
-        xs.fromPromise(this.roomAdapter.getParticipantList(roomId, page, limit, sorting))
-      )
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+
+      .thru(toCallbackOrPromise(callback))
   }
 
   getChatRooms(
@@ -687,22 +650,18 @@ export default class Qiscus {
     if (isArrayOfString(ids)) {
       uniqueIds = ids
     }
-    return xs
-      .combine(
-        // process(roomIds, isOptArrayNumber({ roomIds })),
-        // process(uniqueIds, isOptArrayString({ uniqueIds })),
-        process(ids, isReqArrayOfStringOrNumber({ ids })),
-        process(page, isOptNumber({ page })),
-        process(showRemoved, isOptBoolean({ showRemoved })),
-        process(showParticipant, isOptBoolean({ showParticipant })),
-        process(callback, isOptCallback({ callback }))
+    return Kefir.combine([
+      process(ids, isReqArrayOfStringOrNumber({ ids })),
+      process(page, isOptNumber({ page })),
+      process(showRemoved, isOptBoolean({ showRemoved })),
+      process(showParticipant, isOptBoolean({ showParticipant })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([_, page, showRemoved, showParticipant]) =>
+        Kefir.fromPromise(this.roomAdapter.getRoomInfo(roomIds, uniqueIds, page, showRemoved, showParticipant))
       )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([_, page, showRemoved, showParticipant]) =>
-        xs.fromPromise(this.roomAdapter.getRoomInfo(roomIds, uniqueIds, page, showRemoved, showParticipant))
-      )
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .thru(toCallbackOrPromise(callback))
   }
 
   getAllChatRooms(
@@ -728,21 +687,20 @@ export default class Qiscus {
     limit?: number,
     callback?: IQCallback2<model.IQChatRoom[]>
   ): void | Promise<model.IQChatRoom[]> {
-    return xs
-      .combine(
-        process(showParticipant, isOptBoolean({ showParticipant })),
-        process(showRemoved, isOptBoolean({ showRemoved })),
-        process(showEmpty, isOptBoolean({ showEmpty })),
-        process(page, isOptNumber({ page })),
-        process(limit, isOptNumber({ limit })),
-        process(callback, isOptCallback({ callback }))
+    return Kefir.combine([
+      process(showParticipant, isOptBoolean({ showParticipant })),
+      process(showRemoved, isOptBoolean({ showRemoved })),
+      process(showEmpty, isOptBoolean({ showEmpty })),
+      process(page, isOptNumber({ page })),
+      process(limit, isOptNumber({ limit })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([showParticipant, showRemoved, showEmpty, page, limit]) =>
+        Kefir.fromPromise(this.roomAdapter.getRoomList(showParticipant, showRemoved, showEmpty, page, limit))
       )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([showParticipant, showRemoved, showEmpty, page, limit]) =>
-        xs.fromPromise(this.roomAdapter.getRoomList(showParticipant, showRemoved, showEmpty, page, limit))
-      )
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+
+      .thru(toCallbackOrPromise(callback))
   }
 
   getChatRoomWithMessages(roomId: number): Promise<[model.IQChatRoom, model.IQMessage[]]>
@@ -751,34 +709,31 @@ export default class Qiscus {
     roomId: number,
     callback?: IQCallback2<[model.IQChatRoom, model.IQMessage[]]>
   ): void | Promise<[model.IQChatRoom, model.IQMessage[]]> {
-    return xs
-      .combine(process(roomId, isReqNumber({ roomId })), process(callback, isOptCallback({ callback })))
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId]) => xs.fromPromise(this.roomAdapter.getRoom(roomId)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback) as any)
+    return Kefir.combine([process(roomId, isReqNumber({ roomId })), process(callback, isOptCallback({ callback }))])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomId]) => Kefir.fromPromise(this.roomAdapter.getRoom(roomId)))
+
+      .thru(toCallbackOrPromise(callback) as any)
   }
 
   getTotalUnreadCount(): Promise<number>
   getTotalUnreadCount(callback?: IQCallback2<number>): void
   getTotalUnreadCount(callback?: IQCallback2<number>): void | Promise<number> {
-    return xs
-      .combine(process(callback, isOptCallback({ callback })))
-      .compose(bufferUntil(() => this.isLogin))
-      .map(() => xs.fromPromise(this.roomAdapter.getUnreadCount()))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([process(callback, isOptCallback({ callback }))])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(() => Kefir.fromPromise(this.roomAdapter.getUnreadCount()))
+
+      .thru(toCallbackOrPromise(callback))
   }
 
   getRoomUnreadCount(): Promise<number>
   getRoomUnreadCount(callback?: IQCallback2<number>): void
   getRoomUnreadCount(callback?: IQCallback2<number>): void | Promise<number> {
-    return xs
-      .combine(process(callback, isOptCallback({ callback })))
-      .compose(bufferUntil(() => this.isLogin))
-      .map(() => xs.fromPromise(this.roomAdapter.getRoomUnreadCount()))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return process(callback, isOptCallback({ callback }))
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(() => Kefir.fromPromise(this.roomAdapter.getRoomUnreadCount()))
+
+      .thru(toCallbackOrPromise(callback))
   }
   // ------------------------------------------------------
 
@@ -787,66 +742,59 @@ export default class Qiscus {
   sendMessage(message: model.IQMessage, callback?: IQCallback2<model.IQMessage>): void
   sendMessage(message: model.IQMessage, callback?: IQCallback2<model.IQMessage>) {
     const roomId = message.chatRoomId
-    return xs
-      .combine(
-        process(roomId, isReqNumber({ roomId })),
-        process(message, isReqJson({ message })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId, message]) =>
-        xs.fromPromise(
+    return Kefir.combine([
+      process(roomId, isReqNumber({ roomId })),
+      process(message, isReqJson({ message })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomId, message]) =>
+        Kefir.fromPromise(
           Promise.all([roomId, this.hookAdapter.trigger(Hooks.MESSAGE_BEFORE_SENT, message) as Promise<typeof message>])
         )
       )
-      .compose(flattenConcurrently)
-      .map(([roomId, message]) => xs.fromPromise(this.messageAdapter.sendMessage(roomId, message)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .flatMap(([roomId, message]) => Kefir.fromPromise(this.messageAdapter.sendMessage(roomId, message)))
+      .thru(toCallbackOrPromise(callback))
   }
 
   markAsDelivered(roomId: number, messageId: number): Promise<void>
   markAsDelivered(roomId: number, messageId: number, callback?: IQCallback2<void>): void
   markAsDelivered(roomId: number, messageId: number, callback?: IQCallback2<void>): void | Promise<void> {
-    return xs
-      .combine(
-        process(roomId, isReqNumber({ roomId })),
-        process(messageId, isReqNumber({ messageId })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId, messageId]) => xs.fromPromise(this.messageAdapter.markAsDelivered(roomId, messageId)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([
+      process(roomId, isReqNumber({ roomId })),
+      process(messageId, isReqNumber({ messageId })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomId, messageId]) => Kefir.fromPromise(this.messageAdapter.markAsDelivered(roomId, messageId)))
+
+      .thru(toCallbackOrPromise(callback))
   }
 
   markAsRead(roomId: number, messageId: number): Promise<void>
   markAsRead(roomId: number, messageId: number, callback?: IQCallback2<void>): void
   markAsRead(roomId: number, messageId: number, callback?: IQCallback2<void>): void | Promise<void> {
-    return xs
-      .combine(
-        process(roomId, isReqNumber({ roomId })),
-        process(messageId, isReqNumber({ messageId })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId, messageId]) => xs.fromPromise(this.messageAdapter.markAsRead(roomId, messageId)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([
+      process(roomId, isReqNumber({ roomId })),
+      process(messageId, isReqNumber({ messageId })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomId, messageId]) => Kefir.fromPromise(this.messageAdapter.markAsRead(roomId, messageId)))
+
+      .thru(toCallbackOrPromise(callback))
   }
 
   deleteMessages(messageUniqueIds: string[]): Promise<model.IQMessage[]>
   deleteMessages(messageUniqueIds: string[], callback?: IQCallback2<model.IQMessage[]>): void
   deleteMessages(messageUniqueIds: string[], callback?: IQCallback2<model.IQMessage[]>) {
-    return xs
-      .combine(
-        process(messageUniqueIds, isReqArrayString({ messageUniqueIds })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([messageUniqueIds]) => xs.fromPromise(this.messageAdapter.deleteMessage(messageUniqueIds)))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+    return Kefir.combine([
+      process(messageUniqueIds, isReqArrayString({ messageUniqueIds })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([messageUniqueIds]) => Kefir.fromPromise(this.messageAdapter.deleteMessage(messageUniqueIds)))
+      .thru(toCallbackOrPromise(callback))
   }
 
   getPreviousMessagesById(roomId: number, limit?: number, messageId?: number): Promise<model.IQMessage[]>
@@ -862,19 +810,17 @@ export default class Qiscus {
     messageId?: number,
     callback?: IQCallback2<model.IQMessage[]>
   ) {
-    return xs
-      .combine(
-        process(roomId, isReqNumber({ roomId })),
-        process(limit, isOptNumber({ limit })),
-        process(messageId, isOptNumber({ messageId })),
-        process(callback, isOptCallback({ callback }))
+    return Kefir.combine([
+      process(roomId, isReqNumber({ roomId })),
+      process(limit, isOptNumber({ limit })),
+      process(messageId, isOptNumber({ messageId })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomId, limit, messageId]) =>
+        Kefir.fromPromise(this.messageAdapter.getMessages(roomId, messageId, limit, false))
       )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId, limit, messageId]) =>
-        xs.fromPromise(this.messageAdapter.getMessages(roomId, messageId, limit, false))
-      )
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .thru(toCallbackOrPromise(callback))
   }
 
   getNextMessagesById(roomId: number, limit?: number, messageId?: number): Promise<model.IQMessage[]>
@@ -890,19 +836,17 @@ export default class Qiscus {
     messageId?: number,
     callback?: IQCallback2<model.IQMessage[]>
   ): void | Promise<model.IQMessage[]> {
-    return xs
-      .combine(
-        process(roomId, isReqNumber({ roomId })),
-        process(limit, isOptNumber({ limit })),
-        process(messageId, isOptNumber({ messageId })),
-        process(callback, isOptCallback({ callback }))
+    return Kefir.combine([
+      process(roomId, isReqNumber({ roomId })),
+      process(limit, isOptNumber({ limit })),
+      process(messageId, isOptNumber({ messageId })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomId, limit, messageId]) =>
+        Kefir.fromPromise(this.messageAdapter.getMessages(roomId, messageId, limit, true))
       )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId, limit, messageId]) =>
-        xs.fromPromise(this.messageAdapter.getMessages(roomId, messageId, limit, true))
-      )
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .thru(toCallbackOrPromise(callback))
   }
 
   searchMessage(opts: {
@@ -943,24 +887,23 @@ export default class Qiscus {
     limit?: number
     callback?: (messages?: model.IQMessage[], error?: Error) => void
   }) {
-    return xs
-      .combine(
-        process(query, isReqString({ query })),
-        process(
+    return Kefir.combine([
+      process(query, isReqString({ query })),
+      process(
+        roomIds,
+        isReqArrayString({
           roomIds,
-          isReqArrayString({
-            roomIds,
-          })
-        ),
-        process(userId, isOptString({ userId })),
-        process(type, isOptString({ type })),
-        process(roomType, isOptString({ roomType })),
-        process(page, isOptNumber({ page })),
-        process(limit, isOptNumber({ limit })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .map(([query, roomIds, userId, type, roomType, page, limit]) => {
-        return xs.fromPromise(
+        })
+      ),
+      process(userId, isOptString({ userId })),
+      process(type, isOptString({ type })),
+      process(roomType, isOptString({ roomType })),
+      process(page, isOptNumber({ page })),
+      process(limit, isOptNumber({ limit })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .flatMap(([query, roomIds, userId, type, roomType, page, limit]) => {
+        return Kefir.fromPromise(
           this.messageAdapter.searchMessages({
             query,
             roomIds,
@@ -972,8 +915,7 @@ export default class Qiscus {
           })
         )
       })
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+      .thru(toCallbackOrPromise(callback))
   }
 
   getFileList(opts: {
@@ -1008,24 +950,23 @@ export default class Qiscus {
     excludeExtensions?: string[]
     callback?: (messages?: model.IQMessage[], error?: Error) => void
   }): void | Promise<model.IQMessage[]> {
-    return xs
-      .combine(
-        process(roomIds, isReqArrayNumber({ roomIds })),
-        process(
+    return Kefir.combine([
+      process(roomIds, isReqArrayNumber({ roomIds })),
+      process(
+        fileType,
+        isOptString({
           fileType,
-          isOptString({
-            fileType,
-          })
-        ),
-        process(page, isOptNumber({ page })),
-        process(limit, isOptNumber({ limit })),
-        process(userId, isOptString({ userId })),
-        process(includeExtensions, isOptArrayString({ includeExtensions })),
-        process(excludeExtensions, isOptArrayString({ excludeExtensions })),
-        process(callback, isOptCallback({ callback }))
-      )
-      .map(([roomIds, fileType, page, limit, userId, includeExtensions, excludeExtensions]) => {
-        return xs.fromPromise(
+        })
+      ),
+      process(page, isOptNumber({ page })),
+      process(limit, isOptNumber({ limit })),
+      process(userId, isOptString({ userId })),
+      process(includeExtensions, isOptArrayString({ includeExtensions })),
+      process(excludeExtensions, isOptArrayString({ excludeExtensions })),
+      process(callback, isOptCallback({ callback })),
+    ])
+      .flatMap(([roomIds, fileType, page, limit, userId, includeExtensions, excludeExtensions]) => {
+        return Kefir.fromPromise(
           this.messageAdapter.getFileList({
             roomIds,
             fileType,
@@ -1037,8 +978,8 @@ export default class Qiscus {
           })
         )
       })
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise(callback))
+
+      .thru(toCallbackOrPromise(callback))
   }
   // -------------------------------------------------------
 
@@ -1047,43 +988,41 @@ export default class Qiscus {
   publishCustomEvent(roomId: number, data: any, callback?: IQCallback1): void
   publishCustomEvent(roomId: number, data: any, callback?: IQCallback1) {
     const userId = this.currentUser?.id
-    return xs
-      .combine(
-        process(roomId, isReqNumber({ roomId })),
-        process(userId, isReqString({ userId })),
-        process(data, isOptJson({ data }))
+    return Kefir.combine([
+      process(roomId, isReqNumber({ roomId })),
+      process(userId, isReqString({ userId })),
+      process(data, isOptJson({ data })),
+    ])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomId, userId, data]) =>
+        Kefir.fromPromise(Promise.resolve(this.realtimeAdapter.mqtt.publishCustomEvent(roomId, userId, data)))
       )
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId, userId, data]) =>
-        xs.fromPromise(Promise.resolve(this.realtimeAdapter.mqtt.publishCustomEvent(roomId, userId, data)))
-      )
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise<void>(callback))
+      .thru(toCallbackOrPromise<void>(callback))
   }
 
   publishOnlinePresence(isOnline: boolean): Promise<void>
   publishOnlinePresence(isOnline: boolean, callback?: IQCallback1): void
   publishOnlinePresence(isOnline: boolean, callback?: IQCallback1): void | Promise<void> {
     const userId = this.currentUser?.id
-    return xs
-      .combine(process(isOnline, isReqBoolean({ isOnline })), process(userId, isReqString({ userId })))
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([isOnline, userId]) => xs.fromPromise(Promise.resolve(this.realtimeAdapter.sendPresence(userId, isOnline))))
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise<void>(callback))
+    return Kefir.combine([process(isOnline, isReqBoolean({ isOnline })), process(userId, isReqString({ userId }))])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([isOnline, userId]) =>
+        Kefir.fromPromise(Promise.resolve(this.realtimeAdapter.sendPresence(userId, isOnline)))
+      )
+      .thru(toCallbackOrPromise<void>(callback))
   }
 
   publishTyping(roomId: number, isTyping?: boolean): Promise<void>
   publishTyping(roomId: number, isTyping?: boolean, callback?: IQCallback1): void
   publishTyping(roomId: number, isTyping?: boolean, callback?: IQCallback1): void | Promise<void> {
-    return xs
-      .combine(process(roomId, isReqNumber({ roomId })), process(isTyping, isOptBoolean({ isTyping })))
-      .compose(bufferUntil(() => this.isLogin))
-      .map(([roomId, isTyping]) =>
-        xs.fromPromise(Promise.resolve(this.realtimeAdapter.sendTyping(roomId, this.currentUser.id, isTyping ?? true)))
+    return Kefir.combine([process(roomId, isReqNumber({ roomId })), process(isTyping, isOptBoolean({ isTyping }))])
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(([roomId, isTyping]) =>
+        Kefir.fromPromise(
+          Promise.resolve(this.realtimeAdapter.sendTyping(roomId, this.currentUser.id, isTyping ?? true))
+        )
       )
-      .compose(flattenConcurrently)
-      .compose(toCallbackOrPromise<void>(callback))
+      .thru(toCallbackOrPromise<void>(callback))
   }
 
   subscribeCustomEvent(roomId: number, callback: IQCallback2<any>): void {
@@ -1120,10 +1059,9 @@ export default class Qiscus {
   hasSetupUser(): Promise<boolean>
   hasSetupUser(callback: IQCallback2<boolean>): void
   hasSetupUser(callback?: IQCallback2<boolean>): void | Promise<boolean> {
-    return xs
-      .of(this.currentUser)
+    return Kefir.constant(this.currentUser)
       .map((user) => user != null)
-      .compose(toCallbackOrPromise(callback))
+      .thru(toCallbackOrPromise(callback))
   }
 
   sendFileMessage(message: model.IQMessage, file: File, callback?: IQProgressListener<model.IQMessage>): void {
@@ -1166,9 +1104,9 @@ export default class Qiscus {
 
   enableDebugMode(enable: boolean, callback: IQCallback1) {
     process(enable, isReqBoolean({ enable }))
-      .compose(bufferUntil(() => this.isLogin))
+      .thru(bufferUntil(() => this.isLogin))
       .map((enable: boolean) => this.loggerAdapter.setEnable(enable))
-      .compose(toCallbackOrPromise<void>(callback))
+      .thru(toCallbackOrPromise<void>(callback))
   }
   static Interceptor = Hooks
   get Interceptor() {
@@ -1180,83 +1118,71 @@ export default class Qiscus {
 
   onMessageReceived(handler: (message: model.IQMessage) => void) {
     return process(handler, isRequired({ handler }))
-      .compose(bufferUntil(() => this.isLogin))
-      .mapTo(this._onMessageReceived$)
-      .compose(flattenConcurrently)
-      .compose(toEventSubscription_(handler))
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(() => this._onMessageReceived$)
+      .thru(toEventSubscription_(handler))
   }
 
   onMessageUpdated(handler: (message: model.IQMessage) => void): () => void {
     return process(handler, isRequired({ handler }))
-      .compose(bufferUntil(() => this.isLogin))
-      .mapTo(this._onMessageUpdated$)
-      .compose(flattenConcurrently)
-      .compose(toEventSubscription_(handler))
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(() => this._onMessageUpdated$)
+      .thru(toEventSubscription_(handler))
   }
   onMessageDeleted(handler: (message: model.IQMessage) => void): Subscription {
     return process(handler, isRequired({ handler }))
-      .compose(bufferUntil(() => this.isLogin))
-      .mapTo(this._onMessageDeleted$)
-      .compose(flattenConcurrently)
-      .compose(toEventSubscription_(handler))
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(() => this._onMessageDeleted$)
+      .thru(toEventSubscription_(handler))
   }
   onMessageDelivered(handler: (message: model.IQMessage) => void): Subscription {
     return process(handler, isRequired({ handler }))
-      .compose(bufferUntil(() => this.isLogin))
-      .mapTo(this._onMessageDelivered$)
-      .compose(flattenConcurrently)
-      .compose(toEventSubscription_(handler))
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(() => this._onMessageDelivered$)
+      .thru(toEventSubscription_(handler))
   }
   onMessageRead(handler: (message: model.IQMessage) => void): Subscription {
     return process(handler, isRequired({ handler }))
-      .compose(bufferUntil(() => this.isLogin))
-      .mapTo(this._onMessageRead$)
-      .compose(flattenConcurrently)
-      .compose(toEventSubscription_(handler))
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(() => this._onMessageRead$)
+      .thru(toEventSubscription_(handler))
   }
   onUserTyping(handler: (userId: string, roomId: number, isTyping: boolean) => void): Subscription {
     return process(handler, isRequired({ handler }))
-      .compose(bufferUntil(() => this.isLogin))
-      .compose(toEventSubscription(this.realtimeAdapter.onTyping))
+      .thru(bufferUntil(() => this.isLogin))
+      .thru(toEventSubscription(this.realtimeAdapter.onTyping))
   }
   onUserOnlinePresence(handler: (userId: string, isOnline: boolean, lastSeen: Date) => void): Subscription {
     return process(handler, isRequired({ handler }))
-      .compose(bufferUntil(() => this.isLogin))
-      .compose(toEventSubscription(this.realtimeAdapter.onPresence))
+      .thru(bufferUntil(() => this.isLogin))
+      .thru(toEventSubscription(this.realtimeAdapter.onPresence))
   }
   onChatRoomCleared(handler: Callback<number>): Subscription {
     return process(handler, isRequired({ handler }))
-      .compose(bufferUntil(() => this.isLogin))
-      .mapTo(this._onRoomCleared$)
-      .compose(flattenConcurrently)
-      .compose(
-        toEventSubscription_((data) => {
-          if (typeof data === 'number') return handler(data)
-          if (isChatRoom(data)) return handler(data.id)
-        })
-      )
+      .thru(bufferUntil(() => this.isLogin))
+      .flatMap(() => this._onRoomCleared$)
+      .thru(toEventSubscription_((data) => handler(data)))
   }
   onConnected(handler: () => void): Subscription {
     return process(handler, isRequired({ handler }))
-      .compose(bufferUntil(() => this.isLogin))
-      .compose(toEventSubscription(this.realtimeAdapter.mqtt.onMqttConnected))
+      .thru(bufferUntil(() => this.isLogin))
+      .thru(toEventSubscription(this.realtimeAdapter.mqtt.onMqttConnected))
   }
   onReconnecting(handler: () => void): Subscription {
     return process(handler, isRequired({ handler }))
-      .compose(bufferUntil(() => this.isLogin))
-      .compose(toEventSubscription(this.realtimeAdapter.mqtt.onMqttReconnecting))
+      .thru(bufferUntil(() => this.isLogin))
+      .thru(toEventSubscription(this.realtimeAdapter.mqtt.onMqttReconnecting))
   }
   onDisconnected(handler: () => void): Subscription {
     return process(handler, isRequired({ handler }))
-      .compose(bufferUntil(() => this.isLogin))
-      .compose(toEventSubscription(this.realtimeAdapter.mqtt.onMqttDisconnected))
+      .thru(bufferUntil(() => this.isLogin))
+      .thru(toEventSubscription(this.realtimeAdapter.mqtt.onMqttDisconnected))
   }
   subscribeChatRoom(room: model.IQChatRoom): void {
     process(room, isRequired({ room }))
-      .compose(bufferUntil(() => this.isLogin))
-      .map((it) => [it])
-      .compose(
-        subscribeOnNext(([room]) => {
+      .thru(bufferUntil(() => this.isLogin))
+      .thru(
+        subscribeOnNext((room) => {
           if (room.type === 'channel') {
             this.realtimeAdapter.mqtt.subscribeChannel(this.appId, room.uniqueId)
           } else {
@@ -1267,10 +1193,9 @@ export default class Qiscus {
   }
   unsubscribeChatRoom(room: model.IQChatRoom): void {
     process(room, isRequired({ room }))
-      .compose(bufferUntil(() => this.isLogin))
-      .map((it) => [it])
-      .compose(
-        subscribeOnNext(([room]) => {
+      .thru(bufferUntil(() => this.isLogin))
+      .thru(
+        subscribeOnNext((room) => {
           if (room.type === 'channel') this.realtimeAdapter.mqtt.unsubscribeChannel(this.appId, room.uniqueId)
           else this.realtimeAdapter.mqtt.unsubscribeRoom(room.id)
         })
@@ -1278,15 +1203,13 @@ export default class Qiscus {
   }
   subscribeUserOnlinePresence(userId: string): void {
     process(userId, isReqString({ userId }))
-      .compose(bufferUntil(() => this.isLogin))
-      .map((it) => [it])
-      .compose(subscribeOnNext(([userId]) => this.realtimeAdapter.mqtt.subscribeUserPresence(userId)))
+      .thru(bufferUntil(() => this.isLogin))
+      .thru(subscribeOnNext((userId) => this.realtimeAdapter.mqtt.subscribeUserPresence(userId)))
   }
   unsubscribeUserOnlinePresence(userId: string): void {
     process(userId, isReqString({ userId }))
-      .compose(bufferUntil(() => this.isLogin))
-      .map((it) => [it])
-      .compose(subscribeOnNext(([userId]) => this.realtimeAdapter.mqtt.unsubscribeUserPresence(userId)))
+      .thru(bufferUntil(() => this.isLogin))
+      .thru(subscribeOnNext((userId) => this.realtimeAdapter.mqtt.unsubscribeUserPresence(userId)))
   }
 
   _generateUniqueId(): string {

@@ -14,6 +14,9 @@ module.exports = (env) => {
     mode: env.production ? 'production' : 'development',
     stats: 'errors-only',
     target: env.target || 'web',
+    node: {
+      global: true,
+    },
     output: {
       path: path.join(__dirname, 'dist'),
       filename: filename.replace('{module}', 'umd'),
@@ -46,6 +49,12 @@ module.exports = (env) => {
     resolve: {
       modules: ['node_modules', 'src'],
       extensions: ['.ts', '.js'],
+      // fallback: {
+      //   buffer: require.resolve('buffer/'),
+      //   url: require.resolve('url/'),
+      //   events: require.resolve('events/'),
+      //   // global: true,
+      // },
     },
     plugins: [
       new webpack.DefinePlugin({
