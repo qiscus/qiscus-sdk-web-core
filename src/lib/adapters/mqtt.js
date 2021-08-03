@@ -183,6 +183,22 @@ export default class MqttAdapter {
     this.mqtt = this.__mqtt_conneck()
   }
 
+  /**
+   * @return {Promise<boolean}
+   */
+  async openConnection() {
+    this.shouldConnect = true
+    this.__mqtt_conneck()
+  }
+
+  /**
+   * @return {Promise<boolean>}
+   */
+  async closeConnection() {
+    this.shouldConnect = false
+    this.mqtt.end(true)
+  }
+
   async getMqttNode() {
     const res = await request.get(this.brokerLbUrl)
     const url = res.body.data.url

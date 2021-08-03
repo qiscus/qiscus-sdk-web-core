@@ -2181,6 +2181,22 @@ class QiscusSDK {
     this.realtimeAdapter.on('message:updated', handler)
     return () => this.realtimeAdapter.off('message:updated', handler)
   }
+
+  /**
+   * Manually close connection to mqtt server
+   * @return {Promise<boolean>} Wheter successfully close mqtt connection or not
+   */
+  async closeRealtimeConnection() {
+    return this.realtimeAdapter.closeConnection()
+  }
+
+  /**
+   * Manually open connection to mqtt server
+   * @return {Promise<boolean>} Wheter successfully connect to mqtt server or not
+   */
+  async openRealtimeConnection() {
+    return this.realtimeAdapter.openConnection()
+  }
 }
 
 class FileUploaded {
