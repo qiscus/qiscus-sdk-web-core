@@ -1,6 +1,5 @@
 import flatten from 'lodash.flatten'
 import { EventEmitter } from 'pietile-eventemitter'
-// import { EventEmitter } from 'events'
 import * as Api from '../api'
 import * as m from '../model'
 import * as Decoder from '../decoder'

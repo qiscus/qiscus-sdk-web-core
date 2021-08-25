@@ -13,7 +13,7 @@
       {
         "modules": false,
         "useBuiltIns": "usage",
-        // "corejs": 3,
+        "corejs": 3,
         "targets": {
           "browsers": "> 0.25%, not dead",
           "node": "10"

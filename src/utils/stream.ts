@@ -1,6 +1,6 @@
-import Kefir, { Stream, Subscription } from 'kefir'
-import { Subscription as Subs, IQCallback2 as Callback2, IQCallback1 as Callback1 } from '../defs'
-import { isCallback1, isCallback2 } from './param-utils'
+import Kefir, {Stream, Subscription} from 'kefir';
+import {IQCallback1 as Callback1, IQCallback2 as Callback2, Subscription as Subs} from '../defs';
+import {isCallback1, isCallback2} from './param-utils';
 
 export const toPromise = <T, E>(stream: Stream<T, E>): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -104,7 +104,8 @@ export const bufferUntil =
               await sleep(300)
             }
           }
-          listener.end()
+          listener.end();
+          subscription?.unsubscribe();
         },
       })
     })
@@ -126,8 +127,8 @@ export const toEventSubscription =
     })
 
     return () => {
-      subscription.unsubscribe()
-      subs()
+      subscription?.unsubscribe();
+      subs?.();
     }
   }
 

@@ -1,13 +1,13 @@
-import 'core-js/stable'
-import 'regenerator-runtime/runtime'
-import axios, { AxiosResponse } from 'axios'
-import { atom } from 'derivable'
-import Kefir from 'kefir'
-import { getLogger } from './adapters/logger'
-import getMessageAdapter from './adapters/message'
-import getRealtimeAdapter from './adapters/realtime'
-import getRoomAdapter from './adapters/room'
-import getUserAdapter from './adapters/user'
+import 'core-js/stable';
+import 'regenerator-runtime/runtime';
+import axios, {AxiosResponse} from 'axios';
+import {atom} from 'derivable';
+import Kefir from 'kefir';
+import {getLogger} from './adapters/logger';
+import getMessageAdapter from './adapters/message';
+import getRealtimeAdapter from './adapters/realtime';
+import getRoomAdapter from './adapters/room';
+import getUserAdapter from './adapters/user';
 import {
   Callback,
   IQCallback1,
@@ -17,11 +17,11 @@ import {
   IQProgressListener,
   Subscription,
   UploadResult,
-} from './defs'
-import { hookAdapterFactory, Hooks } from './hook'
-import * as model from './model'
-import * as Provider from './provider'
-import { storageFactory } from './storage'
+} from './defs';
+import {hookAdapterFactory, Hooks} from './hook';
+import * as model from './model';
+import * as Provider from './provider';
+import {storageFactory} from './storage';
 import {
   isArrayOfNumber,
   isArrayOfString,
@@ -39,7 +39,7 @@ import {
   isReqNumber,
   isReqString,
   isRequired,
-} from './utils/param-utils'
+} from './utils/param-utils';
 import {
   bufferUntil,
   process,
@@ -47,16 +47,18 @@ import {
   toCallbackOrPromise,
   toEventSubscription,
   toEventSubscription_,
-} from './utils/stream'
+} from './utils/stream';
+
+export {IQAccount, IQChatRoom, IQMessage, IQParticipant, IQUser} from './model';
 
 // @ts-ignore
 function polyfillGlobalThis() {
-  if (typeof globalThis !== 'undefined') return globalThis
+  if (typeof globalThis !== 'undefined') return globalThis;
   Object.defineProperty(Object.prototype, 'globalThis', {
     get: function () {
       // @ts-ignore
-      delete Object.prototype.globalThis
-      this.globalThis = this
+      delete Object.prototype.globalThis;
+      this.globalThis = this;
     },
     configurable: true,
   })
@@ -152,15 +154,15 @@ export default class Qiscus {
     const setterHelper = <T>(fromUser: T, fromServer: T, defaultValue: T): T => {
       if (typeof fromServer === 'string' && fromServer === '') {
         if (fromUser != null) {
-          if (typeof fromUser !== 'string') return fromUser
-          if (fromUser.length > 0) return fromUser
+          if (typeof fromUser !== 'string') return fromUser;
+          if (fromUser.length > 0) return fromUser;
         }
       }
-      if (typeof fromServer === 'string' && fromServer != null) {
-        if (fromServer.length > 0) return fromServer
-        if (typeof fromServer !== 'string') return fromServer
+      if (typeof fromServer === 'string') {
+        if (fromServer.length > 0) return fromServer;
+        if (typeof fromServer !== 'string') return fromServer;
       }
-      return defaultValue
+      return defaultValue;
     }
 
     const brokerUrlSetter = (mqttResult: string) => {
@@ -172,13 +174,14 @@ export default class Qiscus {
     }
 
     return Kefir.combine([
-      process(appId, isReqString({ appId })),
-      process(baseUrl, isOptString({ baseUrl })),
-      process(brokerUrl, isOptString({ brokerUrl })),
-      process(brokerLbUrl, isOptString({ brokerLbUrl })),
-      process(syncInterval, isOptNumber({ syncInterval })),
-      process(callback, isOptCallback({ callback })),
-    ])
+        process(appId, isReqString({appId})),
+        process(baseUrl, isOptString({baseUrl})),
+        process(brokerUrl, isOptString({brokerUrl})),
+        process(brokerLbUrl, isOptString({brokerLbUrl})),
+        process(syncInterval, isOptNumber({syncInterval})),
+        process(callback, isOptCallback({callback})),
+      ])
+      .log("setup donk")
       .flatMap(([appId, baseUrl, brokerUrl, brokerLbUrl, syncInterval]) => {
         const defaultBaseUrl = this.storage.getBaseUrl()
         const defaultBrokerUrl = this.storage.getBrokerUrl()
@@ -194,42 +197,49 @@ export default class Qiscus {
         if ((isDifferentBaseUrl || isDifferentBrokerUrl) && !isDifferentBrokerLbUrl) {
           this.loggerAdapter.log(
             '' +
-              'force disable load balancing for realtime server, because ' +
-              '`baseUrl` or `brokerUrl` get changed but ' +
-              'did not provide `brokerLbURL`'
-          )
-          this.storage.setBrokerLbEnabled(false)
+            'force disable load balancing for realtime server, because ' +
+            '`baseUrl` or `brokerUrl` get changed but ' +
+            'did not provide `brokerLbURL`'
+          );
+          this.storage.setBrokerLbEnabled(false);
         }
 
-        this.storage.setAppId(appId)
-        this.storage.setBaseUrl(baseUrl)
-        this.storage.setBrokerUrl(brokerUrl)
-        this.storage.setBrokerLbUrl(brokerLbUrl)
-        this.storage.setSyncInterval(syncInterval)
-        this.storage.setDebugEnabled(false)
-        this.storage.setVersion('javascript-3.1.x')
+        this.storage.setAppId(appId);
+        this.storage.setBaseUrl(baseUrl);
+        this.storage.setBrokerUrl(brokerUrl);
+        this.storage.setBrokerLbUrl(brokerLbUrl);
+        this.storage.setSyncInterval(syncInterval);
+        this.storage.setDebugEnabled(false);
+        this.storage.setVersion('javascript-3.1.x');
 
-        return Kefir.fromPromise(this.userAdapter.getAppConfig())
+        return Kefir.fromPromise(this.userAdapter.getAppConfig());
       })
       .onValue((appConfig) => {
-        this.storage.setBaseUrl(setterHelper(baseUrl, appConfig.baseUrl, this.storage.defaultBaseURL))
+        this.storage.setBaseUrl(setterHelper(baseUrl, appConfig.baseUrl, this.storage.defaultBaseURL));
         this.storage.setBrokerUrl(
           brokerUrlSetter(setterHelper(brokerUrl, appConfig.brokerUrl, this.storage.defaultBrokerUrl))
-        )
-        this.storage.setBrokerLbUrl(setterHelper(brokerLbUrl, appConfig.brokerLbUrl, this.storage.defaultBrokerLbUrl))
+        );
+        this.storage.setBrokerLbUrl(setterHelper(brokerLbUrl, appConfig.brokerLbUrl, this.storage.defaultBrokerLbUrl));
         this.storage.setSyncInterval(
           setterHelper(syncInterval, appConfig.syncInterval, this.storage.defaultSyncInterval)
-        )
+        );
         this.storage.setSyncIntervalWhenConnected(
           setterHelper(
             this.storage.defaultSyncIntervalWhenConnected,
             appConfig.syncOnConnect,
             this.storage.defaultSyncIntervalWhenConnected
           )
-        )
+        );
+        return this.storage;
       })
       .map(() => undefined)
-      .thru(toCallbackOrPromise<void>(callback))
+      // .observe({
+      //   value: (value) => console.log('got value', value),
+      //   error: (err) => console.log('got error', err),
+      //   end: () => console.log('sudah end')
+      // })
+    // @ts-ignore
+    .thru(toCallbackOrPromise<void>(callback))
   }
 
   setCustomHeader(headers: Record<string, string>): void {
