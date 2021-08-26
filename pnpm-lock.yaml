@@ -36,6 +36,7 @@ specifiers:
   mqtt: ^3.0.0
   npm-run-all: ^4.1.5
   pietile-eventemitter: ^1.0.0
+  regenerator-runtime: ^0.13.9
   rimraf: ^2.7.1
   serve: ^11.3.2
   ts-jest: ^26.4.2
@@ -60,6 +61,7 @@ dependencies:
   lodash.flatten: 4.4.0
   mqtt: 3.0.0
   pietile-eventemitter: 1.0.1
+  regenerator-runtime: 0.13.9
   tslib: 1.14.1
   xstream: 11.14.0
 
@@ -5983,6 +5985,10 @@ packages:
 
   /regenerator-runtime/0.13.7:
     resolution: {integrity: sha512-a54FxoJDIr27pgf7IgeQGxmqUNYrcV338lf/6gH456HZ/PhX+5BcwHXG9ajESmwe6WRO0tAzRUrRmNONWgkrew==}
+
+  /regenerator-runtime/0.13.9:
+    resolution: {integrity: sha512-p3VT+cOEgxFsRRA9X4lkI1E+k2/CtnKtU4gcxyaCUreilL/vqI6CdZ3wxVUx3UOUg+gnUOQQcRI7BmSI656MYA==}
+    dev: false
 
   /regenerator-transform/0.14.5:
     resolution: {integrity: sha512-eOf6vka5IO151Jfsw2NO9WpGX58W6wWmefK3I1zEGr0lOD0u8rwPaNqQL1aRxUaxLeKO3ArNh3VYg1KbaD+FFw==}

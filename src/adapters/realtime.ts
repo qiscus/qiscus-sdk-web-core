@@ -1,3 +1,4 @@
+import { ApiRequester } from 'src/api'
 import xs from 'xstream'
 import { Callback, Subscription } from '../defs'
 import * as model from '../model'
@@ -32,11 +33,12 @@ function isNumber(data: model.IQChatRoom | number): data is number {
 }
 
 export type RealtimeAdapter = ReturnType<typeof getRealtimeAdapter>
-export default function getRealtimeAdapter(storage: Storage) {
+export default function getRealtimeAdapter(storage: Storage, api: ApiRequester) {
   const mqtt = getMqttAdapter(storage)
   const logger = getLogger(storage)
   const sync = getSyncAdapter({
     s: storage,
+    api: api,
     shouldSync() {
       // if (mqtt.mqtt == null) return true
       return mqtt.mqtt?.connected !== true

@@ -21,8 +21,11 @@
     "build:lib:cjs": "tsc --build tsconfig.json",
     "build:lib:esm": "tsc -m es2015 --outDir lib-esm",
     "build:bundle": "webpack --env.production --env.target=web",
-    "build:bundle:watch": "webpack --env.development --env.target=web --watch",
     "build:bundle:dev": "webpack --env.development --env.target=web",
+    "build:watch": "run-p build:watch:*",
+    "build:watch:bundle": "webpack --env.development --env.target=web --watch",
+    "build:watch:cjs": "tsc --build tsconfig.json --watch",
+    "build:watch:esm": "tsc -m es2015 --outDir lib-esm",
     "test": "jest"
   },
   "prettier": {
@@ -46,6 +49,7 @@
     "lodash.flatten": "^4.4.0",
     "mqtt": "^3.0.0",
     "pietile-eventemitter": "^1.0.0",
+    "regenerator-runtime": "^0.13.9",
     "tslib": "^1.10.0",
     "xstream": "^11.11.0"
   },

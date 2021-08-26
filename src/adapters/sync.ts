@@ -24,6 +24,7 @@ export interface IQSyncEvent {
 export type SyncAdapter = ReturnType<typeof getSyncAdapter>
 export default function getSyncAdapter(o: {
   s: Storage
+  api: Api.ApiRequester
   shouldSync: () => boolean
   logger: (...args: string[]) => void
 }) {
@@ -35,14 +36,14 @@ export default function getSyncAdapter(o: {
     return o.s.getSyncIntervalWhenConnected()
   }
 
-  const sync = synchronizeFactory(getInterval, enableSync, () => o.s.getLastMessageId(), o.logger, o.s)
+  const sync = synchronizeFactory(getInterval, enableSync, () => o.s.getLastMessageId(), o.logger, o.s, o.api)
   sync.on('last-message-id.new', (id) => o.s.setLastMessageId(id))
   sync.on('message.new', (m) => {
     emitter.emit('message.new', m)
   })
   sync.run().catch((err) => o.logger('got error when sync', err))
 
-  const syncEvent = synchronizeEventFactory(getInterval, enableSync, () => o.s.getLastEventId(), o.logger, o.s)
+  const syncEvent = synchronizeEventFactory(getInterval, enableSync, () => o.s.getLastEventId(), o.logger, o.s, o.api)
   syncEvent.on('last-event-id.new', (id) => o.s.setLastEventId(id))
   syncEvent.on('message.read', (it) => emitter.emit('message.read', it))
   syncEvent.on('message.delivered', (it) => emitter.emit('message.delivered', it))
@@ -93,7 +94,8 @@ const synchronizeFactory = (
   getEnableSync: () => boolean,
   getId: () => m.IQAccount['lastMessageId'],
   logger: (...arg: string[]) => void,
-  s: Storage
+  s: Storage,
+  api: Api.ApiRequester
 ) => {
   interface Event {
     'last-message-id.new': (messageId: m.IQAccount['lastMessageId']) => void
@@ -109,23 +111,25 @@ const synchronizeFactory = (
     messages: m.IQMessage[]
     interval: number
   }> => {
-    return Api.request<SyncResponse.RootObject>(
-      Api.synchronize({
-        ...Provider.withBaseUrl(s),
-        ...Provider.withCredentials(s),
-        lastMessageId: messageId,
-        limit: 20,
-      })
-    ).then((resp) => {
-      const messages = resp.results.comments.map((it) =>
-        Decoder.message({
-          ...it,
-          room_type: it.chat_type,
+    return api
+      .request<SyncResponse.RootObject>(
+        Api.synchronize({
+          ...Provider.withBaseUrl(s),
+          ...Provider.withCredentials(s),
+          lastMessageId: messageId,
+          limit: 20,
         })
       )
-      const lastMessageId = resp.results.meta.last_received_comment_id ?? 0
-      return { lastMessageId, messages, interval: getInterval() }
-    })
+      .then((resp) => {
+        const messages = resp.results.comments.map((it) =>
+          Decoder.message({
+            ...it,
+            room_type: it.chat_type,
+          })
+        )
+        const lastMessageId = resp.results.meta.last_received_comment_id ?? 0
+        return { lastMessageId, messages, interval: getInterval() }
+      })
   }
 
   async function* generator() {
@@ -180,7 +184,8 @@ const synchronizeEventFactory = (
   getEnableSync: () => boolean,
   getId: () => m.IQAccount['lastSyncEventId'],
   logger: (...args: string[]) => void,
-  s: Storage
+  s: Storage,
+  api: Api.ApiRequester
 ) => {
   interface Event {
     'last-event-id.new': (lastId: m.IQAccount['lastSyncEventId']) => void
@@ -194,86 +199,88 @@ const synchronizeEventFactory = (
   const emitter = new EventEmitter<Event>()
   // const emitter = new EventEmitter()
   const synchronize = (eventId: m.IQAccount['lastSyncEventId']) => {
-    return Api.request<SyncEventResponse.RootObject>(
-      Api.synchronizeEvent({
-        ...Provider.withBaseUrl(s),
-        ...Provider.withCredentials(s),
-        lastEventId: eventId,
-      })
-    ).then((resp) => {
-      const events = resp.events
-      const lastId =
-        events
-          .map((it) => it.id)
-          .sort((a, b) => a - b)
-          .pop() ?? 0
-
-      //region Delivered
-      const messageDelivered = events
-        .filter((it) => it.action_topic === 'delivered')
-        .map((it) => it.payload.data as SyncEventResponse.DataMessageDelivered)
-        .map((it) =>
-          Decoder.message({
-            id: it.comment_id,
-            unique_temp_id: it.comment_unique_id,
-            email: it.email,
-            room_id: it.room_id,
-          } as any)
-        )
-      //endregion
-      //region Read
-      const messageRead = events
-        .filter((it) => it.action_topic === 'read')
-        .map((it) => it.payload.data as SyncEventResponse.DataMessageDelivered)
-        .map((it) =>
-          Decoder.message({
-            id: it.comment_id,
-            unique_temp_id: it.comment_unique_id,
-            email: it.email,
-            room_id: it.room_id,
-          } as any)
-        )
-      //endregion
-      //region Deleted
-      // const messageDeleted = events
-      //   .filter(it => it.action_topic === 'deleted_message')
-      //   .map(it => it.payload.data as SyncEventResponse.DataMessageDeleted)
-      //   .map(p1 => p1.deleted_messages.map(
-      //     p2 => p2.message_unique_ids.map(uniqueId => Decoder.message({
-      //       unique_temp_id: uniqueId,
-      //       room_id: parseInt(p2.room_id),
-      //     } as any))))
-      //   .map(it => flatten(it))
-      const messageDeleted = events
-        .filter((it) => it.action_topic === 'deleted_message')
-        .map((it) => it.payload.data as SyncEventResponse.DataMessageDeleted)
-        .map((p1) => {
-          const msgs = p1.deleted_messages.map((it) =>
-            it.message_unique_ids.map((id) =>
-              Decoder.message({
-                unique_temp_id: id,
-                room_id: parseInt(it.room_id),
-              } as any)
-            )
-          )
-          return flatten(msgs)
+    return api
+      .request<SyncEventResponse.RootObject>(
+        Api.synchronizeEvent({
+          ...Provider.withBaseUrl(s),
+          ...Provider.withCredentials(s),
+          lastEventId: eventId,
         })
-      //endregion
-      //region Room Cleared
-      const roomCleared = events
-        .filter((it) => it.action_topic === 'clear_room')
-        .map((it) => it.payload.data as SyncEventResponse.DataRoomCleared)
-        .map((p1) => p1.deleted_rooms.map((r: any) => Decoder.room(r)))
-      //endregion
-      return {
-        lastId,
-        messageDelivered,
-        messageRead,
-        messageDeleted,
-        roomCleared,
-        interval: getInterval(),
-      }
-    })
+      )
+      .then((resp) => {
+        const events = resp.events
+        const lastId =
+          events
+            .map((it) => it.id)
+            .sort((a, b) => a - b)
+            .pop() ?? 0
+
+        //region Delivered
+        const messageDelivered = events
+          .filter((it) => it.action_topic === 'delivered')
+          .map((it) => it.payload.data as SyncEventResponse.DataMessageDelivered)
+          .map((it) =>
+            Decoder.message({
+              id: it.comment_id,
+              unique_temp_id: it.comment_unique_id,
+              email: it.email,
+              room_id: it.room_id,
+            } as any)
+          )
+        //endregion
+        //region Read
+        const messageRead = events
+          .filter((it) => it.action_topic === 'read')
+          .map((it) => it.payload.data as SyncEventResponse.DataMessageDelivered)
+          .map((it) =>
+            Decoder.message({
+              id: it.comment_id,
+              unique_temp_id: it.comment_unique_id,
+              email: it.email,
+              room_id: it.room_id,
+            } as any)
+          )
+        //endregion
+        //region Deleted
+        // const messageDeleted = events
+        //   .filter(it => it.action_topic === 'deleted_message')
+        //   .map(it => it.payload.data as SyncEventResponse.DataMessageDeleted)
+        //   .map(p1 => p1.deleted_messages.map(
+        //     p2 => p2.message_unique_ids.map(uniqueId => Decoder.message({
+        //       unique_temp_id: uniqueId,
+        //       room_id: parseInt(p2.room_id),
+        //     } as any))))
+        //   .map(it => flatten(it))
+        const messageDeleted = events
+          .filter((it) => it.action_topic === 'deleted_message')
+          .map((it) => it.payload.data as SyncEventResponse.DataMessageDeleted)
+          .map((p1) => {
+            const msgs = p1.deleted_messages.map((it) =>
+              it.message_unique_ids.map((id) =>
+                Decoder.message({
+                  unique_temp_id: id,
+                  room_id: parseInt(it.room_id),
+                } as any)
+              )
+            )
+            return flatten(msgs)
+          })
+        //endregion
+        //region Room Cleared
+        const roomCleared = events
+          .filter((it) => it.action_topic === 'clear_room')
+          .map((it) => it.payload.data as SyncEventResponse.DataRoomCleared)
+          .map((p1) => p1.deleted_rooms.map((r: any) => Decoder.room(r)))
+        //endregion
+        return {
+          lastId,
+          messageDelivered,
+          messageRead,
+          messageDeleted,
+          roomCleared,
+          interval: getInterval(),
+        }
+      })
   }
 
   async function* generator() {

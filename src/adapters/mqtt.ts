@@ -165,6 +165,7 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
     return `${appId}_${userId}_${now}`
   }
   const __mqtt_conneck = (brokerUrl: string) => {
+    console.log('@__mqtt_conneck', brokerUrl, mqtt)
     if (mqtt != null) {
       mqtt?.removeAllListeners()
       mqtt?.end(true)
@@ -188,11 +189,11 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
     mqtt_.addListener('error', __mqtt_error_handler)
     mqtt_.addListener('message', __mqtt_message_handler)
 
-    intervalId = (setInterval(() => {
+    intervalId = setInterval(() => {
       if (s.getCurrentUser() != null) {
         sendPresence(mqtt, s.getCurrentUser().id, true)
       }
-    }, 3500) as unknown) as number
+    }, 3500) as unknown as number
 
     return mqtt_ as _MqttClient
   }

@@ -1,5 +1,4 @@
 import axios, { AxiosResponse } from 'axios'
-import { atom } from 'derivable'
 import xs from 'xstream'
 import flattenConcurrently from 'xstream/extra/flattenConcurrently'
 import { getLogger } from './adapters/logger'
@@ -7,6 +6,7 @@ import getMessageAdapter from './adapters/message'
 import getRealtimeAdapter from './adapters/realtime'
 import getRoomAdapter from './adapters/room'
 import getUserAdapter from './adapters/user'
+import { makeApiRequest } from './api'
 import {
   Callback,
   IQCallback1,
@@ -50,20 +50,21 @@ import {
 } from './utils/stream'
 import { isChatRoom } from './utils/try-catch'
 
+export type { IQAccount, IQChatRoom, IQMessage, IQParticipant, IQUser } from './model'
+
 export default class Qiscus {
   private static _instance: Qiscus
 
   private storage = storageFactory()
 
   // region Property
+  private readonly apiAdapter = makeApiRequest(this.storage)
   private readonly hookAdapter = hookAdapterFactory()
-  private readonly userAdapter = getUserAdapter(this.storage)
-  private readonly realtimeAdapter = getRealtimeAdapter(this.storage)
+  private readonly userAdapter = getUserAdapter(this.storage, this.apiAdapter)
+  private readonly realtimeAdapter = getRealtimeAdapter(this.storage, this.apiAdapter)
   private readonly loggerAdapter = getLogger(this.storage)
-  private readonly roomAdapter = getRoomAdapter(this.storage)
-  private readonly messageAdapter = getMessageAdapter(this.storage)
-
-  private readonly _customHeaders = atom<{ [key: string]: string }>({})
+  private readonly roomAdapter = getRoomAdapter(this.storage, this.apiAdapter)
+  private readonly messageAdapter = getMessageAdapter(this.storage, this.apiAdapter)
 
   private readonly _onMessageReceived$ = this.realtimeAdapter
     .onNewMessage$()
@@ -227,7 +228,7 @@ export default class Qiscus {
   }
 
   setCustomHeader(headers: Record<string, string>): void {
-    this._customHeaders.set(headers)
+    this.storage.setCustomHeaders(headers)
   }
 
   // User Adapter ------------------------------------------
@@ -484,6 +485,12 @@ export default class Qiscus {
       .combine(process(token, isReqString({ token })), process(callback, isOptCallback({ callback })))
       .map(([token]) => xs.fromPromise(this.userAdapter.setUserFromIdentityToken(token)))
       .compose(flattenConcurrently)
+      .compose(
+        tap(() => {
+          this.realtimeAdapter.mqtt.conneck()
+          this.realtimeAdapter.mqtt.subscribeUser(this.storage.getToken())
+        })
+      )
       .compose(toCallbackOrPromise(callback))
   }
 
@@ -499,9 +506,9 @@ export default class Qiscus {
   // -------------------------------------------------------
 
   // Room Adapter ------------------------------------------
-  chatUser(userId: string, extras: Record<string, any>): Promise<model.IQChatRoom>
-  chatUser(userId: string, extras: Record<string, any>, callback?: IQCallback2<model.IQChatRoom>): void
-  chatUser(userId: string, extras: Record<string, any>, callback?: IQCallback2<model.IQChatRoom>) {
+  chatUser(userId: string, extras?: Record<string, any>): Promise<model.IQChatRoom>
+  chatUser(userId: string, extras?: Record<string, any>, callback?: IQCallback2<model.IQChatRoom>): void
+  chatUser(userId: string, extras?: Record<string, any>, callback?: IQCallback2<model.IQChatRoom>) {
     return xs
       .combine(
         process(userId, isReqString({ userId })),
@@ -1300,7 +1307,7 @@ export default class Qiscus {
   }: {
     roomId: number
     text: string
-    extras: Record<string, any>
+    extras?: Record<string, any>
   }): model.IQMessage {
     const id = Math.ceil(Math.random() * 1e4)
     return {
@@ -1331,9 +1338,9 @@ export default class Qiscus {
     caption: string
     url: string
     text: string
-    extras: Record<string, unknown>
-    filename: string
-    size: number
+    extras?: Record<string, unknown>
+    filename?: string
+    size?: number
   }): model.IQMessage {
     const id = Math.ceil(Math.random() * 1e4)
     return {
@@ -1366,8 +1373,8 @@ export default class Qiscus {
     roomId: number
     text: string
     type: string
-    extras: Record<string, unknown>
-    payload: Record<string, any>
+    extras?: Record<string, unknown>
+    payload?: Record<string, any>
   }): model.IQMessage {
     const id = Math.ceil(Math.random() * 1e4)
     return {
@@ -1397,7 +1404,7 @@ export default class Qiscus {
     roomId: number
     text: string
     repliedMessage: model.IQMessage
-    extras: Record<string, unknown>
+    extras?: Record<string, unknown>
   }): model.IQMessage {
     const id = Math.ceil(Math.random() * 1e4)
     return {
