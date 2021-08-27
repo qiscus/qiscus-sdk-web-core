@@ -1171,7 +1171,7 @@ export default class Qiscus {
     this.realtimeAdapter.synchronizeEvent(lastEventId)
   }
 
-  enableDebugMode(enable: boolean, callback: IQCallback1) {
+  enableDebugMode(enable: boolean, callback?: IQCallback1) {
     process(enable, isReqBoolean({ enable }))
       .compose(bufferUntil(() => this.isLogin))
       .map((enable: boolean) => this.loggerAdapter.setEnable(enable))

@@ -17,31 +17,35 @@ export const toPromise = <T>(stream: Stream<T>): Promise<T> =>
       },
     })
   })
-export const toCallback = <T>(callback: Callback2<T> | Callback1) => (stream: Stream<T>) => {
-  let value: T
-  const subscription = stream.subscribe({
-    next(data) {
-      value = data
-    },
-    error(error) {
-      if (isCallback1(callback)) {
-        callback(error)
-      }
-      if (isCallback2(callback)) {
-        callback(undefined, error)
-      }
-    },
-    complete() {
-      if (isCallback1(callback)) callback(undefined)
-      if (isCallback2(callback)) callback(value, undefined)
-      subscription?.unsubscribe()
-    },
-  })
-}
-export const toCallbackOrPromise = <T>(callback?: Callback1 | Callback2<T> | null) => (stream: Stream<T>) => {
-  if (callback == null) return toPromise(stream)
-  return toCallback(callback)(stream)
-}
+export const toCallback =
+  <T>(callback: Callback2<T> | Callback1) =>
+  (stream: Stream<T>) => {
+    let value: T
+    const subscription = stream.subscribe({
+      next(data) {
+        value = data
+      },
+      error(error) {
+        if (isCallback1(callback)) {
+          callback(error)
+        }
+        if (isCallback2(callback)) {
+          callback(undefined, error)
+        }
+      },
+      complete() {
+        if (isCallback1(callback)) callback(undefined)
+        if (isCallback2(callback)) callback(value, undefined)
+        subscription?.unsubscribe()
+      },
+    })
+  }
+export const toCallbackOrPromise =
+  <T>(callback?: Callback1 | Callback2<T> | null) =>
+  (stream: Stream<T>) => {
+    if (callback == null) return toPromise(stream)
+    return toCallback(callback)(stream)
+  }
 
 export const tryCatch = <T>(fn: () => T, onError: (error: Error) => void): void => {
   try {
@@ -68,101 +72,104 @@ export const process = <T>(item: T, ...checkers: Function[]): Stream<T> =>
     stop() {},
   })
 
-export const tap = <T>(onNext: (value: T) => void, onError?: (error: Error) => void, onComplete?: () => void) => (
-  stream: Stream<T>
-): Stream<T> => {
-  let subscription: Subscription
-  return xs.create<T>({
-    start(listener) {
-      subscription = stream.subscribe({
-        next(value) {
-          onNext?.(value)
-          listener.next(value)
-        },
-        error(error) {
-          onError?.(error)
-          listener.error(error)
-        },
-        complete() {
-          onComplete?.()
-          listener.complete()
-        },
-      })
-    },
-    stop() {
-      if (subscription != null) subscription.unsubscribe()
-    },
-  })
-}
+export const tap =
+  <T>(onNext: (value: T) => void, onError?: (error: Error) => void, onComplete?: () => void) =>
+  (stream: Stream<T>): Stream<T> => {
+    let subscription: Subscription | null
+    return xs.create<T>({
+      start(listener) {
+        subscription = stream.subscribe({
+          next(value) {
+            onNext?.(value)
+            listener.next(value)
+          },
+          error(error) {
+            onError?.(error)
+            listener.error(error)
+          },
+          complete() {
+            onComplete?.()
+            listener.complete()
+          },
+        })
+      },
+      stop() {
+        subscription?.unsubscribe()
+      },
+    })
+  }
 
 const sleep = (time: number) => new Promise((res) => setTimeout(res, time))
-export const bufferUntil = <T>(fn: () => boolean) => (stream: Stream<T>): Stream<T> => {
-  const buffer: Array<T> = []
-  let subscription: Subscription
-  return xs.create({
-    start(listener) {
-      subscription = stream.subscribe({
-        next: (data) => {
-          buffer.push(data)
-          while (fn() && buffer.length) {
-            const data = buffer.shift()
-            if (data != null) listener.next(data)
-          }
-        },
-        error: (err) => listener.error(err),
-        complete: async () => {
-          while (buffer.length) {
-            if (fn()) {
+export const bufferUntil =
+  <T>(fn: () => boolean) =>
+  (stream: Stream<T>): Stream<T> => {
+    const buffer: Array<T> = []
+    let subscription: Subscription | undefined
+    return xs.create({
+      start(listener) {
+        subscription = stream.subscribe({
+          next: (data) => {
+            buffer.push(data)
+            while (fn() && buffer.length) {
               const data = buffer.shift()
               if (data != null) listener.next(data)
-            } else {
-              await sleep(300)
             }
-          }
-          listener.complete()
-        },
-      })
-    },
-    stop() {
-      subscription && subscription.unsubscribe()
-    },
-  })
-}
+          },
+          error: (err) => listener.error(err),
+          complete: async () => {
+            while (buffer.length) {
+              if (fn()) {
+                const data = buffer.shift()
+                if (data != null) listener.next(data)
+              } else {
+                await sleep(300)
+              }
+            }
+            listener.complete()
+          },
+        })
+      },
+      stop() {
+        subscription?.unsubscribe()
+      },
+    })
+  }
 
-export const subscribeOnNext = <T extends any>(onNext: (value: T) => void) => (stream: Stream<T>) => {
-  return stream.subscribe({
-    next: (data: T) => onNext(data),
-  })
-}
+export const subscribeOnNext =
+  <T extends any>(onNext: (value: T) => void) =>
+  (stream: Stream<T>) => {
+    return stream.subscribe({
+      next: (data: T) => onNext(data),
+    })
+  }
 
 type Func<T extends any[]> = (...data: T) => void
-export const toEventSubscription = <T extends any[]>(eventSubscribe: (handler: Func<T>) => Subs) => (
-  stream: Stream<Func<T>>
-) => {
-  let subscription: Subscription
-  let subs: Subs
-  subscription = stream.subscribe({
-    next: (handler) => {
-      subs = eventSubscribe(handler)
-    },
-  })
+export const toEventSubscription =
+  <T extends any[]>(eventSubscribe: (handler: Func<T>) => Subs) =>
+  (stream: Stream<Func<T>>) => {
+    let subscription: Subscription | undefined
+    let subs: Subs | undefined
+    subscription = stream.subscribe({
+      next: (handler) => {
+        subs = eventSubscribe(handler)
+      },
+    })
 
-  return () => {
-    subscription.unsubscribe()
-    subs()
+    return () => {
+      subscription?.unsubscribe()
+      subs?.()
+    }
   }
-}
 
-export const toEventSubscription_ = <T extends unknown>(
-  handler: (data: T) => void,
-  onError?: (error: Error) => void
-) => (stream: Stream<T>) => {
-  const subscription = stream.subscribe({
-    next: (data) => handler(data),
-    error: (err) => {
-      onError?.(err)
-    },
-  })
+export const toEventSubscription_ =
+  <T extends unknown>(handler: (data: T) => void, onError?: (error: Error) => void) =>
+  (stream: Stream<T>) => {
+    const subscription = stream.subscribe({
+      next: (data) => handler(data),
+      error: (err) => {
+        onError?.(err)
+      },
+    })
 
-  return () => subscription.unsubscribe()
-}
+    return () => subscription.unsubscribe()
+  }

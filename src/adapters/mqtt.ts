@@ -112,6 +112,7 @@ function getMqttHandler(emitter: EventEmitter<Events>): IQMqttHandler {
   }
 }
 
+export type MqttAdapter = ReturnType<typeof getMqttAdapter>
 export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => string }) {
   let mqtt: _MqttClient | undefined = undefined
   let cacheUrl: string = s.getBrokerUrl()
@@ -165,7 +166,6 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
     return `${appId}_${userId}_${now}`
   }
   const __mqtt_conneck = (brokerUrl: string) => {
-    console.log('@__mqtt_conneck', brokerUrl, mqtt)
     if (mqtt != null) {
       mqtt?.removeAllListeners()
       mqtt?.end(true)

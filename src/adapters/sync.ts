@@ -146,9 +146,25 @@ const synchronizeFactory = (
     }
   }
 
+  async function processResult(result: ReturnType<typeof synchronize>) {
+    let res = await result
+    const messageId = res.lastMessageId
+    const messages = res.messages
+    // if (messageId > getId()) {
+    emitter.emit('last-message-id.new', messageId)
+    messages
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+      .forEach((m) => {
+        emitter.emit('message.new', m)
+      })
+    // }
+
+    return result
+  }
+
   return {
-    get synchronize() {
-      return synchronize
+    get synchronize(): typeof synchronize {
+      return (eventId) => processResult(synchronize(eventId))
     },
     get on() {
       return emitter.on.bind(emitter)
@@ -161,16 +177,7 @@ const synchronizeFactory = (
         emitter.emit('synchronized')
         try {
           logger('synchronize id:', String(result.lastMessageId))
-          const messageId = result.lastMessageId
-          const messages = result.messages
-          if (messageId > getId()) {
-            emitter.emit('last-message-id.new', messageId)
-            messages
-              .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-              .forEach((m) => {
-                emitter.emit('message.new', m)
-              })
-          }
+          processResult(Promise.resolve(result))
         } catch (e) {
           logger('error when sync', e.message)
         }
@@ -209,11 +216,11 @@ const synchronizeEventFactory = (
       )
       .then((resp) => {
         const events = resp.events
-        const lastId =
+        const lastId: string =
           events
             .map((it) => it.id)
             .sort((a, b) => a - b)
-            .pop() ?? 0
+            .pop() ?? '0'
 
         //region Delivered
         const messageDelivered = events
@@ -272,6 +279,7 @@ const synchronizeEventFactory = (
           .map((it) => it.payload.data as SyncEventResponse.DataRoomCleared)
           .map((p1) => p1.deleted_rooms.map((r: any) => Decoder.room(r)))
         //endregion
+
         return {
           lastId,
           messageDelivered,
@@ -286,7 +294,7 @@ const synchronizeEventFactory = (
   async function* generator() {
     const interval = s.getAccSyncInterval()
     let accumulator = 0
-    // console.log('sync', accumulator, getInterval(), getEnableSync(), s.getAccSyncInterval())
+
     while (true) {
       accumulator += interval
       if (accumulator >= getInterval() && getEnableSync()) {
@@ -297,9 +305,22 @@ const synchronizeEventFactory = (
     }
   }
 
+  async function processResult(result: ReturnType<typeof synchronize>) {
+    let res = await result
+    const lastId = res.lastId
+
+    emitter.emit('last-event-id.new', lastId)
+    res.messageDelivered.forEach((it) => emitter.emit('message.delivered', it))
+    res.messageDeleted.forEach((it) => it.forEach((m) => emitter.emit('message.deleted', m)))
+    res.messageRead.forEach((it) => emitter.emit('message.read', it))
+    res.roomCleared.forEach((it) => it.forEach((room) => emitter.emit('room.cleared', room)))
+
+    return result
+  }
+
   return {
-    get synchronize() {
-      return synchronize
+    get synchronize(): typeof synchronize {
+      return (eventId) => processResult(synchronize(eventId))
     },
     get on() {
       return emitter.on.bind(emitter)
@@ -311,14 +332,7 @@ const synchronizeEventFactory = (
       for await (let result of generator()) {
         try {
           logger('syncrhonize event id:', String(result.lastId))
-          const eventId = result.lastId
-          if (eventId > getId()) {
-            emitter.emit('last-event-id.new', eventId)
-            result.messageDelivered.forEach((it) => emitter.emit('message.delivered', it))
-            result.messageDeleted.forEach((it) => it.forEach((m) => emitter.emit('message.deleted', m)))
-            result.messageRead.forEach((it) => emitter.emit('message.read', it))
-            result.roomCleared.forEach((it) => it.forEach((room) => emitter.emit('room.cleared', room)))
-          }
+          processResult(Promise.resolve(result))
         } catch (e) {
           logger('error when sync event', e)
         }
