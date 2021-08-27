@@ -112,6 +112,7 @@ function getMqttHandler(emitter: EventEmitter<Events>): IQMqttHandler {
   }
 }
 
+export type MqttAdapter = ReturnType<typeof getMqttAdapter>
 export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => string }) {
   let mqtt: _MqttClient | undefined = undefined
   let cacheUrl: string = s.getBrokerUrl()

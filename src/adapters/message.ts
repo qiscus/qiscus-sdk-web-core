@@ -6,7 +6,7 @@ import * as Provider from '../provider'
 import * as Decoder from '../decoder'
 import * as model from '../model'
 
-const getMessageAdapter = (s: Storage) => ({
+const getMessageAdapter = (s: Storage, api: Api.ApiRequester) => ({
   sendMessage(roomId: number, message: model.IQMessage): Promise<model.IQMessage> {
     const apiConfig = Api.postComment({
       ...Provider.withBaseUrl(s),
@@ -18,7 +18,7 @@ const getMessageAdapter = (s: Storage) => ({
       uniqueId: message.uniqueId ?? `javascript-${Date.now()}-${Math.random()}`,
       extras: message.extras as model.IQMessage['extras'],
     })
-    return Api.request<PostCommentResponse.RootObject>(apiConfig).then((resp) => Decoder.message(resp.results.comment))
+    return api.request<PostCommentResponse.RootObject>(apiConfig).then((resp) => Decoder.message(resp.results.comment))
   },
   getMessages(
     roomId: number,
@@ -26,49 +26,57 @@ const getMessageAdapter = (s: Storage) => ({
     limit: number = 20,
     after: boolean = false
   ): Promise<model.IQMessage[]> {
-    return Api.request<GetCommentsResponse.RootObject>(
-      Api.getComment({
-        ...Provider.withBaseUrl(s),
-        ...Provider.withCredentials(s),
-        lastMessageId,
-        roomId,
-        after,
-        limit,
-      })
-    ).then((resp) =>
-      resp.results.comments.map(Decoder.message).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-    )
+    return api
+      .request<GetCommentsResponse.RootObject>(
+        Api.getComment({
+          ...Provider.withBaseUrl(s),
+          ...Provider.withCredentials(s),
+          lastMessageId,
+          roomId,
+          after,
+          limit,
+        })
+      )
+      .then((resp) =>
+        resp.results.comments.map(Decoder.message).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+      )
   },
   deleteMessage(uniqueIds: string[]): Promise<model.IQMessage[]> {
-    return Api.request<DeleteCommentsResponse.RootObject>(
-      Api.deleteMessages({
-        ...Provider.withBaseUrl(s),
-        ...Provider.withCredentials(s),
-        uniqueIds,
-      })
-    ).then((resp) => resp.results.comments.map(Decoder.message))
+    return api
+      .request<DeleteCommentsResponse.RootObject>(
+        Api.deleteMessages({
+          ...Provider.withBaseUrl(s),
+          ...Provider.withCredentials(s),
+          uniqueIds,
+        })
+      )
+      .then((resp) => resp.results.comments.map(Decoder.message))
   },
   markAsRead(roomId: number, messageId: number): Promise<void> {
-    return Api.request<UpdateCommentStatusResponse.RootObject>(
-      Api.updateCommentStatus({
-        ...Provider.withBaseUrl(s),
-        ...Provider.withCredentials(s),
-        lastReadId: messageId,
-        lastReceivedId: undefined,
-        roomId,
-      })
-    ).then(() => undefined)
+    return api
+      .request<UpdateCommentStatusResponse.RootObject>(
+        Api.updateCommentStatus({
+          ...Provider.withBaseUrl(s),
+          ...Provider.withCredentials(s),
+          lastReadId: messageId,
+          lastReceivedId: undefined,
+          roomId,
+        })
+      )
+      .then(() => undefined)
   },
   markAsDelivered(roomId: number, messageId: number): Promise<void> {
-    return Api.request<UpdateCommentStatusResponse.RootObject>(
-      Api.updateCommentStatus({
-        ...Provider.withBaseUrl(s),
-        ...Provider.withCredentials(s),
-        roomId,
-        lastReceivedId: messageId,
-        lastReadId: undefined,
-      })
-    ).then(() => undefined)
+    return api
+      .request<UpdateCommentStatusResponse.RootObject>(
+        Api.updateCommentStatus({
+          ...Provider.withBaseUrl(s),
+          ...Provider.withCredentials(s),
+          roomId,
+          lastReceivedId: messageId,
+          lastReadId: undefined,
+        })
+      )
+      .then(() => undefined)
   },
   async searchMessages({
     query,
@@ -87,19 +95,20 @@ const getMessageAdapter = (s: Storage) => ({
     page?: number
     limit?: number
   }): Promise<model.IQMessage[]> {
-    const messages = await Api.request<SearchMessagesV2Response.RootObject>(
-      Api.searchMessagesV2({
-        ...Provider.withBaseUrl(s),
-        ...Provider.withCredentials(s),
-        query: query,
-        roomIds: roomIds,
-        userId: userId,
-        type: type,
-        roomType: roomType,
-        page: page,
-        limit: limit,
-      })
-    )
+    const messages = await api
+      .request<SearchMessagesV2Response.RootObject>(
+        Api.searchMessagesV2({
+          ...Provider.withBaseUrl(s),
+          ...Provider.withCredentials(s),
+          query: query,
+          roomIds: roomIds,
+          userId: userId,
+          type: type,
+          roomType: roomType,
+          page: page,
+          limit: limit,
+        })
+      )
       .then((r) => r.results.comments)
       .then((comments) => comments.map((it) => Decoder.message(it as any)))
 
@@ -126,36 +135,38 @@ const getMessageAdapter = (s: Storage) => ({
       userId = s.getCurrentUser().id
     }
 
-    const messages = Api.request<SearchMessagesV2Response.RootObject>(
-      Api.getFileList({
-        ...Provider.withBaseUrl(s),
-        ...Provider.withCredentials(s),
-        roomIds,
-        fileType,
-        page,
-        limit,
-        sender: userId,
-        includeExtensions,
-        excludeExtensions,
-      })
-    )
+    const messages = api
+      .request<SearchMessagesV2Response.RootObject>(
+        Api.getFileList({
+          ...Provider.withBaseUrl(s),
+          ...Provider.withCredentials(s),
+          roomIds,
+          fileType,
+          page,
+          limit,
+          sender: userId,
+          includeExtensions,
+          excludeExtensions,
+        })
+      )
       .then((r) => r.results.comments)
       .then((r) => r.map((it) => Decoder.message(it as any)))
 
     return messages
   },
   async updateMessage(message: model.IQMessage): Promise<model.IQMessage> {
-    return Api.request<PostCommentResponse.RootObject>(
-      Api.updateMessage({
-        ...Provider.withBaseUrl(s),
-        ...Provider.withCredentials(s),
-        token: s.getToken(),
-        uniqueId: message.uniqueId,
-        comment: message.text,
-        extras: message.extras,
-        payload: message.payload,
-      })
-    )
+    return api
+      .request<PostCommentResponse.RootObject>(
+        Api.updateMessage({
+          ...Provider.withBaseUrl(s),
+          ...Provider.withCredentials(s),
+          token: s.getToken(),
+          uniqueId: message.uniqueId,
+          comment: message.text,
+          extras: message.extras,
+          payload: message.payload,
+        })
+      )
       .then((r) => r.results.comment)
       .then((r) => Decoder.message(r))
   },

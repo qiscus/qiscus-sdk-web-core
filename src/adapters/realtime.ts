@@ -1,4 +1,5 @@
-import Kefir from 'kefir'
+import { ApiRequester } from 'src/api'
+import xs from 'xstream'
 import { Callback, Subscription } from '../defs'
 import * as model from '../model'
 import { Storage } from '../storage'
@@ -11,22 +12,33 @@ export type SyncMethod<T extends any[]> = (callback: (...data: T) => void) => Su
 
 function fromSync<T extends any[]>(method: SyncMethod<T>) {
   let subscription: Subscription
-
-  return Kefir.stream<T, never>((emitter) => {
-    subscription = method((...data) => {
-      emitter.emit(data)
-    })
-
-    return () => subscription?.()
+  return xs.create<T>({
+    start(listener) {
+      subscription = method((...data) => {
+        listener.next([...data] as T)
+      })
+    },
+    stop() {
+      subscription()
+    },
   })
 }
 
+function isChatRoom(data: model.IQChatRoom | number): data is model.IQChatRoom {
+  return (data as model.IQChatRoom).id != null
+}
+
+function isNumber(data: model.IQChatRoom | number): data is number {
+  return typeof (data as number) === 'number'
+}
+
 export type RealtimeAdapter = ReturnType<typeof getRealtimeAdapter>
-export default function getRealtimeAdapter(storage: Storage) {
+export default function getRealtimeAdapter(storage: Storage, api: ApiRequester) {
   const mqtt = getMqttAdapter(storage)
   const logger = getLogger(storage)
   const sync = getSyncAdapter({
     s: storage,
+    api: api,
     shouldSync() {
       // if (mqtt.mqtt == null) return true
       return mqtt.mqtt?.connected !== true
@@ -35,15 +47,12 @@ export default function getRealtimeAdapter(storage: Storage) {
   })
 
   // region emitter
-  const newMessage$ = Kefir.merge([fromSync(sync.onNewMessage), fromSync(mqtt.onNewMessage)])
-  const onMessageRead$ = Kefir.merge([fromSync(sync.onMessageRead), fromSync(mqtt.onMessageRead)])
-  const onMessageDelivered$ = Kefir.merge([fromSync(sync.onMessageDelivered), fromSync(mqtt.onMessageDelivered)])
-  const onMessageDeleted$ = Kefir.merge([fromSync(sync.onMessageDeleted), fromSync(mqtt.onMessageDeleted)])
-  const onRoomCleared$ = Kefir.merge([
-    fromSync(sync.onRoomCleared).map((r) => r.map((it) => it.id)),
-    fromSync(mqtt.onRoomDeleted),
-  ])
-  const onMessageUpdated$ = Kefir.merge([fromSync(sync.onMessageUpdated), fromSync(mqtt.onMessageUpdated)])
+  const newMessage$ = xs.merge(fromSync(sync.onNewMessage), fromSync(mqtt.onNewMessage))
+  const onMessageRead$ = xs.merge(fromSync(sync.onMessageRead), fromSync(mqtt.onMessageRead))
+  const onMessageDelivered$ = xs.merge(fromSync(sync.onMessageDelivered), fromSync(mqtt.onMessageDelivered))
+  const onMessageDeleted$ = xs.merge(fromSync(sync.onMessageDeleted), fromSync(mqtt.onMessageDeleted))
+  const onRoomCleared$ = xs.merge(fromSync(sync.onRoomCleared), fromSync(mqtt.onRoomDeleted))
+  const onMessageUpdated$ = xs.merge(fromSync(sync.onMessageUpdated), fromSync(mqtt.onMessageUpdated))
   // endregion
 
   return {
@@ -55,28 +64,23 @@ export default function getRealtimeAdapter(storage: Storage) {
       mqtt.clear()
     },
     onMessageDeleted(callback: Callback<model.IQMessage>): Subscription {
-      const subscription = subscribeOnNext<[model.IQMessage]>(([m]) => callback(m))(onMessageDeleted$)
-
+      const subscription = onMessageDeleted$.compose(subscribeOnNext(([message]) => callback(message)))
       return () => subscription.unsubscribe()
     },
     onMessageDelivered(callback: Callback<model.IQMessage>): Subscription {
-      const subscription = subscribeOnNext<[model.IQMessage]>(([it]) => callback(it))(onMessageDelivered$)
-
+      const subscription = onMessageDelivered$.compose(subscribeOnNext(([it]) => callback(it)))
       return () => subscription.unsubscribe()
     },
     onMessageRead(callback: Callback<model.IQMessage>): Subscription {
-      const subscription = subscribeOnNext<[model.IQMessage]>(([m]) => callback(m))(onMessageRead$)
-
+      const subscription = onMessageRead$.compose(subscribeOnNext(([it]) => callback(it)))
       return () => subscription.unsubscribe()
     },
     onNewMessage(callback: Callback<model.IQMessage>): Subscription {
-      const subscription = subscribeOnNext<[model.IQMessage]>(([m]) => callback(m))(newMessage$)
-
+      const subscription = newMessage$.compose(subscribeOnNext(([message]) => callback(message)))
       return () => subscription.unsubscribe()
     },
     onMessageUpdated(callback: Callback<model.IQMessage>): Subscription {
-      const subscription = subscribeOnNext<[model.IQMessage]>(([m]) => callback(m))(onMessageUpdated$)
-
+      const subscription = onMessageUpdated$.compose(subscribeOnNext(([message]) => callback(message)))
       return () => subscription.unsubscribe()
     },
     onNewMessage$() {
@@ -99,21 +103,24 @@ export default function getRealtimeAdapter(storage: Storage) {
     },
 
     onPresence(callback: (userId: string, isOnline: boolean, lastSeen: Date) => void): Subscription {
-      const stream = fromSync(mqtt.onUserPresence)
-      const subscription = subscribeOnNext<[string, boolean, Date]>((data) => callback(...data))(stream)
-
+      const subscription = fromSync(mqtt.onUserPresence).compose(
+        subscribeOnNext(([userId, isOnline, lastSeen]) => callback(userId, isOnline, lastSeen))
+      )
       return () => subscription.unsubscribe()
     },
     onRoomCleared(callback: Callback<number>): Subscription {
-      const subscription = subscribeOnNext<number[]>(([roomId]) => callback(roomId))(onRoomCleared$)
-
+      const subscription = onRoomCleared$.compose(
+        subscribeOnNext(([room]) => {
+          if (isNumber(room)) callback(room)
+          if (isChatRoom(room)) callback(room.id)
+        })
+      )
       return () => subscription.unsubscribe()
     },
     onTyping(callback: (userId: string, roomId: number, isTyping: boolean) => void): Subscription {
-      const subscription = subscribeOnNext<[string, number, boolean]>(([userId, roomId, isTyping]) =>
-        callback(userId, roomId, isTyping)
-      )(fromSync(mqtt.onUserTyping))
-
+      const subscription = fromSync(mqtt.onUserTyping).compose(
+        subscribeOnNext(([userId, roomId, isTyping]) => callback(userId, roomId, isTyping))
+      )
       return () => subscription.unsubscribe()
     },
     sendPresence(userId: string, isOnline: boolean): void {

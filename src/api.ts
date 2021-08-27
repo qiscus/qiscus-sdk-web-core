@@ -2,17 +2,27 @@ import axios from 'axios'
 import { IQUser, IQChatRoom, IQMessage } from './model'
 import * as Encode from './encoder'
 import { tryCatch } from './utils/try-catch'
+import type { Storage } from './storage'
 
-export const request = <Resp extends unknown>(api: Partial<Api>): Promise<Resp> => {
-  return axios({
-    method: api.method,
-    baseURL: api.baseUrl,
-    url: api.url,
-    headers: api.headers,
-    data: api.body,
-    params: api.params,
-  }).then((resp) => resp.data)
-}
+export const makeApiRequest = (storage: Storage) => ({ request: request(storage) })
+export type ApiRequester = ReturnType<typeof makeApiRequest>
+
+const request =
+  (storage: Storage) =>
+  <Resp extends unknown>(api: Partial<Api>): Promise<Resp> => {
+    const headers = {
+      ...storage.getCustomHeaders(),
+      ...api.headers,
+    }
+    return axios({
+      method: api.method,
+      baseURL: api.baseUrl,
+      url: api.url,
+      data: api.body,
+      params: api.params,
+      headers,
+    }).then((resp) => resp.data)
+  }
 
 type ApiRequest<O> = (o: O) => Partial<Api>
 
@@ -67,14 +77,16 @@ const useBody: useBody = (mapper) => (o) => ({
 })
 
 type compose = <O>(...fns: Array<ApiRequest<O>>) => (o: O) => Api
-const compose: compose = (...fns) => (o) => {
-  const { method, url, headers, params, body, baseUrl } = (fns.reduce(
-    (acc, fn) => ({ ...acc, ...fn(o) }),
-    o
-  ) as unknown) as Api
+const compose: compose =
+  (...fns) =>
+  (o) => {
+    const { method, url, headers, params, body, baseUrl } = fns.reduce(
+      (acc, fn) => ({ ...acc, ...fn(o) }),
+      o
+    ) as unknown as Api
 
-  return { method, url, headers, params, body, baseUrl }
-}
+    return { method, url, headers, params, body, baseUrl }
+  }
 
 export type loginOrRegisterParams = {
   userId: string
@@ -164,7 +176,7 @@ export const getTotalUnreadCount: ApiRequest<{} & withCredentials> = compose(
   useCredentials()
 )
 export const getRoomUnreadCount: ApiRequest<withCredentials> = compose(
-  useGetUrl('/room_unread_count'),
+  useGetUrl('/get_room_unread_count'),
   useCredentials()
 )
 
