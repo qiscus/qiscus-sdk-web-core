@@ -10,4 +10,5 @@ yarn-error.log
 /types/
 /src/**/*.js
 /src/**/*.js.map
+!/src/lib/**/*.js
 /coverage/

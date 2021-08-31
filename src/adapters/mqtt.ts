@@ -2,10 +2,13 @@ import { match, when } from '../utils/match'
 import axios from 'axios'
 import debounce from 'lodash.debounce'
 import { EventEmitter } from 'pietile-eventemitter'
-// @ts-ignore
-// import connect from 'mqtt/lib/connect'
-import { connect, IClientPublishOptions, MqttClient, IClientOptions } from 'mqtt'
-import { Callback, Subscription } from '../defs'
+
+import { connect } from '../lib/mqtt'
+import type { IClientPublishOptions, MqttClient, IClientOptions } from '../lib/mqtt'
+// import { connect } from 'mqtt'
+// import type { IClientPublishOptions, MqttClient, IClientOptions } from 'mqtt'
+
+import type { Callback, Subscription } from '../defs'
 import * as m from '../model'
 import * as Decoder from '../decoder'
 import { getLogger } from './logger'

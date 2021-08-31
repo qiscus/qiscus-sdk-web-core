@@ -68,7 +68,7 @@ export default class Qiscus {
 
   private readonly _onMessageReceived$ = this.realtimeAdapter
     .onNewMessage$()
-    .map((it) => this.hookAdapter.triggerBeforeReceived$(it))
+    .map((it) => xs.fromPromise(this.hookAdapter.triggerBeforeReceived$(it)))
     .compose(flattenConcurrently)
     .compose(
       tap((message) => {
@@ -80,18 +80,18 @@ export default class Qiscus {
   private readonly _onMessageUpdated$ = this.realtimeAdapter.onMessageUpdated$
   private readonly _onMessageRead$ = this.realtimeAdapter
     .onMessageRead$()
-    .map(this.hookAdapter.triggerBeforeReceived$)
+    .map((data) => xs.fromPromise(this.hookAdapter.triggerBeforeReceived$(data)))
     .compose(flattenConcurrently)
   private readonly _onMessageDelivered$ = this.realtimeAdapter
     .onMessageDelivered$()
-    .map(this.hookAdapter.triggerBeforeReceived$)
+    .map((it) => xs.fromPromise(this.hookAdapter.triggerBeforeReceived$(it)))
     .compose(flattenConcurrently)
   private readonly _onMessageDeleted$ = this.realtimeAdapter.onMessageDeleted$
-    .map(this.hookAdapter.triggerBeforeReceived$)
+    .map((it) => xs.fromPromise(this.hookAdapter.triggerBeforeReceived$(it)))
     .compose(flattenConcurrently)
   private readonly _onRoomCleared$ = this.realtimeAdapter
     .onRoomCleared$()
-    .map(this.hookAdapter.triggerBeforeReceived$)
+    .map((it) => xs.fromPromise(this.hookAdapter.triggerBeforeReceived$(it)))
     .compose(flattenConcurrently)
   // endregion
 
