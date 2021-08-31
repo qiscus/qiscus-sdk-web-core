@@ -676,10 +676,10 @@
         "signature": "093ba81ed380f85e98195fc11479f384b416b53db51baebb8353b3e97e102787",
         "affectsGlobalScope": false
       },
-      "./src/lib/mqtt.d.ts": {
-        "version": "c226c3b95fb03eb3a425797925ac10b1737d0c6c47a8201aeff3cbf91f4404a2",
-        "signature": "c226c3b95fb03eb3a425797925ac10b1737d0c6c47a8201aeff3cbf91f4404a2",
-        "affectsGlobalScope": false
+      "./src/lib/mqtt.ts": {
+        "version": "20a054f6fb82f88c2180e7922a74c2b200aa4d199cdf009691f35961c61eee8a",
+        "signature": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "affectsGlobalScope": true
       },
       "./src/utils/is.ts": {
         "version": "a1a2e1ea6735116d17d68fd7daf6aaff81a79197c9e5c4b68679c5bbaa280d95",
@@ -824,7 +824,7 @@
     },
     "options": {
       "target": 99,
-      "module": 1,
+      "module": 99,
       "lib": [
         "lib.dom.d.ts",
         "lib.esnext.d.ts"
@@ -833,7 +833,9 @@
       "declaration": true,
       "sourceMap": true,
       "rootDir": "./src",
-      "outDir": "./lib",
+      "allowJs": true,
+      "checkJs": true,
+      "outDir": "./lib-esm",
       "strict": true,
       "noImplicitAny": true,
       "strictNullChecks": true,
@@ -1400,9 +1402,6 @@
         "./src/utils/stream.ts",
         "./src/utils/try-catch.ts"
       ],
-      "./src/lib/mqtt.d.ts": [
-        "./node_modules/.pnpm/mqtt@4.2.8/node_modules/mqtt/types/index.d.ts"
-      ],
       "./src/provider.ts": [
         "./src/storage.ts"
       ],
@@ -1930,9 +1929,6 @@
         "./src/defs.ts",
         "./src/model.ts"
       ],
-      "./src/lib/mqtt.d.ts": [
-        "./node_modules/.pnpm/mqtt@4.2.8/node_modules/mqtt/types/index.d.ts"
-      ],
       "./src/provider.ts": [
         "./src/storage.ts"
       ],
@@ -2105,7 +2101,7 @@
       "./src/encoder.ts",
       "./src/hook.ts",
       "./src/index.ts",
-      "./src/lib/mqtt.d.ts",
+      "./src/lib/mqtt.ts",
       "./src/model.ts",
       "./src/provider.ts",
       "./src/storage.ts",

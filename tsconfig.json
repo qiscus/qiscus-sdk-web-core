@@ -1,6 +1,6 @@
 {
   "include": ["src"],
-  "exclude": ["**/*.test.ts"],
+  "exclude": ["**/*.test.ts", "lib", "lib-esm", "dist"],
   "compilerOptions": {
     "target": "esnext",
     "module": "CommonJS",
@@ -9,6 +9,8 @@
     "declaration": true,
     "sourceMap": true,
     "rootDir": "./src",
+    "allowJs": true,
+    "checkJs": true,
     "outDir": "lib",
     "strict": true,
     "noImplicitAny": true,
