@@ -19,6 +19,7 @@ class Comment {
     this.room_id = comment.room_id
     this.isChannel = comment.is_public_channel
     this.unix_timestamp = comment.unix_timestamp
+    this.unix_nano_timestamp = comment.unix_nano_timestamp
     this.extras = comment.extras
 
     /* comment status */
