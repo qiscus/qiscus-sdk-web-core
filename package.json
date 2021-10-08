@@ -3,7 +3,7 @@
   "version": "3.3.0-4",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
-  "main": "lib/qiscus-sdk-core.js",
+  "main": "dist/qiscus-sdk-javascript.umd.js",
   "types": "types/index.d.ts",
   "files": [
     "dist",
