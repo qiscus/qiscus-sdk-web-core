@@ -201,7 +201,7 @@
         "signature": "cd6efb9467a8b6338ece2e2855e37765700f2cd061ca54b01b33878cf5c7677e",
         "affectsGlobalScope": true
       },
-      "./node_modules/axios/index.d.ts": {
+      "./node_modules/.pnpm/axios@0.19.2/node_modules/axios/index.d.ts": {
         "version": "e7df7eb51c5090db4bdcdbf9efe053530dff0e33796f40b08b1a3be6c3a351d0",
         "signature": "e7df7eb51c5090db4bdcdbf9efe053530dff0e33796f40b08b1a3be6c3a351d0",
         "affectsGlobalScope": false
@@ -824,7 +824,7 @@
     },
     "options": {
       "target": 99,
-      "module": 99,
+      "module": 1,
       "lib": [
         "lib.dom.d.ts",
         "lib.esnext.d.ts"
@@ -835,7 +835,7 @@
       "rootDir": "./src",
       "allowJs": true,
       "checkJs": true,
-      "outDir": "./lib-esm",
+      "outDir": "./lib",
       "strict": true,
       "noImplicitAny": true,
       "strictNullChecks": true,
@@ -1316,9 +1316,9 @@
       ],
       "./src/adapters/mqtt.ts": [
         "./node_modules/.pnpm/@types+lodash.debounce@4.0.6/node_modules/@types/lodash.debounce/index.d.ts",
+        "./node_modules/.pnpm/axios@0.19.2/node_modules/axios/index.d.ts",
         "./node_modules/.pnpm/mqtt@4.2.8/node_modules/mqtt/types/index.d.ts",
         "./node_modules/.pnpm/pietile-eventemitter@1.0.1/node_modules/pietile-eventemitter/dist/index.d.ts",
-        "./node_modules/axios/index.d.ts",
         "./src/adapters/logger.ts",
         "./src/decoder.ts",
         "./src/defs.ts",
@@ -1363,7 +1363,7 @@
         "./src/storage.ts"
       ],
       "./src/api.ts": [
-        "./node_modules/axios/index.d.ts",
+        "./node_modules/.pnpm/axios@0.19.2/node_modules/axios/index.d.ts",
         "./src/encoder.ts",
         "./src/model.ts",
         "./src/storage.ts",
@@ -1384,9 +1384,9 @@
         "./src/model.ts"
       ],
       "./src/index.ts": [
+        "./node_modules/.pnpm/axios@0.19.2/node_modules/axios/index.d.ts",
         "./node_modules/.pnpm/xstream@11.14.0/node_modules/xstream/extra/flattenconcurrently.d.ts",
         "./node_modules/.pnpm/xstream@11.14.0/node_modules/xstream/index.d.ts",
-        "./node_modules/axios/index.d.ts",
         "./src/adapters/logger.ts",
         "./src/adapters/message.ts",
         "./src/adapters/realtime.ts",
@@ -2028,6 +2028,7 @@
       "./node_modules/.pnpm/@types+ws@7.4.7/node_modules/@types/ws/index.d.ts",
       "./node_modules/.pnpm/@types+yargs-parser@15.0.0/node_modules/@types/yargs-parser/index.d.ts",
       "./node_modules/.pnpm/@types+yargs@15.0.9/node_modules/@types/yargs/index.d.ts",
+      "./node_modules/.pnpm/axios@0.19.2/node_modules/axios/index.d.ts",
       "./node_modules/.pnpm/derivable@2.0.0-beta.3/node_modules/derivable/dist/derivable.d.ts",
       "./node_modules/.pnpm/jest-diff@25.5.0/node_modules/jest-diff/build/cleanupsemantic.d.ts",
       "./node_modules/.pnpm/jest-diff@25.5.0/node_modules/jest-diff/build/difflines.d.ts",
@@ -2087,7 +2088,6 @@
       "./node_modules/.pnpm/typescript@3.9.7/node_modules/typescript/lib/lib.esnext.string.d.ts",
       "./node_modules/.pnpm/xstream@11.14.0/node_modules/xstream/extra/flattenconcurrently.d.ts",
       "./node_modules/.pnpm/xstream@11.14.0/node_modules/xstream/index.d.ts",
-      "./node_modules/axios/index.d.ts",
       "./src/adapters/logger.ts",
       "./src/adapters/message.ts",
       "./src/adapters/mqtt.ts",
