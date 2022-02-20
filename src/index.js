@@ -521,9 +521,13 @@ class QiscusSDK {
         // kalau comment ini ada di currently selected
         if (isActiveRoom) {
           const selected = self.selected
-          const lastComment =
-            self.selected.comments[self.selected.comments.length - 1]
+          // Ada kasus, tidak ada percakapan sama sekali di room tersebut
+          // sehingga lastComment menjadi `undefined`
+          const lastComment = self.selected.comments.length > 0
+            ? self.selected.comments[self.selected.comments.length - 1]
+            : {}
           // kirim event read kalau ini bukan komen kita sendiri
+          
           if (
             !lastComment.isPending &&
             !isAlreadyRead &&
@@ -531,6 +535,7 @@ class QiscusSDK {
           ) {
             self.readComment(comment.room_id, comment.id)
           }
+          
           // pastiin sync
           const roomLastCommentId = lastComment.id
           const commentBeforeThis = self.selected.comments.find(
