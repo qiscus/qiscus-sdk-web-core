@@ -298,7 +298,7 @@ export default class MqttAdapter {
   }
   // #endregion
 
-  noop() {}
+  noop() { }
 
   newMessageHandler(topic, message) {
     message = JSON.parse(message)
@@ -452,8 +452,8 @@ export default class MqttAdapter {
   }
 
   disconnect() {
-    this.publishPresence(this.core.userData.email, false),
-      this.unsubscribe(Object.keys(this.mqtt._resubscribeTopics))
+    this.publishPresence(this.core.userData.email, false)
+    this.unsubscribe(Object.keys(this.mqtt._resubscribeTopics))
   }
 
   subscribeUserPresence(userId) {
