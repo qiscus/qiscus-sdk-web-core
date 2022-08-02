@@ -132,9 +132,9 @@ class QiscusSDK {
     if ((isDifferentBaseUrl || isDifferentMqttUrl) && !isDifferentBrokerLbUrl) {
       this.logger(
         '' +
-          'force disable load balancing for realtime server, because ' +
-          '`baseURL` or `mqttURL` get changed but ' +
-          'did not provide `brokerLbURL`'
+        'force disable load balancing for realtime server, because ' +
+        '`baseURL` or `mqttURL` get changed but ' +
+        'did not provide `brokerLbURL`'
       )
       this.enableLb = false
     } else if (config.enableRealtimeLB != null) {
@@ -293,7 +293,7 @@ class QiscusSDK {
         this.updateLastReceivedComment(this.last_received_comment_id)
       }
     })
-    this.realtimeAdapter.on('close', () => {})
+    this.realtimeAdapter.on('close', () => { })
     this.realtimeAdapter.on('reconnect', () => {
       this.options.onReconnectCallback?.()
     })
@@ -500,7 +500,7 @@ class QiscusSDK {
       if (
         lastReceivedMessageNotEmpty &&
         this.lastReceiveMessages[0].unique_temp_id ===
-          comments[0].unique_temp_id
+        comments[0].unique_temp_id
       ) {
         this.logging('lastReceiveMessages double', comments)
         return
@@ -713,8 +713,8 @@ class QiscusSDK {
           payload[0] === 1
             ? 'Online'
             : `Last seen ${distanceInWordsToNow(
-                Number(payload[1].substring(0, 13))
-              )}`
+              Number(payload[1].substring(0, 13))
+            )}`
       }
       if (self.options.presenceCallback)
         self.options.presenceCallback(message, userId)
@@ -1298,7 +1298,7 @@ class QiscusSDK {
       username_real: this.user_id,
       user_avatar_url: this.userData.avatar_url,
       user_extras: this.userData.user_extras,
-      id: Math.round(Math.random() * 10e6),
+      id: Math.round(Date.now() * 1e6 + Date.now()),
       type: type || 'text',
       timestamp: format(new Date()),
       unique_id: uniqueId ? String(uniqueId) : null,
@@ -1849,7 +1849,7 @@ class QiscusSDK {
     return this.noop
   }
 
-  noop() {}
+  noop() { }
 
   get _throttleDelay() {
     if (
@@ -1910,7 +1910,7 @@ class QiscusSDK {
 
     this.userAdapter
       .updateCommentStatus(roomId, commentId1, commentId2)
-      .catch((err) => {})
+      .catch((err) => { })
   }
 
   _readComment = (roomId, commentId) => this._updateStatus(roomId, commentId)
@@ -2000,8 +2000,8 @@ class QiscusSDK {
         roomType == null
           ? undefined
           : roomType === 'single'
-          ? 'single'
-          : 'group'
+            ? 'single'
+            : 'group'
       const isPublic =
         roomType == null ? undefined : roomType === 'channel' ? true : false
 
