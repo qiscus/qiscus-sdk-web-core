@@ -1,58 +1,58 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@babel/cli': ^7.18.10
-  '@babel/core': ^7.18.13
+  '@babel/cli': ^7.7.4
+  '@babel/core': ^7.7.4
   '@babel/eslint-parser': ^7.14.7
-  '@babel/plugin-proposal-class-properties': ^7.18.6
-  '@babel/plugin-proposal-nullish-coalescing-operator': ^7.18.6
-  '@babel/plugin-proposal-optional-chaining': ^7.18.9
-  '@babel/plugin-transform-runtime': ^7.18.10
-  '@babel/polyfill': ^7.12.1
-  '@babel/preset-env': ^7.18.10
-  '@babel/preset-typescript': ^7.18.6
-  '@babel/register': ^7.18.9
-  '@babel/runtime': ^7.18.9
-  '@sindresorhus/is': ^2.1.1
+  '@babel/plugin-proposal-class-properties': ^7.7.4
+  '@babel/plugin-proposal-nullish-coalescing-operator': ^7.7.4
+  '@babel/plugin-proposal-optional-chaining': ^7.7.4
+  '@babel/plugin-transform-runtime': ^7.7.4
+  '@babel/polyfill': ^7.7.0
+  '@babel/preset-env': ^7.7.4
+  '@babel/preset-typescript': ^7.7.4
+  '@babel/register': ^7.7.4
+  '@babel/runtime': ^7.7.4
+  '@sindresorhus/is': ^2.0.0
   '@types/is': 0.0.21
-  '@types/jest': ^25.2.3
+  '@types/jest': ^25.1.2
   '@types/lodash.debounce': ^4.0.6
   '@types/lodash.flatten': ^4.4.6
-  '@types/node': ^13.13.52
+  '@types/node': ^13.7.1
   '@types/ws': ^7.4.7
-  axios: ^0.19.2
+  axios: ^0.27.2
   babel-eslint: ^8.2.6
   babel-loader: ^8.0.6
   babel-plugin-add-module-exports: ^1.0.2
-  babel-plugin-macros: ^2.8.0
-  core-js: ^3.24.1
+  babel-plugin-macros: ^2.7.1
+  core-js: ^3.4.7
   derivable: ^2.0.0-beta.3
   es6-symbol: ^3.1.3
-  fork-ts-checker-webpack-plugin: ^4.1.6
-  fp-ts: ^2.12.2
+  fork-ts-checker-webpack-plugin: ^4.0.3
+  fp-ts: ^2.2.0
   is_js: ^0.9.0
-  jest: ^26.6.3
+  jest: ^26.6.1
   lodash.debounce: ^4.0.8
   lodash.flatten: ^4.4.0
   mqtt: ^4.2.8
   npm-run-all: ^4.1.5
-  pietile-eventemitter: ^1.0.1
+  pietile-eventemitter: ^1.0.0
   regenerator-runtime: ^0.13.9
   rimraf: ^2.7.1
   serve: ^11.3.2
-  ts-jest: ^26.5.6
-  ts-loader: ^6.2.2
+  ts-jest: ^26.4.2
+  ts-loader: ^6.2.1
   ts-node: ^9.0.0
-  tslib: ^1.14.1
-  typescript: ^3.9.10
-  webpack: ^4.46.0
-  webpack-cli: ^3.3.12
-  xstream: ^11.14.0
+  tslib: ^1.10.0
+  typescript: ^3.7.5
+  webpack: ^4.41.2
+  webpack-cli: ^3.3.10
+  xstream: ^11.11.0
 
 dependencies:
   '@babel/runtime': 7.18.9
   '@sindresorhus/is': 2.1.1
-  axios: 0.19.2
+  axios: 0.27.2
   core-js: 3.24.1
   derivable: 2.0.0-beta.3
   es6-symbol: 3.1.3
@@ -2220,7 +2220,6 @@ packages:
 
   /asynckit/0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
-    dev: true
 
   /atob/2.1.2:
     resolution: {integrity: sha512-Wm6ukoaOGJi/73p/cl2GvLjTI5JM1k/O14isD73YML8StrH/7/lRFgmg8nICZgD3bZZvjwCGxtMOD3wWNAu8cg==}
@@ -2228,13 +2227,13 @@ packages:
     hasBin: true
     dev: true
 
-  /axios/0.19.2:
-    resolution: {integrity: sha512-fjgm5MvRHLhx+osE2xoekY70AhARk3a6hkN+3Io1jc00jtquGvxYlKlsFUhmUET0V5te6CcZI7lcv2Ym61mjHA==}
-    deprecated: Critical security vulnerability fixed in v0.21.1. For more information, see https://github.com/axios/axios/pull/3410
+  /axios/0.27.2:
+    resolution: {integrity: sha512-t+yRIyySRTp/wua5xEr+z1q60QmLq8ABsS5O9Me1AsE5dfKqgnCFzwiCZZ/cGNd1lq4/7akDWMxdhVlucjmnOQ==}
     dependencies:
-      follow-redirects: 1.5.10
+      follow-redirects: 1.15.1
+      form-data: 4.0.0
     transitivePeerDependencies:
-      - supports-color
+      - debug
     dev: false
 
   /babel-eslint/8.2.6:
@@ -2921,7 +2920,6 @@ packages:
     engines: {node: '>= 0.8'}
     dependencies:
       delayed-stream: 1.0.0
-    dev: true
 
   /commander/2.20.3:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
@@ -3190,17 +3188,6 @@ packages:
       supports-color: 6.1.0
     dev: true
 
-  /debug/3.1.0:
-    resolution: {integrity: sha512-OX8XqP7/1a9cqkxYw2yXss15f26NKWBpDXQd0/uK/KPqdQhxbPa994hnzjcE2VqQpDslf55723cKPUOGSmMY3g==}
-    peerDependencies:
-      supports-color: '*'
-    peerDependenciesMeta:
-      supports-color:
-        optional: true
-    dependencies:
-      ms: 2.0.0
-    dev: false
-
   /debug/3.2.6:
     resolution: {integrity: sha512-mel+jf7nrtEl5Pn1Qx46zARXKDpBbvzezse7p7LqINmdoIk8PYP5SySaxEmYv6TZ0JyEKA1hsCId6DIhgITtWQ==}
     deprecated: Debug versions >=3.2.0 <3.2.7 || >=4 <4.3.1 have a low-severity ReDos regression when used in a Node.js environment. It is recommended you upgrade to 3.2.7 or 4.3.1. (https://github.com/visionmedia/debug/issues/797)
@@ -3305,7 +3292,6 @@ packages:
   /delayed-stream/1.0.0:
     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
     engines: {node: '>=0.4.0'}
-    dev: true
 
   /derivable/2.0.0-beta.3:
     resolution: {integrity: sha512-eWGl6PZa04oKupa+srRPlE3KdkmQ/UjpNIUvawFDqYBxU4ZGx1K0EweVnd7O2VTbE5lZTt9Jvu3kL9Ambr4bqg==}
@@ -3859,13 +3845,14 @@ packages:
       readable-stream: 2.3.7
     dev: true
 
-  /follow-redirects/1.5.10:
-    resolution: {integrity: sha512-0V5l4Cizzvqt5D44aTXbFZz+FtyXV1vrDN6qrelxtfYQKW0KO0W2T/hkE8xvGa/540LkZlkaUjO4ailYTFtHVQ==}
+  /follow-redirects/1.15.1:
+    resolution: {integrity: sha512-yLAMQs+k0b2m7cVxpS1VKJVvoz7SS9Td1zss3XRwXj+ZDH00RJgnuLx7E44wx02kQLrdM3aOOy+FpzS7+8OizA==}
     engines: {node: '>=4.0'}
-    dependencies:
-      debug: 3.1.0
-    transitivePeerDependencies:
-      - supports-color
+    peerDependencies:
+      debug: '*'
+    peerDependenciesMeta:
+      debug:
+        optional: true
     dev: false
 
   /for-in/1.0.2:
@@ -3908,6 +3895,15 @@ packages:
       combined-stream: 1.0.8
       mime-types: 2.1.35
     dev: true
+
+  /form-data/4.0.0:
+    resolution: {integrity: sha512-ETEklSGi5t0QMZuiXoA/Q6vcnxcLQP5vdugSpuAyi6SVGi2clPPp+xgEhuMaHC+zGgn31Kd235W35f7Hykkaww==}
+    engines: {node: '>= 6'}
+    dependencies:
+      asynckit: 0.4.0
+      combined-stream: 1.0.8
+      mime-types: 2.1.35
+    dev: false
 
   /fp-ts/2.12.2:
     resolution: {integrity: sha512-v8J7ud+nTkP5Zz17GhpCsY19wiRbB9miuj61nBcCJyDpu52zs9Z4O7OLDfYoKFQMJ9EsSZA7W1vRgC1d3jy5qw==}
@@ -5489,7 +5485,6 @@ packages:
   /mime-db/1.52.0:
     resolution: {integrity: sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg==}
     engines: {node: '>= 0.6'}
-    dev: true
 
   /mime-types/2.1.18:
     resolution: {integrity: sha512-lc/aahn+t4/SWV/qcmumYjymLsWfN3ELhpmVuUFjgsORruuZPVSwAQryq+HHGvO/SI2KVX26bx+En+zhM8g8hQ==}
@@ -5510,7 +5505,6 @@ packages:
     engines: {node: '>= 0.6'}
     dependencies:
       mime-db: 1.52.0
-    dev: true
 
   /mimic-fn/2.1.0:
     resolution: {integrity: sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg==}
@@ -5635,6 +5629,7 @@ packages:
 
   /ms/2.0.0:
     resolution: {integrity: sha1-VgiurfwAvmwpAd9fmGF4jeDVl8g=}
+    dev: true
 
   /ms/2.1.2:
     resolution: {integrity: sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==}
