@@ -21,7 +21,9 @@ export const toCallback =
   <T>(callback: Callback2<T> | Callback1) =>
   (stream: Stream<T>) => {
     let value: T
-    const subscription = stream.subscribe({
+    let subscription: Subscription | undefined
+
+    subscription = stream.subscribe({
       next(data) {
         value = data
       },
@@ -51,7 +53,7 @@ export const tryCatch = <T>(fn: () => T, onError: (error: Error) => void): void 
   try {
     fn()
   } catch (error) {
-    onError(error)
+    onError(error as Error)
   }
 }
 
@@ -149,6 +151,7 @@ export const toEventSubscription =
   (stream: Stream<Func<T>>) => {
     let subscription: Subscription | undefined
     let subs: Subs | undefined
+
     subscription = stream.subscribe({
       next: (handler) => {
         subs = eventSubscribe(handler)

@@ -92,6 +92,7 @@ const synchronizeFactory = (
   getInterval: () => number,
   getEnableSync: () => boolean,
   getId: () => m.IQAccount['lastMessageId'],
+  // @ts-ignore
   logger: (...arg: string[]) => void,
   s: Storage,
   api: Api.ApiRequester
@@ -131,12 +132,14 @@ const synchronizeFactory = (
       })
   }
 
+  // @ts-ignore
   async function* generator() {
     const interval = s.getAccSyncInterval()
     let accumulator = 0
 
     while (true) {
       accumulator += interval
+
       if (accumulator >= getInterval() && getEnableSync()) {
         yield synchronize(getId())
         accumulator = 0
@@ -172,13 +175,20 @@ const synchronizeFactory = (
       return emitter.off.bind(emitter)
     },
     async run() {
-      for await (let result of generator()) {
+      let gen = generator()
+
+      // noinspection InfiniteLoopJS
+      while (true) {
+        let val = await gen.next()
         emitter.emit('synchronized')
-        try {
-          logger('synchronize id:', String(result.lastMessageId))
-          processResult(Promise.resolve(result))
-        } catch (e) {
-          logger('error when sync', e.message)
+
+        if (val.done == null || val.done === false) {
+          try {
+            logger('synchronize id:', String(val.value.lastMessageId))
+            await processResult(Promise.resolve(val.value))
+          } catch (e) {
+            logger('error when sync', (e as Error).message)
+          }
         }
       }
     },
@@ -328,12 +338,19 @@ const synchronizeEventFactory = (
       return emitter.off.bind(emitter)
     },
     async run() {
-      for await (let result of generator()) {
-        try {
-          logger('syncrhonize event id:', String(result.lastId))
-          processResult(Promise.resolve(result))
-        } catch (e) {
-          logger('error when sync event', e)
+      let gen = generator()
+
+      // noinspection InfiniteLoopJS
+      while (true) {
+        let val = await gen.next()
+
+        if (val.done == null || val.done === false) {
+          try {
+            logger('synchronize event id:', String(val.value.lastId))
+            await processResult(Promise.resolve(val.value))
+          } catch (e) {
+            logger('error when sync', (e as Error).message)
+          }
         }
       }
     },

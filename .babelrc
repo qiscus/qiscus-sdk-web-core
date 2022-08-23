@@ -16,7 +16,7 @@
         "corejs": 3,
         "targets": {
           "browsers": "> 0.25%, not dead",
-          "node": "10"
+          "node": "16"
         }
       }
     ],

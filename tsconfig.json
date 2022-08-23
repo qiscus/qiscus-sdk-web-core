@@ -1,6 +1,6 @@
 {
   "include": ["src"],
-  "exclude": ["**/*.test.ts", "lib", "lib-esm", "dist"],
+  "exclude": ["**/*.test.ts", "lib", "lib-esm", "dist", "node_modules"],
   "compilerOptions": {
     "target": "esnext",
     "module": "CommonJS",
@@ -27,6 +27,7 @@
     "baseUrl": ".",
     "declarationDir": "./types",
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "skipLibCheck": true
   }
 }
