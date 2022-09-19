@@ -1,19 +1,21 @@
 # Qiscus Web SDK Core
 
-This library contains core functionalities needed to create a chat application using qiscus. 
+This library contains core functionalities needed to create a chat application using qiscus.
+
+Check out the V3 migration guide with Typescript details here: [V3 Migration Guide](https://github.com/qiscus/qiscus-sdk-web-core/blob/v3/MIGRATION_GUIDE.md)
 
 ## Installing
 
 ```
-$ npm i qiscus-sdk-core
+$ npm i qiscus-sdk-javascript
 // or if you're using yarn
-$ yarn add qiscus-sdk-core
+$ yarn add qiscus-sdk-javascript
 ```
 
 then you need to import this library into your application.
 
 ```
-import QiscusSDK from 'qiscus-sdk-core';
+import QiscusSDK from 'qiscus-sdk-javascript';
 
 const qiscus = new QiscusSDK();
 ```
