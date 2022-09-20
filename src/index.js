@@ -217,65 +217,71 @@ class QiscusSDK {
       }
     }
 
-    await this.HTTPAdapter.get_request('api/v2/sdk/config')
-      .then((resp) => {
-        resp.status == 200
-          ? (this.isConfigLoaded = true)
-          : (this.isConfigLoaded = false)
-        return resp.body.results
-      })
-      .then((cfg) => {
-        const baseUrl = this.baseURL // default value for baseUrl
-        const brokerLbUrl = this.brokerLbUrl // default value for brokerLbUrl
-        const mqttUrl = this.mqttURL // default value for brokerUrl
-        const enableRealtime = this.enableRealtime // default value for enableRealtime
-        const enableRealtimeCheck = this.enableRealtimeCheck // default value for enableRealtimeCheck
-        const syncInterval = this.syncInterval // default value for syncInterval
-        const syncIntervalWhenConnected = this.syncOnConnect // default value for syncIntervalWhenConnected
-        const enableEventReport = this.enableEventReport // default value for enableEventReport
-        const configExtras = {} // default value for extras
+    this.withConfig = config.withConfig ?? true
 
-        this.baseURL = setterHelper(config.baseURL, cfg.base_url, baseUrl)
-        this.brokerLbUrl = setterHelper(
-          config.brokerLbURL,
-          cfg.broker_lb_url,
-          brokerLbUrl
-        )
-        this.mqttURL = mqttWssCheck(
-          setterHelper(config.mqttURL, cfg.broker_url, mqttUrl)
-        )
-        this.enableRealtime = setterHelper(
-          config.enableRealtime,
-          cfg.enable_realtime,
-          enableRealtime
-        )
-        this.syncInterval = setterHelper(
-          config.syncInterval,
-          cfg.sync_interval,
-          syncInterval
-        )
-        this.syncOnConnect = setterHelper(
-          config.syncOnConnect,
-          cfg.sync_on_connect,
-          syncIntervalWhenConnected
-        )
-        // since user never provide this value
-        this.enableRealtimeCheck = setterHelper(
-          null,
-          cfg.enable_realtime_check,
-          enableRealtimeCheck
-        )
-        this.enableEventReport = setterHelper(
-          null,
-          cfg.enable_event_report,
-          enableEventReport
-        )
-        this.extras = setterHelper(null, cfg.extras, configExtras)
-      })
-      .catch((err) => {
-        this.logger('got error when trying to get app config', err)
-        this.isConfigLoaded = true
-      })
+    if (this.withConfig === true) {
+      await this.HTTPAdapter.get_request('api/v2/sdk/config')
+        .then((resp) => {
+          resp.status == 200
+            ? (this.isConfigLoaded = true)
+            : (this.isConfigLoaded = false)
+          return resp.body.results
+        })
+        .then((cfg) => {
+          const baseUrl = this.baseURL // default value for baseUrl
+          const brokerLbUrl = this.brokerLbUrl // default value for brokerLbUrl
+          const mqttUrl = this.mqttURL // default value for brokerUrl
+          const enableRealtime = this.enableRealtime // default value for enableRealtime
+          const enableRealtimeCheck = this.enableRealtimeCheck // default value for enableRealtimeCheck
+          const syncInterval = this.syncInterval // default value for syncInterval
+          const syncIntervalWhenConnected = this.syncOnConnect // default value for syncIntervalWhenConnected
+          const enableEventReport = this.enableEventReport // default value for enableEventReport
+          const configExtras = {} // default value for extras
+
+          this.baseURL = setterHelper(config.baseURL, cfg.base_url, baseUrl)
+          this.brokerLbUrl = setterHelper(
+            config.brokerLbURL,
+            cfg.broker_lb_url,
+            brokerLbUrl
+          )
+          this.mqttURL = mqttWssCheck(
+            setterHelper(config.mqttURL, cfg.broker_url, mqttUrl)
+          )
+          this.enableRealtime = setterHelper(
+            config.enableRealtime,
+            cfg.enable_realtime,
+            enableRealtime
+          )
+          this.syncInterval = setterHelper(
+            config.syncInterval,
+            cfg.sync_interval,
+            syncInterval
+          )
+          this.syncOnConnect = setterHelper(
+            config.syncOnConnect,
+            cfg.sync_on_connect,
+            syncIntervalWhenConnected
+          )
+          // since user never provide this value
+          this.enableRealtimeCheck = setterHelper(
+            null,
+            cfg.enable_realtime_check,
+            enableRealtimeCheck
+          )
+          this.enableEventReport = setterHelper(
+            null,
+            cfg.enable_event_report,
+            enableEventReport
+          )
+          this.extras = setterHelper(null, cfg.extras, configExtras)
+        })
+        .catch((err) => {
+          this.logger('got error when trying to get app config', err)
+          this.isConfigLoaded = true
+        })
+    } else {
+      this.isConfigLoaded = true
+    }
 
     // set Event Listeners
 
@@ -453,6 +459,12 @@ class QiscusSDK {
 
   setEventListeners() {
     const self = this
+
+    this.authAdapter = new AuthAdapter(self.HTTPAdapter)
+    if (this.userData.email != null) {
+      this.authAdapter.userId = this.userData.email
+    }
+
     self.events.on('start-init', () => {
       self.HTTPAdapter = new HttpAdapter({
         baseURL: self.baseURL,
@@ -462,7 +474,6 @@ class QiscusSDK {
         getCustomHeader: () => this._customHeader,
       })
       self.HTTPAdapter.setToken(self.userData.token)
-      self.authAdapter = new AuthAdapter(self.HTTPAdapter)
     })
 
     self.events.on('room-changed', (room) => {
@@ -594,6 +605,9 @@ class QiscusSDK {
       if (this.options.loginSuccessCallback) {
         this.options.loginSuccessCallback(response)
       }
+
+      this.authAdapter.userId = this.userData.email
+      this.authAdapter.refreshToken = this.userData.refresh_token
     })
 
     /**
@@ -827,6 +841,8 @@ class QiscusSDK {
           return self.authAdapter.loginOrRegister(params).then(
             (response) => {
               self.isInit = true
+              console.log('response', response)
+              self.refresh_token = response.user.refresh_token
               self.events.emit('login-success', response)
               this.realtimeAdapter.connect()
               resolve(response)
@@ -860,6 +876,19 @@ class QiscusSDK {
         this.events.emit('login-success', data)
       }
     }, 300)
+  }
+
+  refreshAuthToken() {
+    return this.authAdapter.refreshAuthToken()
+      .then((r) => {
+        console.log('resp:', r)
+        this.token = r.token
+        this.HTTPAdapter.token = r.token;
+        return r;
+      })
+  }
+  expiredAuthToken() {
+    return this.authAdapter.expiredAuthToken()
   }
 
   publishOnlinePresence(val) {

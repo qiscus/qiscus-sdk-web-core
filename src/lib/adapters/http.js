@@ -21,7 +21,10 @@ export default class HttpAdapter {
         req = request.get(`${options.baseURL}/${path}`);
       req = this.setupHeaders(req, headers);
       req.end((err, res) => {
-        if (err) return reject(err);
+        if (err) {
+          this._rethrowIfExpiredToken(err)
+          return reject(err);
+        }
         return resolve(res);
       });
     });
@@ -41,7 +44,10 @@ export default class HttpAdapter {
         .send(body)
         .set("Content-Type", "application/x-www-form-urlencoded")
         .end((err, res) => {
-          if (err) return reject(err);
+          if (err) {
+            this._rethrowIfExpiredToken(err);
+            return reject(err);
+          }
           return resolve(res);
         });
     });
@@ -56,7 +62,10 @@ export default class HttpAdapter {
         .send(body)
         .set("Content-Type", "application/json")
         .end((err, res) => {
-          if (err) return reject(err);
+          if (err) {
+            this._rethrowIfExpiredToken(err)
+            return reject(err);
+          }
           return resolve(res);
         });
     });
@@ -70,7 +79,10 @@ export default class HttpAdapter {
         .send(body)
         .set("Content-Type", "application/x-www-form-urlencoded")
         .end((err, res) => {
-          if (err) return reject(err);
+          if (err) {
+            this._rethrowIfExpiredToken(err)
+            return reject(err);
+          }
           return resolve(res);
         });
     });
@@ -84,7 +96,10 @@ export default class HttpAdapter {
         .send(body)
         .set("Content-Type", "application/x-www-form-urlencoded")
         .end((err, res) => {
-          if (err) return reject(err);
+          if (err) {
+            this._rethrowIfExpiredToken(err)
+            return reject(err);
+          }
           return resolve(res);
         });
     });
@@ -98,7 +113,10 @@ export default class HttpAdapter {
         .send(body)
         .set("Content-Type", "application/json")
         .end((err, res) => {
-          if (err) return reject(err);
+          if (err) {
+            this._rethrowIfExpiredToken(err)
+            return reject(err);
+          }
           return resolve(res);
         });
     });
@@ -106,16 +124,27 @@ export default class HttpAdapter {
 
   setupHeaders(req, headers) {
     // let's give this default Authorization Header
-    req.set("QISCUS-SDK-APP-ID", `${this.AppId}`);
-    req.set("QISCUS-SDK-USER-ID", `${this.userId}`);
-    req.set("QISCUS-SDK-TOKEN", `${this.token}`);
-    req.set("QISCUS-SDK-VERSION", `${this.version}`);
+    if (this.AppId != null) {
+      req.set("QISCUS-SDK-APP-ID", `${this.AppId}`);
+    }
+    if (this.userId != null) {
+      req.set("QISCUS-SDK-USER-ID", `${this.userId}`);
+    }
+    console.log('this.token:', this.token)
+    if (this.token != null) {
+      req.set("QISCUS-SDK-TOKEN", `${this.token}`);
+    }
+    if (this.version != null) {
+      req.set("QISCUS-SDK-VERSION", `${this.version}`);
+    }
 
     if (this.getCustomHeader != null) {
       const customHeaders = this.getCustomHeader();
-      Object.keys(customHeaders).forEach((key) => {
-        req.set(key, customHeaders[key]);
-      });
+      Object.keys(customHeaders)
+        .filter((key) => customHeaders[key] != null)
+        .forEach((key) => {
+          req.set(key, customHeaders[key]);
+        });
     }
     // Return the req if no headers attached
     if (Object.keys(headers).length < 1) return req;
@@ -124,5 +153,14 @@ export default class HttpAdapter {
       if (headers.hasOwnProperty(key)) req.set(key, headers[key]);
     }
     return req;
+  }
+
+  _rethrowIfExpiredToken(err) {
+    let status = err.response?.status
+    let body = err.response?.body
+
+    if (status === 403 && body.error?.message?.toLowerCase() === 'unauthorized. token is expired') {
+      throw new Error('Token expired')
+    }
   }
 }
