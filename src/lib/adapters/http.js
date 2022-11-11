@@ -130,7 +130,6 @@ export default class HttpAdapter {
     if (this.userId != null) {
       req.set("QISCUS-SDK-USER-ID", `${this.userId}`);
     }
-    console.log('this.token:', this.token)
     if (this.token != null) {
       req.set("QISCUS-SDK-TOKEN", `${this.token}`);
     }

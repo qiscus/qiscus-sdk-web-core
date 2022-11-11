@@ -87,8 +87,7 @@ export class Room {
       commentToFind.time = comment.time
       commentToFind.unix_timestamp = comment.unix_timestamp
     } else {
-      this.comments.push(comment)
-      // this.comments.sort((a, b) => a.date - b.date)
+      this.comments = [...this.comments, comment];
     }
   }
 

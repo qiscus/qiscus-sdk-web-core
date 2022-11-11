@@ -30,9 +30,10 @@ function synchronizeFactory(getHttp, getInterval, getSync, getId, logger) {
     let accumulatedInterval = 0
     const interval = 100
     const shouldSync = () => getHttp() != null && getSync()
+
     while (true) {
       accumulatedInterval += interval
-      if (accumulatedInterval >= getInterval() && shouldSync) {
+      if (accumulatedInterval >= getInterval() && shouldSync()) {
         accumulatedInterval = 0
         yield synchronize(getId())
       }
@@ -110,7 +111,7 @@ function synchronizeEventFactory(getHttp, getInterval, getSync, getId, logger) {
     const shouldSync = () => getHttp() != null && getSync()
     while (true) {
       accumulatedInterval += interval
-      if (accumulatedInterval >= getInterval() && shouldSync) {
+      if (accumulatedInterval >= getInterval() && shouldSync()) {
         accumulatedInterval = 0
         yield synchronize(getId())
       }
@@ -173,7 +174,7 @@ export default function SyncAdapter(
       if (getShouldSync()) return syncInterval()
       return syncOnConnect()
     }
-    return
+    return 0
   }
 
   const syncFactory = synchronizeFactory(

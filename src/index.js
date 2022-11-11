@@ -93,6 +93,7 @@ class QiscusSDK {
     this.debugMode = false
     this.debugMQTTMode = false
     this._customHeader = {}
+    this._forceEnableSync = true
 
     // to prevent double receive newmessages callback
     this.lastReceiveMessages = []
@@ -345,7 +346,8 @@ class QiscusSDK {
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
       getToken: () => this.userData.token,
       syncInterval: () => this.syncInterval,
-      getShouldSync: () => this.isLogin && !this.realtimeAdapter.connected,
+      getShouldSync: () => this._forceEnableSync
+        && (this.isLogin && !this.realtimeAdapter.connected),
       syncOnConnect: () => this.syncOnConnect,
       lastCommentId: () => this.last_received_comment_id,
       statusLogin: () => this.isLogin,
@@ -2225,6 +2227,13 @@ class QiscusSDK {
    */
   async openRealtimeConnection() {
     return this.realtimeAdapter.openConnection()
+  }
+
+  async startSync() {
+    this._forceEnableSync = true;
+  }
+  async stopSync() {
+    this._forceEnableSync = false;
   }
 }
 
