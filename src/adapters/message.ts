@@ -1,5 +1,5 @@
 // @ts-ignore
-import { IQMessageT } from '../defs'
+import cuid from 'cuid'
 import { Storage } from '../storage'
 import * as Api from '../api'
 import * as Provider from '../provider'
@@ -15,7 +15,7 @@ const getMessageAdapter = (s: Storage, api: Api.ApiRequester) => ({
       type: message.type as model.IQMessage['type'],
       text: message.text,
       payload: message.payload as model.IQMessage['payload'],
-      uniqueId: message.uniqueId ?? `javascript-${Date.now()}-${Math.random()}`,
+      uniqueId: message.uniqueId ?? `javascript-${cuid()}`,
       extras: message.extras as model.IQMessage['extras'],
     })
     return api.request<PostCommentResponse.RootObject>(apiConfig).then((resp) => Decoder.message(resp.results.comment))
