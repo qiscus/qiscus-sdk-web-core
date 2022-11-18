@@ -162,4 +162,5 @@ export default class HttpAdapter {
       throw new Error('Token expired')
     }
   }
+
 }

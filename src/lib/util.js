@@ -16,3 +16,6 @@ export const tryCatch = (
 
 export const wrapP = (promise) =>
   promise.then(res => [res, null]).catch(err => [null, err])
+
+export const sleep = (time = 1000) =>
+  new Promise(r => setTimeout(r, time))

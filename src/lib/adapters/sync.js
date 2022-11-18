@@ -109,6 +109,7 @@ function synchronizeEventFactory(getHttp, getInterval, getSync, getId, logger) {
     let accumulatedInterval = 0
     const interval = 100
     const shouldSync = () => getHttp() != null && getSync()
+
     while (true) {
       accumulatedInterval += interval
       if (accumulatedInterval >= getInterval() && shouldSync()) {
@@ -161,12 +162,14 @@ export default function SyncAdapter(
     syncOnConnect,
     lastCommentId,
     statusLogin,
+    enableSync,
+    enableSyncEvent,
   }
 ) {
   const emitter = mitt()
   const logger = (...args) => (isDebug ? console.log('QSync:', ...args) : {})
 
-  // let lastMessageId = 0
+  let lastMessageId = 0
   let lastEventId = 0
 
   const getInterval = () => {
@@ -177,23 +180,25 @@ export default function SyncAdapter(
     return 0
   }
 
+  const _getShouldSync = () => getShouldSync() && enableSync()
   const syncFactory = synchronizeFactory(
     getHttpAdapter,
     getInterval,
-    getShouldSync,
+    _getShouldSync,
     lastCommentId,
-    logger
+    logger,
   )
   syncFactory.on('last-message-id.new', (id) => (lastMessageId = id))
   syncFactory.on('message.new', (m) => emitter.emit('message.new', m))
   syncFactory.run().catch((err) => logger('got error when sync', err))
 
+  const _getShouldSyncEvent = () => getShouldSync() && enableSyncEvent()
   const syncEventFactory = synchronizeEventFactory(
     getHttpAdapter,
     getInterval,
-    getShouldSync,
+    _getShouldSyncEvent,
     () => lastEventId,
-    logger
+    logger,
   )
   syncEventFactory.on('last-event-id.new', (id) => {
     lastEventId = id

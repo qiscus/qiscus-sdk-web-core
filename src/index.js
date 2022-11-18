@@ -16,6 +16,7 @@ import { GroupChatBuilder } from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
+import { ExpiredTokenAdapter } from './lib/adapters/expired-token'
 
 // helper for setup publishOnlinePresence status
 let setBackToOnline
@@ -58,7 +59,10 @@ class QiscusSDK {
     this.enableEventReport = false
     this.enableRealtime = true
     this.enableRealtimeCheck = true
+    this.enableSync = true
+    this.enableSyncEvent = false
     this.HTTPAdapter = null
+    this.expiredTokenAdapter = null;
     this.realtimeAdapter = null
     this.customEventAdapter = null
     this.isInit = false
@@ -197,7 +201,7 @@ class QiscusSDK {
      */
 
     const setterHelper = (fromUser, fromServer, defaultValue) => {
-      if (fromServer == '') {
+      if (fromServer === '') {
         if (fromUser != null) {
           if (typeof fromUser !== 'string') return fromUser
           if (fromUser.length > 0) return fromUser
@@ -239,6 +243,8 @@ class QiscusSDK {
           const enableEventReport = this.enableEventReport // default value for enableEventReport
           const configExtras = {} // default value for extras
 
+
+
           this.baseURL = setterHelper(config.baseURL, cfg.base_url, baseUrl)
           this.brokerLbUrl = setterHelper(
             config.brokerLbURL,
@@ -275,6 +281,8 @@ class QiscusSDK {
             enableEventReport
           )
           this.extras = setterHelper(null, cfg.extras, configExtras)
+          this.enableSync = setterHelper(null, cfg.enable_sync, this.enableSync)
+          this.enableSyncEvent = setterHelper(null, cfg.enable_sync_event, this.enableSyncEvent)
         })
         .catch((err) => {
           this.logger('got error when trying to get app config', err)
@@ -351,6 +359,8 @@ class QiscusSDK {
       syncOnConnect: () => this.syncOnConnect,
       lastCommentId: () => this.last_received_comment_id,
       statusLogin: () => this.isLogin,
+      enableSync: () => this.enableSync,
+      enableSyncEvent: () => this.enableSyncEvent,
     })
     this.syncAdapter.on('message.new', async (message) => {
       message = await this._hookAdapter.trigger(
@@ -592,6 +602,23 @@ class QiscusSDK {
       })
       this.HTTPAdapter.setToken(this.userData.token)
 
+      let user = response.user;
+      this.expiredTokenAdapter = new ExpiredTokenAdapter({
+        httpAdapter: this.HTTPAdapter,
+        refreshToken: user.refresh_token,
+        expiredAt: user.token_expires_at,
+        userId: this.user_id,
+        onTokenRefreshed: (token, refreshToken, expiredAt) => {
+          this.userData.token = token
+          this.userData.refresh_token = refreshToken
+          this.userData.token_expires_at = expiredAt?.toJSON()
+          this.events.emit('token-refreshed', { token, refreshToken, expiredAt })
+        },
+        getAuthenticationStatus: () => {
+          return this.user_id != null && this.isLogin
+        }
+      })
+
       this.userAdapter = new UserAdapter(this.HTTPAdapter)
       this.roomAdapter = new RoomAdapter(this.HTTPAdapter)
 
@@ -619,6 +646,9 @@ class QiscusSDK {
       if (self.options.loginErrorCallback) {
         self.options.loginErrorCallback(error)
       }
+    })
+    self.events.on('token-refreshed', (param) => {
+      this.options.authTokenRefreshedCallback?.(param)
     })
 
     self.events.on('room-cleared', function (room) {
@@ -840,10 +870,9 @@ class QiscusSDK {
           clearInterval(waitingConfig)
           this.logger('Config Success!')
           self.events.emit('start-init')
-          return self.authAdapter.loginOrRegister(params).then(
+          let login$ = self.authAdapter.loginOrRegister(params).then(
             (response) => {
               self.isInit = true
-              console.log('response', response)
               self.refresh_token = response.user.refresh_token
               self.events.emit('login-success', response)
               this.realtimeAdapter.connect()
@@ -854,6 +883,8 @@ class QiscusSDK {
               reject(error)
             }
           )
+
+          return login$;
         }
       }, 300)
     })
@@ -881,16 +912,7 @@ class QiscusSDK {
   }
 
   refreshAuthToken() {
-    return this.authAdapter.refreshAuthToken()
-      .then((r) => {
-        console.log('resp:', r)
-        this.token = r.token
-        this.HTTPAdapter.token = r.token;
-        return r;
-      })
-  }
-  expiredAuthToken() {
-    return this.authAdapter.expiredAuthToken()
+    return this.expiredTokenAdapter.refreshAuthToken();
   }
 
   publishOnlinePresence(val) {
