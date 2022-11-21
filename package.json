@@ -27,7 +27,8 @@
     "build:watch:cjs": "tsc --build tsconfig.json --watch",
     "build:watch:esm": "tsc -m es2015 --outDir lib-esm",
     "test": "jest",
-    "dev:serve": "run-p serve build:watch:bundle"
+    "dev:serve": "run-p serve build:watch:bundle",
+    "release:patch": "np --any-branch --yolo patch"
   },
   "prettier": {
     "semi": false,
@@ -50,6 +51,7 @@
     "lodash.debounce": "^4.0.8",
     "lodash.flatten": "^4.4.0",
     "mqtt": "^4.2.8",
+    "np": "^7.6.2",
     "pietile-eventemitter": "^1.0.0",
     "regenerator-runtime": "^0.13.9",
     "tslib": "^1.10.0",
