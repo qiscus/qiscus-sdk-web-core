@@ -28,7 +28,15 @@ export default function getSyncAdapter(o: {
   logger: (...args: string[]) => void
 }) {
   const emitter = new EventEmitter<IQSyncEvent>()
-  const enableSync = (): boolean => o.s.getCurrentUser() != null
+  const enableSync = (): boolean => {
+    let isAuthenticated = o.s.getCurrentUser() != null
+    let isNotForceDisabled = o.s.getForceDisableSync() !== true
+
+    o.logger(`enableSync --> isNotForceDisabled(${isNotForceDisabled})`)
+    o.logger(`enableSync --> isAuthenticated(${isAuthenticated})`)
+
+    return isAuthenticated && isNotForceDisabled
+  }
 
   const getInterval = (): number => {
     if (o.shouldSync()) return o.s.getSyncInterval()
@@ -141,7 +149,10 @@ const synchronizeFactory = (
       accumulator += interval
 
       if (accumulator >= getInterval() && getEnableSync()) {
-        yield synchronize(getId())
+        let lastId = getId()
+        yield synchronize(lastId)
+        logger(`syncrhonize(lastId: ${lastId})`)
+
         accumulator = 0
       }
       await sleep(interval)
@@ -306,8 +317,11 @@ const synchronizeEventFactory = (
 
     while (true) {
       accumulator += interval
+      logger(`interval(${getInterval()}) getEnableSync(${getEnableSync()})`)
       if (accumulator >= getInterval() && getEnableSync()) {
-        yield synchronize(getId())
+        let lastId = getId()
+        yield synchronize(lastId)
+        logger(`synchronizeEvent(lastId: ${lastId})`)
         accumulator = 0
       }
       await sleep(interval)

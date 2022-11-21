@@ -1,5 +1,6 @@
 import axios, { AxiosResponse } from 'axios'
 import xs from 'xstream'
+import cuid from 'cuid'
 import flattenConcurrently from 'xstream/extra/flattenConcurrently'
 import { getLogger } from './adapters/logger'
 import getMessageAdapter from './adapters/message'
@@ -1172,7 +1173,7 @@ export default class Qiscus {
   }
 
   enableDebugMode(enable: boolean, callback?: IQCallback1) {
-    process(enable, isReqBoolean({ enable }))
+    return process(enable, isReqBoolean({ enable }))
       .compose(bufferUntil(() => this.isLogin))
       .map((enable: boolean) => this.loggerAdapter.setEnable(enable))
       .compose(toCallbackOrPromise<void>(callback))
@@ -1297,7 +1298,14 @@ export default class Qiscus {
   }
 
   _generateUniqueId(): string {
-    return `javascript-${Date.now()}`
+    return `javascript-${cuid()}`
+  }
+
+  async startSync() {
+    this.storage.setForceDisableSync(false)
+  }
+  async stopSync() {
+    this.storage.setForceDisableSync(true)
   }
 
   generateMessage({

@@ -17,14 +17,18 @@ export type ListStorageFactory = ReturnType<typeof listStorageFactory>
 export const storageFactory = () => {
   // const storage = new Map<string, any>()
   const storage: Record<string, any> = {}
-  const makeSetter = <T>(name: string) => (value: T): void => {
-    // storage.set(name, value)
-    storage[name] = value
-  }
-  const makeGetter = <T>(name: string, defaultValue?: T) => (): T => {
-    // storage.get(name) ?? defaultValue
-    return storage[name] ?? defaultValue
-  }
+  const makeSetter =
+    <T>(name: string) =>
+    (value: T): void => {
+      // storage.set(name, value)
+      storage[name] = value
+    }
+  const makeGetter =
+    <T>(name: string, defaultValue?: T) =>
+    (): T => {
+      // storage.get(name) ?? defaultValue
+      return storage[name] ?? defaultValue
+    }
 
   const defaultBaseURL = 'https://api.qiscus.com'
   const defaultUploadUrl = `${defaultBaseURL}/api/v2/sdk/upload`
@@ -84,5 +88,8 @@ export const storageFactory = () => {
     setLastMessageId: makeSetter<IQAccount['lastMessageId']>('last-message-id'),
     getLastEventId: makeGetter<IQAccount['lastSyncEventId']>('last-event-id'),
     setLastEventId: makeSetter<IQAccount['lastSyncEventId']>('last-event-id'),
+
+    getForceDisableSync: makeGetter<boolean>('force-disable-sync', false),
+    setForceDisableSync: makeSetter<boolean>('force-disable-sync'),
   }
 }

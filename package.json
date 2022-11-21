@@ -3,8 +3,10 @@
   "version": "3.3.1",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
-  "main": "dist/qiscus-sdk-javascript.umd.js",
+  "main": "lib/index.js",
+  "module": "lib-esm/index.js",
   "types": "types/index.d.ts",
+  "type": "commonjs",
   "files": [
     "dist",
     "lib",
@@ -24,7 +26,8 @@
     "build:watch:bundle": "webpack --env.development --env.target=web --watch",
     "build:watch:cjs": "tsc --build tsconfig.json --watch",
     "build:watch:esm": "tsc -m es2015 --outDir lib-esm",
-    "test": "jest"
+    "test": "jest",
+    "dev:serve": "run-p serve build:watch:bundle"
   },
   "prettier": {
     "semi": false,
@@ -78,7 +81,7 @@
     "jest": "^26.6.1",
     "npm-run-all": "^4.1.5",
     "rimraf": "^2.7.1",
-    "serve": "^11.3.2",
+    "serve": "14.1.2",
     "ts-jest": "^26.4.2",
     "ts-loader": "^6.2.1",
     "ts-node": "^9.0.0",
