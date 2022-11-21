@@ -43,10 +43,17 @@ export class ExpiredTokenAdapter {
   }) {
     this._http = httpAdapter;
     this._refreshToken = refreshToken
-    this._expiredAt = expiredAt == null ? null : new Date(expiredAt)
+    // this._expiredAt = expiredAt == null ? null : new Date(expiredAt)
     this._userId = userId
     this._onTokenRefreshed = onTokenRefreshed
     this._getAuthenticationStatus = getAuthenticationStatus;
+
+    if (this._refreshToken != null && this._refreshToken === '') {
+      this._refreshToken = null
+    }
+    if (expiredAt != null && expiredAt !== '') {
+      this._expiredAt = new Date(expiredAt)
+    }
 
     this._isExpiredTokenEnabled = this._refreshToken != null && this._expiredAt != null;
 
@@ -58,7 +65,7 @@ export class ExpiredTokenAdapter {
   async _checkToken() {
     const timeToSleep = 5000 // 5 seconds
 
-    if (this._getAuthenticationStatus() == false) {
+    if (this._getAuthenticationStatus() == false || this._refreshToken == null) {
       // console.log('not authenticated, break out of recursion')
       return;
     }
@@ -99,6 +106,13 @@ export class ExpiredTokenAdapter {
       this._onTokenRefreshed?.(token, this._refreshToken, this._expiredAt)
 
       return res;
+    })
+  }
+
+  async logout() {
+    return this._http.post('api/v2/sdk/logout', {
+      user_id: this._userId,
+      token: this._http.token,
     })
   }
 

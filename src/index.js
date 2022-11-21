@@ -937,7 +937,8 @@ class QiscusSDK {
     this.realtimeAdapter.unsubscribeUserPresence(userId)
   }
 
-  logout() {
+  async logout() {
+    await this.expiredTokenAdapter.logout()
     clearInterval(this.presensePublisherId)
     this.publishOnlinePresence(false)
     this.selected = null
