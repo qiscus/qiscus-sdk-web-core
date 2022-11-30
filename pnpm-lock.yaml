@@ -26,7 +26,6 @@ specifiers:
   babel-plugin-add-module-exports: ^1.0.2
   babel-plugin-macros: ^2.7.1
   core-js: ^3.4.7
-  cuid: ^2.1.8
   derivable: ^2.0.0-beta.3
   es6-symbol: ^3.1.3
   fork-ts-checker-webpack-plugin: ^4.0.3
@@ -57,7 +56,6 @@ dependencies:
   '@sindresorhus/is': 2.1.1
   axios: 0.27.2
   core-js: 3.24.1
-  cuid: 2.1.8
   derivable: 2.0.0-beta.3
   es6-symbol: 3.1.3
   fp-ts: 2.12.2
@@ -3449,10 +3447,6 @@ packages:
     dependencies:
       cssom: 0.3.8
     dev: true
-
-  /cuid/2.1.8:
-    resolution: {integrity: sha512-xiEMER6E7TlTPnDxrM4eRiC6TRgjNX9xzEZ5U/Se2YJKr7Mq4pJn/2XEHjl3STcSh96GmkHPcBXLES8M29wyyg==}
-    dev: false
 
   /cyclist/1.0.1:
     resolution: {integrity: sha512-NJGVKPS81XejHcLhaLJS7plab0fK3slPh11mESeeDq2W4ZI5kUKK/LRRdVDvjJseojbPB7ZwjnyOybg3Igea/A==}

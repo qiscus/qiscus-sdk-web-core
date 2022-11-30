@@ -236,18 +236,18 @@
         "signature": "bb0c7fb3f90eaa37d5fa4406e0211c7f0e0a5792db570ac4754ace157a2d0b93",
         "affectsGlobalScope": false
       },
-      "./node_modules/.pnpm/cuid@2.1.8/node_modules/cuid/index.d.ts": {
-        "version": "4046592570718236ed274564f611f502ca4e9fce87e0e078e1f5905292a22b62",
-        "signature": "4046592570718236ed274564f611f502ca4e9fce87e0e078e1f5905292a22b62",
-        "affectsGlobalScope": false
-      },
       "./src/provider.ts": {
         "version": "333ce9b98b462bd5308d8c1bd50ffbc5e4bf61e144cd1e3ba22fc07990914b62",
         "signature": "f6aa0628c9960768841022eb0869b4e67fd74e761fe8621e69cb067b736d4f62",
         "affectsGlobalScope": false
       },
+      "./node_modules/.pnpm/nanoid@4.0.0/node_modules/nanoid/index.d.ts": {
+        "version": "a45ee7555d019a67fbe092898d1aef0b1d02a9f6679ab84461ff515b4460d706",
+        "signature": "a45ee7555d019a67fbe092898d1aef0b1d02a9f6679ab84461ff515b4460d706",
+        "affectsGlobalScope": false
+      },
       "./src/adapters/message.ts": {
-        "version": "bb9f57bdc6ec84fc57518d514f9eff9858e32fc8861f4dea927ad79267c6f5f9",
+        "version": "e0df3fac5d1a8017f91db1d9554154c7d6ee6c4738e1d3be229f14a45b81fd4d",
         "signature": "cd5553fdd2b4de1ef2fc8477921436509fde82caf3219a108df552929e88aeba",
         "affectsGlobalScope": false
       },
@@ -672,7 +672,7 @@
         "affectsGlobalScope": false
       },
       "./src/index.ts": {
-        "version": "6807f01b3dfcd628ff83d7940596941848ee9c0d6c4ab49081a769c16a6c639d",
+        "version": "7c585da63ea335c95b8d3911342294dc6ce3c0d81d0e5fb73d8a243d79fce336",
         "signature": "a3e819b2f6e064f3199cc5cfb541c0fd733e6a4e9e261a310770d356606396b5",
         "affectsGlobalScope": false
       },
@@ -1209,7 +1209,7 @@
         "./src/storage.ts"
       ],
       "./src/adapters/message.ts": [
-        "./node_modules/.pnpm/cuid@2.1.8/node_modules/cuid/index.d.ts",
+        "./node_modules/.pnpm/nanoid@4.0.0/node_modules/nanoid/index.d.ts",
         "./src/api.ts",
         "./src/decoder.ts",
         "./src/model.ts",
@@ -1287,7 +1287,7 @@
       ],
       "./src/index.ts": [
         "./node_modules/.pnpm/axios@0.27.2/node_modules/axios/index.d.ts",
-        "./node_modules/.pnpm/cuid@2.1.8/node_modules/cuid/index.d.ts",
+        "./node_modules/.pnpm/nanoid@4.0.0/node_modules/nanoid/index.d.ts",
         "./node_modules/.pnpm/xstream@11.14.0/node_modules/xstream/extra/flattenconcurrently.d.ts",
         "./node_modules/.pnpm/xstream@11.14.0/node_modules/xstream/index.d.ts",
         "./src/adapters/logger.ts",
@@ -1883,7 +1883,6 @@
       "./node_modules/.pnpm/@types+prettier@2.7.0/node_modules/@types/prettier/index.d.ts",
       "./node_modules/.pnpm/@types+ws@7.4.7/node_modules/@types/ws/index.d.ts",
       "./node_modules/.pnpm/axios@0.27.2/node_modules/axios/index.d.ts",
-      "./node_modules/.pnpm/cuid@2.1.8/node_modules/cuid/index.d.ts",
       "./node_modules/.pnpm/derivable@2.0.0-beta.3/node_modules/derivable/dist/derivable.d.ts",
       "./node_modules/.pnpm/jest-diff@25.5.0/node_modules/jest-diff/build/cleanupsemantic.d.ts",
       "./node_modules/.pnpm/jest-diff@25.5.0/node_modules/jest-diff/build/difflines.d.ts",
@@ -1897,6 +1896,7 @@
       "./node_modules/.pnpm/mqtt@4.2.8/node_modules/mqtt/types/lib/connect/index.d.ts",
       "./node_modules/.pnpm/mqtt@4.2.8/node_modules/mqtt/types/lib/store-options.d.ts",
       "./node_modules/.pnpm/mqtt@4.2.8/node_modules/mqtt/types/lib/store.d.ts",
+      "./node_modules/.pnpm/nanoid@4.0.0/node_modules/nanoid/index.d.ts",
       "./node_modules/.pnpm/pietile-eventemitter@1.0.1/node_modules/pietile-eventemitter/dist/eventemitter.d.ts",
       "./node_modules/.pnpm/pietile-eventemitter@1.0.1/node_modules/pietile-eventemitter/dist/index.d.ts",
       "./node_modules/.pnpm/pretty-format@25.5.0/node_modules/pretty-format/build/index.d.ts",

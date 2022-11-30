@@ -1,15 +1,5 @@
-if (global.navigator.mimeTypes == null) {
-  // @ts-ignore
-  global.navigator.mimeTypes = '' //browser-fingerprint only checks the length property so an empty string is fine
-}
-if (global.navigator.userAgent == null) {
-  // @ts-ignore
-  global.navigator.userAgent = 'reactnative'
-}
-
 import axios, { AxiosResponse } from 'axios'
 import xs from 'xstream'
-import cuid from 'cuid'
 import flattenConcurrently from 'xstream/extra/flattenConcurrently'
 import { getLogger } from './adapters/logger'
 import getMessageAdapter from './adapters/message'

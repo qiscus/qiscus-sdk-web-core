@@ -1,5 +1,4 @@
 // @ts-ignore
-import cuid from 'cuid'
 import { Storage } from '../storage'
 import * as Api from '../api'
 import * as Provider from '../provider'
