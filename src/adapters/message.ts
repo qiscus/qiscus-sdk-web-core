@@ -5,6 +5,7 @@ import * as Api from '../api'
 import * as Provider from '../provider'
 import * as Decoder from '../decoder'
 import * as model from '../model'
+import { nanoid } from 'nanoid'
 
 const getMessageAdapter = (s: Storage, api: Api.ApiRequester) => ({
   sendMessage(roomId: number, message: model.IQMessage): Promise<model.IQMessage> {
@@ -15,7 +16,7 @@ const getMessageAdapter = (s: Storage, api: Api.ApiRequester) => ({
       type: message.type as model.IQMessage['type'],
       text: message.text,
       payload: message.payload as model.IQMessage['payload'],
-      uniqueId: message.uniqueId ?? `javascript-${cuid()}`,
+      uniqueId: message.uniqueId ?? `javascript-${nanoid()}`,
       extras: message.extras as model.IQMessage['extras'],
     })
     return api.request<PostCommentResponse.RootObject>(apiConfig).then((resp) => Decoder.message(resp.results.comment))

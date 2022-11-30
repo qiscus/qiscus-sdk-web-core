@@ -59,6 +59,7 @@ import {
   toEventSubscription_,
 } from './utils/stream'
 import { isChatRoom } from './utils/try-catch'
+import { nanoid } from 'nanoid'
 
 export type { IQAccount, IQChatRoom, IQMessage, IQParticipant, IQUser } from './model'
 
@@ -1307,7 +1308,7 @@ export default class Qiscus {
   }
 
   _generateUniqueId(): string {
-    return `javascript-${cuid()}`
+    return `javascript-${nanoid()}`
   }
 
   async startSync() {

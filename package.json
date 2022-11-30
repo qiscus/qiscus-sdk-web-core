@@ -50,6 +50,7 @@
     "lodash.debounce": "^4.0.8",
     "lodash.flatten": "^4.4.0",
     "mqtt": "^4.2.8",
+    "nanoid": "^4.0.0",
     "np": "^7.6.2",
     "pietile-eventemitter": "^1.0.0",
     "regenerator-runtime": "^0.13.9",
