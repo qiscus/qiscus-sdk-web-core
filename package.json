@@ -17,7 +17,7 @@
     "serve": "serve dist -l 1235",
     "clean": "rimraf dist lib lib-esm types typings",
     "build": "run-s clean build:all",
-    "build:all": "run-p build:lib:cjs build:lib:esm build:bundle build:bundle:dev",
+    "build:all": "run-s build:lib:cjs build:lib:esm build:bundle build:bundle:dev",
     "build:lib:cjs": "tsc -m commonjs --outDir lib",
     "build:lib:esm": "tsc -m esnext --outDir lib-esm",
     "build:bundle": "webpack --env.production --env.target=web",

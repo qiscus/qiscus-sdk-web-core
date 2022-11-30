@@ -201,9 +201,9 @@
         "signature": "cd6efb9467a8b6338ece2e2855e37765700f2cd061ca54b01b33878cf5c7677e",
         "affectsGlobalScope": true
       },
-      "./node_modules/.pnpm/axios@0.19.2/node_modules/axios/index.d.ts": {
-        "version": "e7df7eb51c5090db4bdcdbf9efe053530dff0e33796f40b08b1a3be6c3a351d0",
-        "signature": "e7df7eb51c5090db4bdcdbf9efe053530dff0e33796f40b08b1a3be6c3a351d0",
+      "./node_modules/.pnpm/axios@0.27.2/node_modules/axios/index.d.ts": {
+        "version": "d88dc05fd345b7a4e1816bbfd2dd087eefa9b9e36096818c2348f5b246971125",
+        "signature": "d88dc05fd345b7a4e1816bbfd2dd087eefa9b9e36096818c2348f5b246971125",
         "affectsGlobalScope": false
       },
       "./src/model.ts": {
@@ -222,8 +222,8 @@
         "affectsGlobalScope": false
       },
       "./src/storage.ts": {
-        "version": "77ccf01a055a0e2db0045bc65d824c8225ec53d8cf49e6a855f26ea15503efba",
-        "signature": "2d40a8c0c299f8252b49eb18d30fe31f1472e9a5eb1f4cf769bd28bdb7c17a31",
+        "version": "d2af28f1ef378b19524111f493603e1b9c6a58e29fd9d0a2a08a3ed78007bd3c",
+        "signature": "a720f1d4a94a1e02f6d29e9dd6aafbaf18376519ce24e35c023524f289620d45",
         "affectsGlobalScope": false
       },
       "./src/api.ts": {
@@ -236,13 +236,18 @@
         "signature": "bb0c7fb3f90eaa37d5fa4406e0211c7f0e0a5792db570ac4754ace157a2d0b93",
         "affectsGlobalScope": false
       },
+      "./node_modules/.pnpm/cuid@2.1.8/node_modules/cuid/index.d.ts": {
+        "version": "4046592570718236ed274564f611f502ca4e9fce87e0e078e1f5905292a22b62",
+        "signature": "4046592570718236ed274564f611f502ca4e9fce87e0e078e1f5905292a22b62",
+        "affectsGlobalScope": false
+      },
       "./src/provider.ts": {
         "version": "333ce9b98b462bd5308d8c1bd50ffbc5e4bf61e144cd1e3ba22fc07990914b62",
         "signature": "f6aa0628c9960768841022eb0869b4e67fd74e761fe8621e69cb067b736d4f62",
         "affectsGlobalScope": false
       },
       "./src/adapters/message.ts": {
-        "version": "0981a0d27a1abab8dcd46836d6161c5975844029233587fd53a9c5aff0394a37",
+        "version": "bb9f57bdc6ec84fc57518d514f9eff9858e32fc8861f4dea927ad79267c6f5f9",
         "signature": "cd5553fdd2b4de1ef2fc8477921436509fde82caf3219a108df552929e88aeba",
         "affectsGlobalScope": false
       },
@@ -647,7 +652,7 @@
         "affectsGlobalScope": false
       },
       "./src/adapters/sync.ts": {
-        "version": "0499e54038ae9fc743932f68861ffd7c36caf0a8dfefe652f2a3db28c5c0c8d1",
+        "version": "9589843b8e05982b4c0ffdd6380be8edc2d5a5f472a89341696d5dfd4795edc6",
         "signature": "ec6d44254b709f41c9bfb126f7c8b9d2df3c1d8e7d73693062c18d1d0a9ec232",
         "affectsGlobalScope": false
       },
@@ -667,8 +672,8 @@
         "affectsGlobalScope": false
       },
       "./src/index.ts": {
-        "version": "5ebda4ab979f8d2e436b3dafcc75932bad1266545631f09b7c8bccbd2657769e",
-        "signature": "093ba81ed380f85e98195fc11479f384b416b53db51baebb8353b3e97e102787",
+        "version": "6807f01b3dfcd628ff83d7940596941848ee9c0d6c4ab49081a769c16a6c639d",
+        "signature": "a3e819b2f6e064f3199cc5cfb541c0fd733e6a4e9e261a310770d356606396b5",
         "affectsGlobalScope": false
       },
       "./src/lib/mqtt.ts": {
@@ -736,6 +741,16 @@
         "signature": "d3002f620eab4bf6476c9da5c0efb2041d46f7df8b3032a5631bd206abef2c75",
         "affectsGlobalScope": true
       },
+      "./node_modules/@types/json-schema/index.d.ts": {
+        "version": "f3e604694b624fa3f83f6684185452992088f5efb2cf136b62474aa106d6f1b6",
+        "signature": "f3e604694b624fa3f83f6684185452992088f5efb2cf136b62474aa106d6f1b6",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/.pnpm/@types+parse-json@4.0.0/node_modules/@types/parse-json/index.d.ts": {
+        "version": "2b8264b2fefd7367e0f20e2c04eed5d3038831fe00f5efbc110ff0131aab899b",
+        "signature": "2b8264b2fefd7367e0f20e2c04eed5d3038831fe00f5efbc110ff0131aab899b",
+        "affectsGlobalScope": false
+      },
       "./node_modules/.pnpm/@types+prettier@2.7.0/node_modules/@types/prettier/index.d.ts": {
         "version": "93c4fc5b5237c09bc9ed65cb8f0dc1d89034406ab40500b89701341994897142",
         "signature": "93c4fc5b5237c09bc9ed65cb8f0dc1d89034406ab40500b89701341994897142",
@@ -744,7 +759,7 @@
     },
     "options": {
       "target": 99,
-      "module": 1,
+      "module": 99,
       "lib": [
         "lib.dom.d.ts",
         "lib.esnext.d.ts"
@@ -755,7 +770,7 @@
       "rootDir": "./src",
       "allowJs": true,
       "checkJs": true,
-      "outDir": "./lib",
+      "outDir": "./lib-esm",
       "strict": true,
       "noImplicitAny": true,
       "strictNullChecks": true,
@@ -773,7 +788,6 @@
       "esModuleInterop": true,
       "resolveJsonModule": true,
       "skipLibCheck": true,
-      "watch": true,
       "configFilePath": "./tsconfig.json"
     },
     "referencedMap": {
@@ -1195,16 +1209,16 @@
         "./src/storage.ts"
       ],
       "./src/adapters/message.ts": [
+        "./node_modules/.pnpm/cuid@2.1.8/node_modules/cuid/index.d.ts",
         "./src/api.ts",
         "./src/decoder.ts",
-        "./src/defs.ts",
         "./src/model.ts",
         "./src/provider.ts",
         "./src/storage.ts"
       ],
       "./src/adapters/mqtt.ts": [
         "./node_modules/.pnpm/@types+lodash.debounce@4.0.6/node_modules/@types/lodash.debounce/index.d.ts",
-        "./node_modules/.pnpm/axios@0.19.2/node_modules/axios/index.d.ts",
+        "./node_modules/.pnpm/axios@0.27.2/node_modules/axios/index.d.ts",
         "./node_modules/.pnpm/mqtt@4.2.8/node_modules/mqtt/types/index.d.ts",
         "./node_modules/.pnpm/pietile-eventemitter@1.0.1/node_modules/pietile-eventemitter/dist/index.d.ts",
         "./src/adapters/logger.ts",
@@ -1251,7 +1265,7 @@
         "./src/storage.ts"
       ],
       "./src/api.ts": [
-        "./node_modules/.pnpm/axios@0.19.2/node_modules/axios/index.d.ts",
+        "./node_modules/.pnpm/axios@0.27.2/node_modules/axios/index.d.ts",
         "./src/encoder.ts",
         "./src/model.ts",
         "./src/storage.ts",
@@ -1272,7 +1286,8 @@
         "./src/model.ts"
       ],
       "./src/index.ts": [
-        "./node_modules/.pnpm/axios@0.19.2/node_modules/axios/index.d.ts",
+        "./node_modules/.pnpm/axios@0.27.2/node_modules/axios/index.d.ts",
+        "./node_modules/.pnpm/cuid@2.1.8/node_modules/cuid/index.d.ts",
         "./node_modules/.pnpm/xstream@11.14.0/node_modules/xstream/extra/flattenconcurrently.d.ts",
         "./node_modules/.pnpm/xstream@11.14.0/node_modules/xstream/index.d.ts",
         "./src/adapters/logger.ts",
@@ -1864,9 +1879,11 @@
       "./node_modules/.pnpm/@types+node@13.13.52/node_modules/@types/node/wasi.d.ts",
       "./node_modules/.pnpm/@types+node@13.13.52/node_modules/@types/node/worker_threads.d.ts",
       "./node_modules/.pnpm/@types+node@13.13.52/node_modules/@types/node/zlib.d.ts",
+      "./node_modules/.pnpm/@types+parse-json@4.0.0/node_modules/@types/parse-json/index.d.ts",
       "./node_modules/.pnpm/@types+prettier@2.7.0/node_modules/@types/prettier/index.d.ts",
       "./node_modules/.pnpm/@types+ws@7.4.7/node_modules/@types/ws/index.d.ts",
-      "./node_modules/.pnpm/axios@0.19.2/node_modules/axios/index.d.ts",
+      "./node_modules/.pnpm/axios@0.27.2/node_modules/axios/index.d.ts",
+      "./node_modules/.pnpm/cuid@2.1.8/node_modules/cuid/index.d.ts",
       "./node_modules/.pnpm/derivable@2.0.0-beta.3/node_modules/derivable/dist/derivable.d.ts",
       "./node_modules/.pnpm/jest-diff@25.5.0/node_modules/jest-diff/build/cleanupsemantic.d.ts",
       "./node_modules/.pnpm/jest-diff@25.5.0/node_modules/jest-diff/build/difflines.d.ts",
@@ -1926,6 +1943,7 @@
       "./node_modules/.pnpm/typescript@3.9.10/node_modules/typescript/lib/lib.esnext.string.d.ts",
       "./node_modules/.pnpm/xstream@11.14.0/node_modules/xstream/extra/flattenconcurrently.d.ts",
       "./node_modules/.pnpm/xstream@11.14.0/node_modules/xstream/index.d.ts",
+      "./node_modules/@types/json-schema/index.d.ts",
       "./src/adapters/logger.ts",
       "./src/adapters/message.ts",
       "./src/adapters/mqtt.ts",
