@@ -26,7 +26,8 @@
     "build:watch:esm": "tsc -m es2015 --outDir lib-esm",
     "test": "jest",
     "dev:serve": "run-p serve build:watch:bundle",
-    "release:patch": "np --any-branch --yolo patch"
+    "release:patch": "np --any-branch --yolo patch",
+    "release:alpha": "np --any-branch --yolo --tag=alpha prepatch"
   },
   "prettier": {
     "semi": false,
