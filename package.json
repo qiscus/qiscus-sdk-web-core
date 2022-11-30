@@ -3,10 +3,8 @@
   "version": "3.3.3",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
-  "main": "lib/index.js",
-  "module": "lib-esm/index.js",
+  "main": "dist/qiscus-sdk-javascript.umd.js",
   "types": "types/index.d.ts",
-  "type": "commonjs",
   "files": [
     "dist",
     "lib",
