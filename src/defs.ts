@@ -1,4 +1,3 @@
-import { Atom, Derivable, Lens } from 'derivable'
 import { PostCommentResponse } from './adapters/message'
 import * as model from './model'
 
@@ -204,8 +203,8 @@ export interface IQUserAdapter {
   registerDeviceToken(token: string, isDevelopment: boolean): Promise<boolean>
   unregisterDeviceToken(token: string, isDevelopment: boolean): Promise<boolean>
 
-  readonly token: Derivable<string>
-  readonly currentUser: Derivable<IQUser>
+  readonly token: string
+  readonly currentUser: IQUser
 }
 
 export interface IQUser {
@@ -270,9 +269,9 @@ export interface IQRoomAdapter {
   ): Promise<IQRoom[]>
   clearRoom(roomUniqueIds: string[]): Promise<IQRoom[]>
   getUnreadCount(): Promise<number>
-  readonly rooms: Derivable<{ [key: string]: IQRoom }>
-  readonly getRoomDataWithId: (roomId: number) => Lens<IQRoom>
-  readonly getRoomDataWithUniqueId: (roomUniqueId: string) => Lens<IQRoom>
+  readonly rooms: { [key: string]: IQRoom }
+  readonly getRoomDataWithId: (roomId: number) => IQRoom
+  readonly getRoomDataWithUniqueId: (roomUniqueId: string) => IQRoom
 }
 
 export type IQMessageT = {
@@ -313,8 +312,8 @@ export interface IQMessage {
 }
 
 export interface IQMessageAdapter {
-  readonly messages: Atom<{ [key: string]: IQMessage }>
-  readonly getMessageDataWithId: (messageId: number) => Lens<IQMessage>
+  readonly messages: { [key: string]: IQMessage }
+  readonly getMessageDataWithId: (messageId: number) => IQMessage
   sendMessage(roomId: number, message: IQMessageT): Promise<IQMessage>
   getMessages(roomId: number, lastMessageId?: number, limit?: number, after?: boolean): Promise<IQMessage[]>
   deleteMessage(messageUniqueIds: string[]): Promise<IQMessage[]>
