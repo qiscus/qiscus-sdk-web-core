@@ -1,3 +1,4 @@
+import { test, expect, beforeEach, afterEach } from 'vitest'
 import * as H from './hook'
 
 test('Hooks constants', () => {
@@ -12,20 +13,27 @@ beforeEach(() => {
 afterEach(() => {
   adapter = null
 })
-test('Hooks trigger message::before-received', (done) => {
-  adapter?.intercept(H.Hooks.MESSAGE_BEFORE_RECEIVED, (data: string) => {
-    expect(data).toBe('before received data')
-    done()
-    return data
-  })
+test('Hooks trigger message::before-received', async () => {
+  var p = new Promise((r) =>
+    adapter?.intercept(H.Hooks.MESSAGE_BEFORE_RECEIVED, (data: string) => {
+      expect(data).toBe('before received data')
+      r(1)
+      return data
+    })
+  )
   adapter?.trigger(H.Hooks.MESSAGE_BEFORE_RECEIVED, 'before received data')
+
+  return p
 })
-test('Hook trigger message::before-sent', (done) => {
-  adapter?.intercept(H.Hooks.MESSAGE_BEFORE_SENT, (data: string) => {
-    expect(data).toBe('before sent data')
-    done()
-    return data
-  })
+test('Hook trigger message::before-sent', async () => {
+  var p = new Promise((r) =>
+    adapter?.intercept(H.Hooks.MESSAGE_BEFORE_SENT, (data: string) => {
+      expect(data).toBe('before sent data')
+      r(1)
+      return data
+    })
+  )
 
   adapter?.trigger(H.Hooks.MESSAGE_BEFORE_SENT, 'before sent data')
+  return p
 })

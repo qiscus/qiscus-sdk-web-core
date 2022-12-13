@@ -1,3 +1,4 @@
+import { test, expect } from 'vitest'
 import * as U from './url-builder'
 
 test('URLBuilder without null', () => {

@@ -1,3 +1,4 @@
+import { test, expect } from 'vitest'
 import * as P from './param-utils'
 import { isReqArrayOfStringOrNumber } from './param-utils'
 
@@ -89,16 +90,24 @@ test('isReqJson', () => {
   expect(() => P.isReqJson({ data3 })(data3)).toThrow(TypeError('`data3` are required and need to be object'))
 })
 test('isReqArrayNumber', () => {
-  const data1 = [1,2,3,4,5]
+  const data1 = [1, 2, 3, 4, 5]
   const data4 = ['1', '2', '3']
   const data2 = null
   const data3 = undefined
 
-  expect(P.isReqArrayNumber({ data1 })(data1)).toStrictEqual([1,2,3,4,5])
-  expect(() => P.isReqArrayNumber({ data1 })(data1)).not.toThrow(TypeError('`data1` are required and need to be array of number'))
-  expect(() => P.isReqArrayNumber({ data2 })(data2)).toThrow(TypeError('`data2` are required and need to be array of number'))
-  expect(() => P.isReqArrayNumber({ data3 })(data3)).toThrow(TypeError('`data3` are required and need to be array of number'))
-  expect(() => P.isReqArrayNumber({ data4 })(data4)).toThrow(TypeError('`data4` are required and need to be array of number'))
+  expect(P.isReqArrayNumber({ data1 })(data1)).toStrictEqual([1, 2, 3, 4, 5])
+  expect(() => P.isReqArrayNumber({ data1 })(data1)).not.toThrow(
+    TypeError('`data1` are required and need to be array of number')
+  )
+  expect(() => P.isReqArrayNumber({ data2 })(data2)).toThrow(
+    TypeError('`data2` are required and need to be array of number')
+  )
+  expect(() => P.isReqArrayNumber({ data3 })(data3)).toThrow(
+    TypeError('`data3` are required and need to be array of number')
+  )
+  expect(() => P.isReqArrayNumber({ data4 })(data4)).toThrow(
+    TypeError('`data4` are required and need to be array of number')
+  )
 })
 test('isReqArrayString', () => {
   const data1 = ['1', '2', '3']
@@ -107,10 +116,18 @@ test('isReqArrayString', () => {
   const data3 = undefined
 
   expect(P.isReqArrayString({ data1 })(data1)).toStrictEqual(['1', '2', '3'])
-  expect(() => P.isReqArrayString({ data1 })(data1)).not.toThrow(TypeError('`data1` are required and need to be array of string'))
-  expect(() => P.isReqArrayString({ data2 })(data2)).toThrow(TypeError('`data2` are required and need to be array of string'))
-  expect(() => P.isReqArrayString({ data3 })(data3)).toThrow(TypeError('`data3` are required and need to be array of string'))
-  expect(() => P.isReqArrayString({ data4 })(data4)).toThrow(TypeError('`data4` are required and need to be array of string'))
+  expect(() => P.isReqArrayString({ data1 })(data1)).not.toThrow(
+    TypeError('`data1` are required and need to be array of string')
+  )
+  expect(() => P.isReqArrayString({ data2 })(data2)).toThrow(
+    TypeError('`data2` are required and need to be array of string')
+  )
+  expect(() => P.isReqArrayString({ data3 })(data3)).toThrow(
+    TypeError('`data3` are required and need to be array of string')
+  )
+  expect(() => P.isReqArrayString({ data4 })(data4)).toThrow(
+    TypeError('`data4` are required and need to be array of string')
+  )
 })
 
 test('isOptArrayNumber', () => {
@@ -204,7 +221,13 @@ test('isReqArrayOfStringOrNumber', () => {
   expect(isReqArrayOfStringOrNumber({ data2 })(data2)).toStrictEqual(data2)
   expect(() => isReqArrayOfStringOrNumber({ data1 })(data1)).not.toThrow(TypeError)
   expect(() => isReqArrayOfStringOrNumber({ data2 })(data2)).not.toThrow(TypeError)
-  expect(() => isReqArrayOfStringOrNumber({ data3 })(data3)).toThrow(TypeError('`data3` are required and need to be array of string or array of number'))
-  expect(() => isReqArrayOfStringOrNumber({ data4 })(data4)).toThrow(TypeError('`data4` are required and need to be array of string or array of number'))
-  expect(() => isReqArrayOfStringOrNumber({ data5 })(data5)).toThrow(TypeError('`data5` are required and need to be array of string or array of number'))
+  expect(() => isReqArrayOfStringOrNumber({ data3 })(data3)).toThrow(
+    TypeError('`data3` are required and need to be array of string or array of number')
+  )
+  expect(() => isReqArrayOfStringOrNumber({ data4 })(data4)).toThrow(
+    TypeError('`data4` are required and need to be array of string or array of number')
+  )
+  expect(() => isReqArrayOfStringOrNumber({ data5 })(data5)).toThrow(
+    TypeError('`data5` are required and need to be array of string or array of number')
+  )
 })

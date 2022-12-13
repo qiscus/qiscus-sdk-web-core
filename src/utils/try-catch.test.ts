@@ -1,4 +1,10 @@
+import { vi } from 'vitest'
+import { test, expect, afterEach } from 'vitest'
 import * as U from './try-catch'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 test('tryCatch', () => {
   const r1 = U.tryCatch(() => 'some-data', 'default-value')
@@ -11,8 +17,8 @@ test('tryCatch', () => {
 })
 
 test('tryCatch with success callback', () => {
-  const mockSuccessCb1 = jest.fn((_r) => 'mocked')
-  const mockFailureCb1 = jest.fn((_err) => 'mocked-error')
+  const mockSuccessCb1 = vi.fn((_r) => 'mocked')
+  const mockFailureCb1 = vi.fn((_err) => 'mocked-error')
   const r3 = U.tryCatch(() => 'some-data', 'default-value', mockFailureCb1, mockSuccessCb1)
   expect(r3).toBe('some-data')
   expect(mockSuccessCb1.mock.calls.length).toBe(1)
@@ -21,8 +27,8 @@ test('tryCatch with success callback', () => {
 })
 
 test('tryCatch with failure callback', () => {
-  const mockSuccessCb1 = jest.fn((_r) => 'mocked')
-  const mockFailureCb1 = jest.fn((_err) => 'mocked-err')
+  const mockSuccessCb1 = vi.fn((_r) => 'mocked')
+  const mockFailureCb1 = vi.fn((_err) => 'mocked-err')
 
   const r1 = U.tryCatch(
     () => {
