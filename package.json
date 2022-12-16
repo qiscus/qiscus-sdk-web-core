@@ -4,8 +4,15 @@
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
   "type": "module",
-  "main": "dist/qiscus-sdk-javascript.umd.js",
+  "main": "dist/qiscus-sdk-javascript.umd.cjs",
+  "module": "dist/qiscus-sdk-javascript.js",
   "types": "types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/qiscus-sdk-javascript.js",
+      "require": "./dist/qiscus-sdk-javascript.umd.cjs"
+    }
+  },
   "files": [
     "dist",
     "types"
@@ -18,6 +25,7 @@
     "build:bundle": "vite build",
     "build:type": "tsc --build tsconfig.json",
     "test": "vitest --run",
+    "prepublish": "run-s build",
     "release:patch": "np --any-branch --yolo patch",
     "release:pre-alpha": "np --any-branch --yolo --tag=alpha prerelease"
   },
