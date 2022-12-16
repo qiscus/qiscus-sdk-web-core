@@ -3,14 +3,13 @@
   "version": "3.3.7-1",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
-  "type": "module",
-  "main": "dist/qiscus-sdk-javascript.umd.cjs",
-  "module": "dist/qiscus-sdk-javascript.js",
+  "main": "dist/qiscus-sdk-javascript.umd.js",
+  "module": "dist/qiscus-sdk-javascript.mjs",
   "types": "types/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/qiscus-sdk-javascript.js",
-      "require": "./dist/qiscus-sdk-javascript.umd.cjs"
+      "import": "./dist/qiscus-sdk-javascript.mjs",
+      "require": "./dist/qiscus-sdk-javascript.umd.js"
     }
   },
   "files": [
