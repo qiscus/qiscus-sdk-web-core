@@ -19,7 +19,7 @@
     "build:type": "tsc --build tsconfig.json",
     "test": "vitest --run",
     "release:patch": "np --any-branch --yolo patch",
-    "release:alpha": "np --any-branch --yolo --tag=alpha prerelease"
+    "release:pre-alpha": "np --any-branch --yolo --tag=alpha prerelease"
   },
   "prettier": {
     "semi": false,
