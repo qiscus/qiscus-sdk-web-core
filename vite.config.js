@@ -10,9 +10,7 @@ export default defineConfig({
       formats: ['cjs', 'es', 'umd'],
     },
     outDir: './dist',
-  },
-  define: {
-    global: {},
+    sourcemap: true,
   },
   resolve: {
     alias: {

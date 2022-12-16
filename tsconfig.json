@@ -5,7 +5,6 @@
     "target": "esnext",
     "module": "CommonJS",
     "lib": ["dom", "esnext"],
-    "composite": true,
     "declaration": true,
     "sourceMap": true,
     "rootDir": "./src",
@@ -28,6 +27,7 @@
     "declarationDir": "./types",
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "emitDeclarationOnly": true
   }
 }
