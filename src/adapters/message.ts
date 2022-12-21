@@ -6,7 +6,7 @@ import * as Decoder from '../decoder'
 import * as model from '../model'
 import { nanoid } from 'nanoid'
 
-const getMessageAdapter = (s: Storage, api: Api.ApiRequester) => ({
+export const getMessageAdapter = (s: Storage, api: Api.ApiRequester) => ({
   sendMessage(roomId: number, message: model.IQMessage): Promise<model.IQMessage> {
     const apiConfig = Api.postComment({
       ...Provider.withBaseUrl(s),
@@ -243,13 +243,13 @@ export declare module GetCommentsResponse {
     comment_before_id_str: string
     disable_link_preview: boolean
     email: string
-    extras: Extras
+    extras: Extras | null
     id: number
     id_str: string
     is_deleted: boolean
     is_public_channel: boolean
     message: string
-    payload: Payload
+    payload: Payload | null
     room_avatar: string
     room_id: number
     room_id_str: string
