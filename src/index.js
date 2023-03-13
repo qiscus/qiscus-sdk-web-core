@@ -1685,12 +1685,10 @@ class QiscusSDK {
     )
   }
   upload(file, callback) {
-    return request
-      .post(this.uploadURL)
-      .attach('file', file)
-      .set('qiscus_sdk_app_id', this.AppId)
-      .set('qiscus_sdk_token', this.userData.token)
-      .set('qiscus_sdk_user_id', this.user_id)
+    let req = request.post(this.uploadURL);
+
+    req = this.HTTPAdapter.setupHeaders(req)
+    return req.attach('file', file)
       .on('progress', (event) => {
         if (event.direction === 'upload') callback(null, event)
       })
@@ -1703,6 +1701,7 @@ class QiscusSDK {
         callback(error)
         return Promise.reject(error)
       })
+
   }
 
   /**
