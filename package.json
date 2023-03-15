@@ -26,6 +26,7 @@
     "test": "vitest --run",
     "test:w:coverage": "vitest --coverage",
     "prepublish": "run-s clean build:*",
+    "release:minor": "np --any-branch --yolo minor",
     "release:patch": "np --any-branch --yolo patch",
     "release:pre-alpha": "np --any-branch --yolo --tag=alpha prerelease"
   },
