@@ -7,5 +7,19 @@
     Test
 
     <script src="src/index.ts" type="module"></script>
+    <script type="module">
+      import QiscusSDK from './src/index.ts'
+      window.QiscusSDK = QiscusSDK
+
+      let qiscus = new QiscusSDK()
+
+      await qiscus.setup('sdksample')
+      let user = await qiscus.setUser('guest-1001', 'passkey')
+
+      window.qiscus = qiscus
+      window.user = user
+
+      console.log('user', user)
+    </script>
   </body>
 </html>

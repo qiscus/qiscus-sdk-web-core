@@ -1309,10 +1309,10 @@ export default class Qiscus {
   }
 
   async openRealtimeConnection() {
-    this.realtimeAdapter.openRealtimeConnection()
+    return this.realtimeAdapter.openMqtt()
   }
   async closeRealtimeConnection() {
-    this.realtimeAdapter.closeRealtimeConnection()
+    return this.realtimeAdapter.closeMqtt()
   }
 
   generateMessage({
