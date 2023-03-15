@@ -11,7 +11,7 @@ export const tryCatch = <T>(
     onSuccess?.(resp)
     return resp
   } catch (error) {
-    onError?.(error)
+    onError?.(error as Error)
     return default_
   }
 }

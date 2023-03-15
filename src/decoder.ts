@@ -41,7 +41,7 @@ export const account = <T extends AccountJson>(json: T): [IQAccount, AccountJson
 
 interface UserJson1 {
   email: string
-  extras: object
+  extras: object | null
   user_avatar_url: string
   user_id: number
   user_id_str: string
@@ -51,7 +51,7 @@ interface UserJson1 {
 export interface UserJson2 {
   avatar_url: string
   email: string
-  extras: object
+  extras: object | null
   id: number
   id_str: string
   username: string
@@ -139,12 +139,12 @@ export interface MessageJson {
   comment_before_id_str: string
   disable_link_preview: boolean
   email: string
-  extras: object
+  extras: object | null
   id: number
   is_deleted?: boolean
   is_public_channel: boolean
   message: string
-  payload: object
+  payload: object | null
   room_avatar: string
   room_id: number
   room_id_str: string
