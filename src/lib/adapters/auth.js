@@ -9,6 +9,7 @@ export default class AuthAdapter {
     this.HTTPAdapter = HTTPAdapter
     this.refreshToken = null
     this.userId = null
+    this.autoRefreshToken = false
   }
 
   getNonce() {

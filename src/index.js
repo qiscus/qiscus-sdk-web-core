@@ -104,6 +104,8 @@ class QiscusSDK {
 
     this._hookAdapter = hookAdapterFactory()
     this._uploadURL = null
+
+    this._autoRefreshToken = false
   }
 
   // this.uploadURL = `${this.baseURL}/api/v2/sdk/upload`
@@ -283,6 +285,7 @@ class QiscusSDK {
           this.extras = setterHelper(null, cfg.extras, configExtras)
           this.enableSync = setterHelper(null, cfg.enable_sync, this.enableSync)
           this.enableSyncEvent = setterHelper(null, cfg.enable_sync_event, this.enableSyncEvent)
+          this._autoRefreshToken = setterHelper(null, cfg.auto_refresh_token, false)
         })
         .catch((err) => {
           this.logger('got error when trying to get app config', err)
@@ -637,6 +640,7 @@ class QiscusSDK {
 
       this.authAdapter.userId = this.userData.email
       this.authAdapter.refreshToken = this.userData.refresh_token
+      this.authAdapter.autoRefreshToken = this._autoRefreshToken
     })
 
     /**
