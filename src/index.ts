@@ -1308,6 +1308,13 @@ export default class Qiscus {
     this.storage.setForceDisableSync(true)
   }
 
+  async openRealtimeConnection() {
+    this.realtimeAdapter.openRealtimeConnection()
+  }
+  async closeRealtimeConnection() {
+    this.realtimeAdapter.closeRealtimeConnection()
+  }
+
   generateMessage({
     roomId,
     text,
