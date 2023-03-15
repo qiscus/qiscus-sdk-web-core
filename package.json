@@ -1,6 +1,6 @@
 {
   "name": "qiscus-sdk-javascript",
-  "version": "3.3.7-4",
+  "version": "3.3.7-5",
   "description": "Qiscus Web SDK Core",
   "license": "MIT",
   "main": "dist/qiscus-sdk-javascript.umd.js",
