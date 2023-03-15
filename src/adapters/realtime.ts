@@ -63,6 +63,12 @@ export default function getRealtimeAdapter(storage: Storage, api: ApiRequester) 
     clear(): void {
       mqtt.clear()
     },
+    async openMqtt() {
+      await mqtt.open()
+    },
+    async closeMqtt() {
+      await mqtt.close()
+    },
     onMessageDeleted(callback: Callback<model.IQMessage>): Subscription {
       const subscription = onMessageDeleted$.compose(subscribeOnNext(([message]) => callback(message)))
       return () => subscription.unsubscribe()

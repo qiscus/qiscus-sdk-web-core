@@ -119,6 +119,8 @@ export type MqttAdapter = ReturnType<typeof getMqttAdapter>
 export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => string }) {
   let mqtt: _MqttClient | undefined = undefined
   let cacheUrl: string = s.getBrokerUrl()
+  let shouldConnect = true
+
   const emitter = new EventEmitter<Events>()
   const handler = getMqttHandler(emitter)
   const subscribedCustomEventTopics = new Map<number, any>()
@@ -206,6 +208,7 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
   emitter.on(
     'mqtt::close',
     debounce(async () => {
+      if (shouldConnect === false) return
       if (s.getCurrentUser() == null) return
       if (!s.getBrokerLbEnabled()) return
 
@@ -253,6 +256,14 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
       clearInterval(intervalId)
       Object.keys(mqtt?._resubscribeTopics ?? {}).forEach((it) => mqtt?.unsubscribe(it))
       mqtt?.end()
+    },
+    async close() {
+      shouldConnect = false
+      this.mqtt?.end(true)
+    },
+    async open() {
+      shouldConnect = true
+      this.conneck()
     },
     conneck() {
       mqtt = __mqtt_conneck(s.getBrokerUrl())
