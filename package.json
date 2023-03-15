@@ -25,7 +25,7 @@
     "build:type": "tsc --build tsconfig.json",
     "test": "vitest --run",
     "test:w:coverage": "vitest --coverage",
-    "prepublish": "run-s build",
+    "prepublish": "run-s clean build:*",
     "release:patch": "np --any-branch --yolo patch",
     "release:pre-alpha": "np --any-branch --yolo --tag=alpha prerelease"
   },
