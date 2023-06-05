@@ -573,3 +573,6 @@ export const updateMessage: ApiRequest<
     return body
   })
 )
+
+export const getMqttNode = (s: Storage): ApiRequest<withCredentials> =>
+  compose(useGetUrl(s.getBrokerLbUrl()), useCredentials())

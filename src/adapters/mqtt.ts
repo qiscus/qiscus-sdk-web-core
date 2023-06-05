@@ -1,5 +1,4 @@
 import { match, when } from '../utils/match'
-import axios from 'axios'
 import debounce from 'lodash.debounce'
 import { EventEmitter } from 'pietile-eventemitter'
 
@@ -14,6 +13,8 @@ import * as Decoder from '../decoder'
 import { getLogger } from './logger'
 import { Storage } from '../storage'
 import { tryCatch, wrapP, getOrThrow } from '../utils/try-catch'
+import * as Api from '../api'
+import { Provider } from '../provider'
 
 const reNewMessage = /^([\w]+)\/c/i
 const reNotification = /^([\w]+)\/n/i
@@ -138,13 +139,14 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
     [when(reMessageUpdated)]: handler.messageUpdatedHandler,
     [when()]: (topic: string) => (message: any) => logger.log('topic not handled', topic, message),
   })
+
+  const api = Api.getMqttNode(s)(Provider(s).withCredentials)
   const getMqttNode = () =>
-    axios
-      .get(s.getBrokerLbUrl())
-      .then((it) => it.data)
-      .then((res) => {
-        const url = res.data.url
-        const port = res.data.wss_port
+    Api.makeApiRequest(s)
+      .request<GetMqttNodeResponse>(api)
+      .then((r) => {
+        const url = r.data.url
+        const port = r.data.wss_port
         return `wss://${url}:${port}/mqtt`
       })
 
@@ -537,5 +539,15 @@ interface IQMqttHandler {
 
 type _MqttClient = MqttClient & {
   _resubscribeTopics: string[]
+}
+
+type GetMqttNodeResponse = {
+  data: {
+    ssl_port: string
+    url: string
+    wss_port: string
+  }
+  node: string
+  status: number
 }
 // endregion
