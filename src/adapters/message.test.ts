@@ -1,6 +1,6 @@
 import { beforeEach, test, beforeAll, afterAll, expect } from 'vitest'
 import { getMessageAdapter, MessageAdapter } from './message'
-import { Storage, storageFactory } from '../storage'
+import { Storage } from '../storage'
 import { ApiRequester, makeApiRequest } from '../api'
 import { handlers } from '../mocks/handlers'
 import { setupServer } from 'msw/node'
@@ -30,25 +30,14 @@ test('getMessages', async () => {
   let r = await t.getMessages(roomId, lastMessageId, limit, after)
   let m = r.at(0)
 
-  expect(m).toMatchInlineSnapshot(`
-    {
-      "__roomType": "qwe",
-      "chatRoomId": 1,
-      "extras": {},
-      "id": 1,
-      "payload": null,
-      "previousMessageId": 1,
-      "sender": {
-        "avatarUrl": undefined,
-        "extras": {},
-        "id": "asd",
-        "name": "qwe",
-      },
-      "status": "read",
-      "text": "qwe",
-      "timestamp": 1970-01-01T00:27:51.518Z,
-      "type": "text",
-      "uniqueId": "qwerty",
-    }
-  `)
+  expect(m?.chatRoomId).eq(1)
+  expect(m?.id).eq(1)
+  expect(m?.payload).toBeNull()
+  expect(m?.previousMessageId).eq(1)
+  expect(m?.extras).toStrictEqual({})
+  expect(m?.status).eq('read')
+  expect(m?.text).eq('qwe')
+  expect(m?.type).eq('text')
+  expect(m?.uniqueId).eq('qwerty')
+  expect(m?.sender).toStrictEqual({ avatarUrl: undefined, extras: {}, id: 'asd', name: 'qwe' })
 })

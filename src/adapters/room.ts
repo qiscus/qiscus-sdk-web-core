@@ -4,7 +4,7 @@ import * as Provider from '../provider'
 import * as Decoder from '../decoder'
 import { Storage } from '../storage'
 
-const getRoomAdapter = (s: Storage, api: Api.ApiRequester) => ({
+export const getRoomAdapter = (s: Storage, api: Api.ApiRequester) => ({
   async addParticipants(roomId: number, participantIds: string[]): Promise<model.IQParticipant[]> {
     const apiConfig = Api.addRoomParticipants({
       ...Provider.withBaseUrl(s),

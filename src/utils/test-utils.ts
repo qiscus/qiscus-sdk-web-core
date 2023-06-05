@@ -1,7 +1,7 @@
 import { GetCommentsResponse } from 'src/adapters/message'
-import { storageFactory } from 'src/storage'
+import { storageFactory, Storage } from 'src/storage'
 
-export function getMockedStorage() {
+export function getMockedStorage(): Storage {
   let s = storageFactory()
   s.setAppId('sdksample')
   s.setToken('some-token')
@@ -58,3 +58,784 @@ export const createMessagesResponse = (): GetCommentsResponse.RootObject => ({
     ],
   },
 })
+
+export const createRoomResponse = () => ({
+  results: {
+    comments: [],
+    room: {
+      avatar_url: 'https://d1edrlpyc25xu0.cloudfront.net/sdksample/image/upload/w3GEHrHAtc/test.png',
+      chat_type: 'single',
+      id: 131281282,
+      id_str: '131281282',
+      is_public_channel: false,
+      last_comment_id: 0,
+      last_comment_id_str: '0',
+      last_comment_message: '',
+      last_topic_id: 131281282,
+      last_topic_id_str: '131281282',
+      options: '{}',
+      participants: [
+        {
+          active: true,
+          avatar_url: 'https://d1edrlpyc25xu0.cloudfront.net/sdksample/image/upload/w3GEHrHAtc/test.png',
+          email: 'guest-1001',
+          extras: { key: 'value' },
+          id: 44465689,
+          id_str: '44465689',
+          last_comment_read_id: 0,
+          last_comment_read_id_str: '0',
+          last_comment_received_id: 0,
+          last_comment_received_id_str: '0',
+          username: 'guest 1001',
+        },
+        {
+          active: true,
+          avatar_url:
+            'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+          email: 'guest-10122',
+          extras: {},
+          id: 345604076,
+          id_str: '345604076',
+          last_comment_read_id: 0,
+          last_comment_read_id_str: '0',
+          last_comment_received_id: 0,
+          last_comment_received_id_str: '0',
+          username: 'guest-10122',
+        },
+      ],
+      raw_room_name: 'guest-1001 guest-10122',
+      room_name: 'guest 1001',
+      room_total_participants: 2,
+      unique_id: '41243b55577cf86527210d9f7e55f18a',
+      unread_count: 0,
+    },
+  },
+  status: 200,
+})
+
+export const createGroupResponse = () => ({
+  results: {
+    comments: [],
+    room: {
+      avatar_url: 'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/E2nVru1t25/1507541900-avatar.png',
+      chat_type: 'group',
+      id: 131283601,
+      id_str: '131283601',
+      is_public_channel: false,
+      last_comment_id: 0,
+      last_comment_id_str: '0',
+      last_comment_message: '',
+      last_topic_id: 131283601,
+      last_topic_id_str: '131283601',
+      options: '{}',
+      participants: [
+        {
+          active: true,
+          avatar_url:
+            'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+          email: 'guest-10122',
+          extras: {},
+          id: 345604076,
+          id_str: '345604076',
+          last_comment_read_id: 0,
+          last_comment_read_id_str: '0',
+          last_comment_received_id: 0,
+          last_comment_received_id_str: '0',
+          username: 'guest-10122',
+        },
+        {
+          active: true,
+          avatar_url:
+            'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSnp8GwSBuKHN7hy2zhbOQ4jSisSVJ_3G4BJA\u0026usqp=CAU',
+          email: 'guest-101',
+          extras: { role: 'CUSTOMER' },
+          id: 32230310,
+          id_str: '32230310',
+          last_comment_read_id: 0,
+          last_comment_read_id_str: '0',
+          last_comment_received_id: 0,
+          last_comment_received_id_str: '0',
+          username: 'guest-101',
+        },
+      ],
+      raw_room_name: 'hi',
+      room_name: 'hi',
+      room_total_participants: 2,
+      unique_id: 'fffc36bb-3355-4306-8b12-bfa0ef48281f',
+      unread_count: 0,
+    },
+  },
+  status: 200,
+})
+
+export const createAddParticipantsResponse = () => ({
+  results: {
+    participants_added: [
+      {
+        active: true,
+        avatar_url: 'https://robohash.org/DEMO2/bgset_bg2/3.14160?set=set4',
+        email: 'guest-102',
+        extras: {},
+        id: 32593562,
+        id_str: '32593562',
+        last_comment_read_id: 0,
+        last_comment_read_id_str: '0',
+        last_comment_received_id: 0,
+        last_comment_received_id_str: '0',
+        username: 'guest-102',
+      },
+    ],
+  },
+  status: 200,
+})
+
+export const createRemoveParticipantsResponse = () => ({
+  results: { participants_removed: ['guest-102'] },
+  status: 200,
+})
+export function createClearRoomResponse(): Record<string, any> {
+  return {
+    results: {
+      rooms: [
+        {
+          avatar_url: 'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/E2nVru1t25/1507541900-avatar.png',
+          chat_type: 'group',
+          id: 131283601,
+          id_str: '131283601',
+          last_comment: null,
+          options: {},
+          raw_room_name: 'hi',
+          room_name: 'hi',
+          unique_id: 'fffc36bb-3355-4306-8b12-bfa0ef48281f',
+          unread_count: 0,
+        },
+      ],
+    },
+    status: 200,
+  }
+}
+export function createGetChannelResponse(): Record<string, any> {
+  return {
+    results: {
+      changed: true,
+      comments: [],
+      room: {
+        avatar_url: 'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/E2nVru1t25/1507541900-avatar.png',
+        chat_type: 'group',
+        id: 131288073,
+        id_str: '131288073',
+        is_public_channel: true,
+        last_comment_id: 0,
+        last_comment_id_str: '0',
+        last_comment_message: '',
+        last_topic_id: 131288073,
+        last_topic_id_str: '131288073',
+        options: '{}',
+        participants: [],
+        raw_room_name: 'guer',
+        room_name: 'guer',
+        room_total_participants: 0,
+        unique_id: 'guer',
+        unread_count: 0,
+      },
+    },
+    status: 200,
+  }
+}
+export function createListParticipantsResponse(): Record<string, any> {
+  return {
+    results: {
+      meta: { current_offset: 0, current_page: 1, per_page: 20, total: 1 },
+      participants: [
+        {
+          active: true,
+          avatar_url:
+            'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+          email: 'guest-10122',
+          extras: {},
+          id: 345604076,
+          id_str: '345604076',
+          last_comment_read_id: 0,
+          last_comment_read_id_str: '0',
+          last_comment_received_id: 0,
+          last_comment_received_id_str: '0',
+          username: 'guest-10122',
+        },
+      ],
+    },
+    status: 200,
+  }
+}
+export function createGetRoomResponse(): Record<string, any> {
+  return {
+    results: {
+      comments: [],
+      is_participant: true,
+      room: {
+        avatar_url: 'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/E2nVru1t25/1507541900-avatar.png',
+        chat_type: 'group',
+        id: 131283601,
+        id_str: '131283601',
+        is_public_channel: false,
+        last_comment_id: 0,
+        last_comment_id_str: '0',
+        last_comment_message: '',
+        last_topic_id: 131283601,
+        last_topic_id_str: '131283601',
+        options: '{}',
+        participants: [
+          {
+            active: true,
+            avatar_url:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+            email: 'guest-10122',
+            extras: {},
+            id: 345604076,
+            id_str: '345604076',
+            last_comment_read_id: 0,
+            last_comment_read_id_str: '0',
+            last_comment_received_id: 0,
+            last_comment_received_id_str: '0',
+            username: 'guest-10122',
+          },
+          {
+            active: true,
+            avatar_url:
+              'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSnp8GwSBuKHN7hy2zhbOQ4jSisSVJ_3G4BJA\u0026usqp=CAU',
+            email: 'guest-101',
+            extras: { role: 'CUSTOMER' },
+            id: 32230310,
+            id_str: '32230310',
+            last_comment_read_id: 0,
+            last_comment_read_id_str: '0',
+            last_comment_received_id: 0,
+            last_comment_received_id_str: '0',
+            username: 'guest-101',
+          },
+        ],
+        raw_room_name: 'hi',
+        room_name: 'hi',
+        room_total_participants: 2,
+        unique_id: 'fffc36bb-3355-4306-8b12-bfa0ef48281f',
+        unread_count: 0,
+      },
+    },
+    status: 200,
+  }
+}
+
+export function createRoomInfoResponse(): Record<string, any> {
+  return {
+    results: {
+      meta: { request_rooms_total: 1, response_rooms_total: 1 },
+      rooms_info: [
+        {
+          avatar_url: 'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/E2nVru1t25/1507541900-avatar.png',
+          chat_type: 'group',
+          id: 131283601,
+          id_str: '131283601',
+          is_public_channel: false,
+          is_removed: false,
+          last_comment: {
+            comment_before_id: 0,
+            comment_before_id_str: '0',
+            disable_link_preview: false,
+            email: 'guest-10122',
+            extras: {},
+            id: 0,
+            id_str: '0',
+            is_deleted: false,
+            is_public_channel: false,
+            message: '',
+            payload: {},
+            room_avatar:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/E2nVru1t25/1507541900-avatar.png',
+            room_id: 131283601,
+            room_id_str: '131283601',
+            room_name: 'hi',
+            room_type: 'group',
+            status: 'sent',
+            timestamp: '2023-05-11T07:13:04Z',
+            topic_id: 131283601,
+            topic_id_str: '131283601',
+            type: 'unknown',
+            unique_temp_id: '',
+            unix_nano_timestamp: 1683789184855387000,
+            unix_timestamp: 1683789184,
+            user_avatar: {
+              avatar: {
+                url: 'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              },
+            },
+            user_avatar_url:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+            user_extras: {},
+            user_id: 345604076,
+            user_id_str: '345604076',
+            username: 'guest-10122',
+          },
+          options: '{}',
+          participants: [
+            {
+              active: true,
+              avatar_url:
+                'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              email: 'guest-10122',
+              extras: {},
+              id: 345604076,
+              id_str: '345604076',
+              last_comment_read_id: 0,
+              last_comment_read_id_str: '0',
+              last_comment_received_id: 0,
+              last_comment_received_id_str: '0',
+              username: 'guest-10122',
+            },
+            {
+              active: true,
+              avatar_url:
+                'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSnp8GwSBuKHN7hy2zhbOQ4jSisSVJ_3G4BJA\u0026usqp=CAU',
+              email: 'guest-101',
+              extras: { role: 'CUSTOMER' },
+              id: 32230310,
+              id_str: '32230310',
+              last_comment_read_id: 0,
+              last_comment_read_id_str: '0',
+              last_comment_received_id: 0,
+              last_comment_received_id_str: '0',
+              username: 'guest-101',
+            },
+          ],
+          raw_room_name: 'hi',
+          room_name: 'hi',
+          room_total_participants: 0,
+          unique_id: 'fffc36bb-3355-4306-8b12-bfa0ef48281f',
+          unread_count: 0,
+        },
+      ],
+    },
+    status: 200,
+  }
+}
+export function createUserRoomsResponse(): Record<string, any> {
+  return {
+    results: {
+      meta: { current_page: 1, total_room: 0 },
+      rooms_info: [
+        {
+          avatar_url:
+            'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+          chat_type: 'single',
+          id: 127377138,
+          id_str: '127377138',
+          is_public_channel: false,
+          is_removed: false,
+          last_comment: {
+            comment_before_id: 0,
+            comment_before_id_str: '0',
+            disable_link_preview: false,
+            email: 'guest-10122',
+            extras: {},
+            id: 1325688975,
+            id_str: '1325688975',
+            is_deleted: false,
+            is_public_channel: false,
+            message: 'Hi',
+            payload: {},
+            room_avatar:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+            room_id: 127377138,
+            room_id_str: '127377138',
+            room_name: '',
+            room_type: 'single',
+            status: 'sent',
+            timestamp: '2023-04-27T06:10:30Z',
+            topic_id: 127377138,
+            topic_id_str: '127377138',
+            type: 'text',
+            unique_temp_id: 'javascript-1682575830560',
+            unix_nano_timestamp: 1682575830802877000,
+            unix_timestamp: 1682575830,
+            user_avatar: {
+              avatar: {
+                url: 'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              },
+            },
+            user_avatar_url:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+            user_extras: {},
+            user_id: 345604076,
+            user_id_str: '345604076',
+            username: 'guest-10122',
+          },
+          options: '{}',
+          participants: [
+            {
+              active: true,
+              avatar_url:
+                'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              email: 'guest-10122',
+              extras: {},
+              id: 345604076,
+              id_str: '345604076',
+              last_comment_read_id: 1325688975,
+              last_comment_read_id_str: '1325688975',
+              last_comment_received_id: 1325688975,
+              last_comment_received_id_str: '1325688975',
+              username: 'guest-10122',
+            },
+            {
+              active: true,
+              avatar_url:
+                'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              email: 'guest-10015',
+              extras: {},
+              id: 1636872247,
+              id_str: '1636872247',
+              last_comment_read_id: 0,
+              last_comment_read_id_str: '0',
+              last_comment_received_id: 1325688975,
+              last_comment_received_id_str: '1325688975',
+              username: '',
+            },
+          ],
+          raw_room_name: 'guest-10122 guest-10015',
+          room_name: '',
+          unique_id: '0bae6783f738e1622723978b4bed1300',
+          unread_count: 0,
+        },
+        {
+          avatar_url:
+            'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+          chat_type: 'single',
+          id: 127376441,
+          id_str: '127376441',
+          is_public_channel: false,
+          is_removed: false,
+          last_comment: {
+            comment_before_id: 0,
+            comment_before_id_str: '0',
+            disable_link_preview: false,
+            email: 'guest-10122',
+            extras: {},
+            id: 1325684798,
+            id_str: '1325684798',
+            is_deleted: false,
+            is_public_channel: false,
+            message: 'Hi',
+            payload: {},
+            room_avatar:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+            room_id: 127376441,
+            room_id_str: '127376441',
+            room_name: '',
+            room_type: 'single',
+            status: 'sent',
+            timestamp: '2023-04-27T06:08:03Z',
+            topic_id: 127376441,
+            topic_id_str: '127376441',
+            type: 'text',
+            unique_temp_id: 'javascript-1682575683044',
+            unix_nano_timestamp: 1682575683310301000,
+            unix_timestamp: 1682575683,
+            user_avatar: {
+              avatar: {
+                url: 'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              },
+            },
+            user_avatar_url:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+            user_extras: {},
+            user_id: 345604076,
+            user_id_str: '345604076',
+            username: 'guest-10122',
+          },
+          options: '{}',
+          participants: [
+            {
+              active: true,
+              avatar_url:
+                'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              email: 'guest-10014',
+              extras: {},
+              id: 1636869733,
+              id_str: '1636869733',
+              last_comment_read_id: 0,
+              last_comment_read_id_str: '0',
+              last_comment_received_id: 1325684798,
+              last_comment_received_id_str: '1325684798',
+              username: '',
+            },
+            {
+              active: true,
+              avatar_url:
+                'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              email: 'guest-10122',
+              extras: {},
+              id: 345604076,
+              id_str: '345604076',
+              last_comment_read_id: 1325684798,
+              last_comment_read_id_str: '1325684798',
+              last_comment_received_id: 1325684798,
+              last_comment_received_id_str: '1325684798',
+              username: 'guest-10122',
+            },
+          ],
+          raw_room_name: 'guest-10014 guest-10122',
+          room_name: '',
+          unique_id: 'e1d708da9dea442d782413e921b18aa4',
+          unread_count: 0,
+        },
+        {
+          avatar_url:
+            'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+          chat_type: 'single',
+          id: 127374651,
+          id_str: '127374651',
+          is_public_channel: false,
+          is_removed: false,
+          last_comment: {
+            comment_before_id: 0,
+            comment_before_id_str: '0',
+            disable_link_preview: false,
+            email: 'guest-10122',
+            extras: {},
+            id: 1325674410,
+            id_str: '1325674410',
+            is_deleted: false,
+            is_public_channel: false,
+            message: 'Hi',
+            payload: {},
+            room_avatar:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+            room_id: 127374651,
+            room_id_str: '127374651',
+            room_name: '',
+            room_type: 'single',
+            status: 'sent',
+            timestamp: '2023-04-27T06:02:05Z',
+            topic_id: 127374651,
+            topic_id_str: '127374651',
+            type: 'text',
+            unique_temp_id: 'javascript-1682575325630',
+            unix_nano_timestamp: 1682575325899830000,
+            unix_timestamp: 1682575325,
+            user_avatar: {
+              avatar: {
+                url: 'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              },
+            },
+            user_avatar_url:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+            user_extras: {},
+            user_id: 345604076,
+            user_id_str: '345604076',
+            username: 'guest-10122',
+          },
+          options: '{}',
+          participants: [
+            {
+              active: true,
+              avatar_url:
+                'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              email: 'guest-10011',
+              extras: {},
+              id: 1636863341,
+              id_str: '1636863341',
+              last_comment_read_id: 0,
+              last_comment_read_id_str: '0',
+              last_comment_received_id: 1325674410,
+              last_comment_received_id_str: '1325674410',
+              username: '',
+            },
+            {
+              active: true,
+              avatar_url:
+                'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              email: 'guest-10122',
+              extras: {},
+              id: 345604076,
+              id_str: '345604076',
+              last_comment_read_id: 1325674410,
+              last_comment_read_id_str: '1325674410',
+              last_comment_received_id: 1325674410,
+              last_comment_received_id_str: '1325674410',
+              username: 'guest-10122',
+            },
+          ],
+          raw_room_name: 'guest-10011 guest-10122',
+          room_name: '',
+          unique_id: '10466a252463708a8dedf4bc662e231a',
+          unread_count: 0,
+        },
+        {
+          avatar_url:
+            'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+          chat_type: 'single',
+          id: 127374060,
+          id_str: '127374060',
+          is_public_channel: false,
+          is_removed: false,
+          last_comment: {
+            comment_before_id: 0,
+            comment_before_id_str: '0',
+            disable_link_preview: false,
+            email: 'guest-10122',
+            extras: {},
+            id: 1325671863,
+            id_str: '1325671863',
+            is_deleted: false,
+            is_public_channel: false,
+            message: 'Hi',
+            payload: {},
+            room_avatar:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+            room_id: 127374060,
+            room_id_str: '127374060',
+            room_name: '',
+            room_type: 'single',
+            status: 'sent',
+            timestamp: '2023-04-27T06:00:42Z',
+            topic_id: 127374060,
+            topic_id_str: '127374060',
+            type: 'text',
+            unique_temp_id: 'javascript-1682575242238',
+            unix_nano_timestamp: 1682575242534199000,
+            unix_timestamp: 1682575242,
+            user_avatar: {
+              avatar: {
+                url: 'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              },
+            },
+            user_avatar_url:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+            user_extras: {},
+            user_id: 345604076,
+            user_id_str: '345604076',
+            username: 'guest-10122',
+          },
+          options: '{}',
+          participants: [
+            {
+              active: true,
+              avatar_url:
+                'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              email: 'guest-10013',
+              extras: {},
+              id: 1636860480,
+              id_str: '1636860480',
+              last_comment_read_id: 0,
+              last_comment_read_id_str: '0',
+              last_comment_received_id: 1325671863,
+              last_comment_received_id_str: '1325671863',
+              username: '',
+            },
+            {
+              active: true,
+              avatar_url:
+                'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              email: 'guest-10122',
+              extras: {},
+              id: 345604076,
+              id_str: '345604076',
+              last_comment_read_id: 1325671863,
+              last_comment_read_id_str: '1325671863',
+              last_comment_received_id: 1325671863,
+              last_comment_received_id_str: '1325671863',
+              username: 'guest-10122',
+            },
+          ],
+          raw_room_name: 'guest-10013 guest-10122',
+          room_name: '',
+          unique_id: '12ba704bb78bb5a636f93240b3fa5154',
+          unread_count: 0,
+        },
+        {
+          avatar_url:
+            'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+          chat_type: 'single',
+          id: 127373091,
+          id_str: '127373091',
+          is_public_channel: false,
+          is_removed: false,
+          last_comment: {
+            comment_before_id: 1325667125,
+            comment_before_id_str: '1325667125',
+            disable_link_preview: false,
+            email: 'guest-10122',
+            extras: {},
+            id: 1325667845,
+            id_str: '1325667845',
+            is_deleted: false,
+            is_public_channel: false,
+            message: 'testing saja ya ini wkwk',
+            payload: {},
+            room_avatar:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+            room_id: 127373091,
+            room_id_str: '127373091',
+            room_name: '',
+            room_type: 'single',
+            status: 'sent',
+            timestamp: '2023-04-27T05:58:13Z',
+            topic_id: 127373091,
+            topic_id_str: '127373091',
+            type: 'text',
+            unique_temp_id: 'javascript-1682575093251',
+            unix_nano_timestamp: 1682575093707359000,
+            unix_timestamp: 1682575093,
+            user_avatar: {
+              avatar: {
+                url: 'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              },
+            },
+            user_avatar_url:
+              'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+            user_extras: {},
+            user_id: 345604076,
+            user_id_str: '345604076',
+            username: 'guest-10122',
+          },
+          options: '{}',
+          participants: [
+            {
+              active: true,
+              avatar_url:
+                'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              email: 'guest-10012',
+              extras: {},
+              id: 1636856669,
+              id_str: '1636856669',
+              last_comment_read_id: 0,
+              last_comment_read_id_str: '0',
+              last_comment_received_id: 1325667845,
+              last_comment_received_id_str: '1325667845',
+              username: '',
+            },
+            {
+              active: true,
+              avatar_url:
+                'https://d1edrlpyc25xu0.cloudfront.net/kiwari-prod/image/upload/75r6s_jOHa/1507541871-avatar-mine.png',
+              email: 'guest-10122',
+              extras: {},
+              id: 345604076,
+              id_str: '345604076',
+              last_comment_read_id: 1325667845,
+              last_comment_read_id_str: '1325667845',
+              last_comment_received_id: 1325667845,
+              last_comment_received_id_str: '1325667845',
+              username: 'guest-10122',
+            },
+          ],
+          raw_room_name: 'guest-10012 guest-10122',
+          room_name: '',
+          unique_id: '8ff083aa196f3a5564bddf3726ccdb34',
+          unread_count: 0,
+        },
+      ],
+    },
+    status: 200,
+  }
+}
+export function createUnreadCountResponse(): Record<string, any> {
+  return { s: null }
+}
