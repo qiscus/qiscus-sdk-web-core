@@ -122,7 +122,7 @@ export default class HttpAdapter {
     });
   }
 
-  setupHeaders(req, headers) {
+  setupHeaders(req, headers = {}) {
     // let's give this default Authorization Header
     if (this.AppId != null) {
       req.set("QISCUS-SDK-APP-ID", `${this.AppId}`);
