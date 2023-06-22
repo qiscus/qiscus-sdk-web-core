@@ -93,8 +93,5 @@
     "semi": false,
     "singleQuote": true,
     "trailingComma": "es5"
-  },
-  "engines": {
-    "node": "v18.16"
   }
 }
