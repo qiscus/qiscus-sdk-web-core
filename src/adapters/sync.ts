@@ -1,8 +1,9 @@
 import flatten from 'lodash.flatten'
 import { EventEmitter } from 'pietile-eventemitter'
+import xs from 'xstream'
 import * as Api from '../api'
-import * as m from '../model'
 import * as Decoder from '../decoder'
+import * as m from '../model'
 import * as Provider from '../provider'
 import { Storage } from '../storage'
 import { fromAsyncGenerator } from '../utils/stream'
@@ -219,6 +220,12 @@ const synchronizeFactory = (
     },
     stream() {
       let stream = fromAsyncGenerator(generator())
+        .map((v) => {
+          emitter.emit('synchronized')
+          logger(`synchronize id: ${v.lastMessageId}`)
+          return xs.from(processResult(Promise.resolve(v)))
+        })
+        .flatten()
       return stream
     },
     async run() {
@@ -385,6 +392,11 @@ const synchronizeEventFactory = (
     },
     stream() {
       return fromAsyncGenerator(generator())
+        .map((v) => {
+          logger(`synchronize event id: ${v.lastId}`)
+          return xs.from(processResult(Promise.resolve(v)))
+        })
+        .flatten()
     },
     async run() {
       let gen = generator()
