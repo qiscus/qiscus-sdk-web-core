@@ -39,10 +39,7 @@ export default function getRealtimeAdapter(storage: Storage, api: ApiRequester) 
   const sync = getSyncAdapter({
     s: storage,
     api: api,
-    shouldSync() {
-      // if (mqtt.mqtt == null) return true
-      return mqtt.mqtt?.connected !== true
-    },
+    isMqttConnected: () => mqtt.mqtt?.connected === true,
     logger: (...args: string[]) => logger.log(...args),
   })
 

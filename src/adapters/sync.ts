@@ -26,7 +26,7 @@ export type SyncAdapter = ReturnType<typeof getSyncAdapter>
 export default function getSyncAdapter(o: {
   s: Storage
   api: Api.ApiRequester
-  shouldSync: () => boolean
+  isMqttConnected: () => boolean
   logger: (...args: string[]) => void
 }) {
   const emitter = new EventEmitter<IQSyncEvent>()
