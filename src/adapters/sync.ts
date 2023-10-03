@@ -5,6 +5,7 @@ import * as m from '../model'
 import * as Decoder from '../decoder'
 import * as Provider from '../provider'
 import { Storage } from '../storage'
+import { fromAsyncGenerator } from '../utils/stream'
 
 const noop = () => {}
 const sleep = (period: number) => new Promise((res) => setTimeout(res, period))
@@ -28,7 +29,7 @@ export default function getSyncAdapter(o: {
   logger: (...args: string[]) => void
 }) {
   const emitter = new EventEmitter<IQSyncEvent>()
-  const enableSync = (): boolean => {
+  function shouldSync(): boolean {
     let isAuthenticated = o.s.getCurrentUser() != null
     let isNotForceDisabled = o.s.getForceDisableSync() !== true
 
@@ -37,26 +38,59 @@ export default function getSyncAdapter(o: {
 
     return isAuthenticated && isNotForceDisabled
   }
+  function isSyncEnabled(): boolean {
+    let isAbleToSync = shouldSync()
+    let isEnabled = o.s.getIsSyncEnabled()
+    return isAbleToSync && isEnabled
+  }
+  function isSyncEventEnabled(): boolean {
+    let isAbleToSync = shouldSync()
+    let isEnabled = o.s.getIsSyncEventEnabled()
+    return isAbleToSync && isEnabled
+  }
 
   const getInterval = (): number => {
     if (o.shouldSync()) return o.s.getSyncInterval()
     return o.s.getSyncIntervalWhenConnected()
   }
 
-  const sync = synchronizeFactory(getInterval, enableSync, () => o.s.getLastMessageId(), o.logger, o.s, o.api)
+  const sync = synchronizeFactory(getInterval, isSyncEnabled, () => o.s.getLastMessageId(), o.logger, o.s, o.api)
   sync.on('last-message-id.new', (id) => o.s.setLastMessageId(id))
   sync.on('message.new', (m) => {
     emitter.emit('message.new', m)
   })
-  sync.run().catch((err) => o.logger('got error when sync', err))
+  sync
+    .stream()
+    .replaceError((err) => {
+      o.logger('got error when sync, retrying...', err)
+      return sync.stream()
+    })
+    .subscribe({
+      error: (err) => o.logger('got error when sync', err),
+    })
 
-  const syncEvent = synchronizeEventFactory(getInterval, enableSync, () => o.s.getLastEventId(), o.logger, o.s, o.api)
+  const syncEvent = synchronizeEventFactory(
+    getInterval,
+    isSyncEventEnabled,
+    () => o.s.getLastEventId(),
+    o.logger,
+    o.s,
+    o.api
+  )
   syncEvent.on('last-event-id.new', (id) => o.s.setLastEventId(id))
   syncEvent.on('message.read', (it) => emitter.emit('message.read', it))
   syncEvent.on('message.delivered', (it) => emitter.emit('message.delivered', it))
   syncEvent.on('message.deleted', (it) => emitter.emit('message.deleted', it))
   syncEvent.on('room.cleared', (it) => emitter.emit('room.cleared', it))
-  syncEvent.run().catch((err) => o.logger('got error when sync event', err))
+  syncEvent
+    .stream()
+    .replaceError((err) => {
+      o.logger('got error when sync event, retrying...', err)
+      return syncEvent.stream()
+    })
+    .subscribe({
+      error: (err) => o.logger('got error when sync event', err),
+    })
 
   return {
     synchronize(messageId: m.IQAccount['lastMessageId']): void {
@@ -182,6 +216,10 @@ const synchronizeFactory = (
     },
     get off() {
       return emitter.off.bind(emitter)
+    },
+    stream() {
+      let stream = fromAsyncGenerator(generator())
+      return stream
     },
     async run() {
       let gen = generator()
@@ -344,6 +382,9 @@ const synchronizeEventFactory = (
     },
     get off() {
       return emitter.off.bind(emitter)
+    },
+    stream() {
+      return fromAsyncGenerator(generator())
     },
     async run() {
       let gen = generator()

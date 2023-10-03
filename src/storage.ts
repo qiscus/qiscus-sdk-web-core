@@ -91,5 +91,10 @@ export const storageFactory = () => {
 
     getForceDisableSync: makeGetter<boolean>('force-disable-sync', false),
     setForceDisableSync: makeSetter<boolean>('force-disable-sync'),
+
+    getIsSyncEnabled: makeGetter<boolean>('is-sync-enabled', true),
+    setIsSyncEnabled: makeSetter<boolean>('is-sync-enabled'),
+    getIsSyncEventEnabled: makeGetter<boolean>('is-sync-event-enabled', false),
+    setIsSyncEventEnabled: makeSetter<boolean>('is-sync-event-enabled'),
   }
 }

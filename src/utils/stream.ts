@@ -176,3 +176,26 @@ export const toEventSubscription_ =
 
     return () => subscription.unsubscribe()
   }
+
+export function fromAsyncGenerator<T>(generator: AsyncIterable<T>): Stream<T> {
+  let isCanceled = false
+
+  return xs.create({
+    async start(sink) {
+      try {
+        for await (let data of generator) {
+          sink.next(data)
+          if (isCanceled) {
+            break
+          }
+        }
+        sink.complete()
+      } catch (err) {
+        sink.error(err)
+      }
+    },
+    stop() {
+      isCanceled = true
+    },
+  })
+}

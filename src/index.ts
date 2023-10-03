@@ -203,7 +203,7 @@ export default class Qiscus {
         this.storage.setBrokerLbUrl(brokerLbUrl)
         this.storage.setSyncInterval(syncInterval)
         this.storage.setDebugEnabled(false)
-        this.storage.setVersion('javascript-3.1.x')
+        this.storage.setVersion('javascript-3.x.x')
 
         return xs.fromPromise(this.userAdapter.getAppConfig())
       })
