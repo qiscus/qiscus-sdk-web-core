@@ -62,10 +62,10 @@ export default function getSyncAdapter(o: {
   })
   sync
     .stream()
-    .replaceError((err) => {
-      o.logger('got error when sync, retrying...', err)
-      return sync.stream()
-    })
+    // .replaceError((err) => {
+    //   o.logger('got error when sync, retrying...', err)
+    //   return sync.stream()
+    // })
     .subscribe({
       error: (err) => o.logger('got error when sync', err),
     })
@@ -85,10 +85,10 @@ export default function getSyncAdapter(o: {
   syncEvent.on('room.cleared', (it) => emitter.emit('room.cleared', it))
   syncEvent
     .stream()
-    .replaceError((err) => {
-      o.logger('got error when sync event, retrying...', err)
-      return syncEvent.stream()
-    })
+    // .replaceError((err) => {
+    //   o.logger('got error when sync event, retrying...', err)
+    //   return syncEvent.stream()
+    // })
     .subscribe({
       error: (err) => o.logger('got error when sync event', err),
     })
