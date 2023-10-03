@@ -4,7 +4,7 @@ import * as Api from '../api'
 import * as Provider from '../provider'
 import * as Decoder from '../decoder'
 import * as model from '../model'
-import { nanoid } from 'nanoid'
+import { nanoid } from 'nanoid/non-secure'
 
 export const getMessageAdapter = (s: Storage, api: Api.ApiRequester) => ({
   sendMessage(roomId: number, message: model.IQMessage): Promise<model.IQMessage> {

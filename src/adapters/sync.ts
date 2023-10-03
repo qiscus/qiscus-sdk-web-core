@@ -163,14 +163,12 @@ const synchronizeFactory = (
     let res = await result
     const messageId = res.lastMessageId
     const messages = res.messages
-    // if (messageId > getId()) {
     emitter.emit('last-message-id.new', messageId)
     messages
       .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
       .forEach((m) => {
         emitter.emit('message.new', m)
       })
-    // }
 
     return result
   }
@@ -189,17 +187,13 @@ const synchronizeFactory = (
       let gen = generator()
 
       // noinspection InfiniteLoopJS
-      while (true) {
-        let val = await gen.next()
-        emitter.emit('synchronized')
-
-        if (val.done == null || val.done === false) {
-          try {
-            logger('synchronize id:', String(val.value.lastMessageId))
-            await processResult(Promise.resolve(val.value))
-          } catch (e) {
-            logger('error when sync', (e as Error).message)
-          }
+      for await (let val of gen) {
+        try {
+          emitter.emit('synchronized')
+          logger('synchronize id:', String(val.lastMessageId))
+          await processResult(Promise.resolve(val))
+        } catch (e) {
+          logger('error when sync', (e as Error).message)
         }
       }
     },
