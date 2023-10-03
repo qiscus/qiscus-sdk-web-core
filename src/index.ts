@@ -49,7 +49,7 @@ import {
   toEventSubscription_,
 } from './utils/stream'
 import { isChatRoom } from './utils/try-catch'
-import { nanoid } from 'nanoid'
+import { nanoid } from 'nanoid/non-secure'
 
 export type { IQAccount, IQChatRoom, IQMessage, IQParticipant, IQUser } from './model'
 
