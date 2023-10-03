@@ -340,6 +340,8 @@ declare module AppConfigResponse {
     enable_realtime: boolean
     enable_realtime_check: boolean
     extras: string
+    enable_sync: boolean | undefined
+    enable_sync_event: boolean | undefined
   }
 
   export interface RootObject {

@@ -343,4 +343,6 @@ export interface IAppConfig {
   extras: Record<string, any>
   syncInterval: number
   syncOnConnect: number
+  isSyncEnabled: boolean | undefined
+  isSyncEventEnabled: boolean | undefined
 }

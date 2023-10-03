@@ -190,6 +190,8 @@ interface IAppConfigJson {
   sync_interval: number
   sync_on_connect: number
   extras: string | Record<string, any>
+  enable_sync: boolean | undefined
+  enable_sync_event: boolean | undefined
 }
 export const appConfig = <T extends IAppConfigJson>(json: T): IAppConfig => ({
   baseUrl: json.base_url,
@@ -201,4 +203,6 @@ export const appConfig = <T extends IAppConfigJson>(json: T): IAppConfig => ({
   extras: tryCatch(() => JSON.parse(json.extras as string), json.extras),
   syncInterval: json.sync_interval,
   syncOnConnect: json.sync_on_connect,
+  isSyncEnabled: json.enable_sync,
+  isSyncEventEnabled: json.enable_sync_event,
 })

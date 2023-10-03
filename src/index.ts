@@ -144,7 +144,7 @@ export default class Qiscus {
     syncInterval: number = 5000,
     callback?: (error?: Error) => void
   ): void | Promise<void> {
-    const setterHelper = <T>(fromUser: T, fromServer: T, defaultValue: T): T => {
+    const setterHelper = <T>(fromUser: T, fromServer: T | undefined, defaultValue: T): T => {
       if (typeof fromServer === 'string' && fromServer === '') {
         if (fromUser != null) {
           if (typeof fromUser !== 'string') return fromUser
@@ -224,6 +224,8 @@ export default class Qiscus {
             this.storage.defaultSyncIntervalWhenConnected
           )
         )
+        this.storage.setIsSyncEnabled(setterHelper(true, appConfig.isSyncEnabled, true))
+        this.storage.setIsSyncEventEnabled(setterHelper(false, appConfig.isSyncEventEnabled, false))
       })
       .compose(toCallbackOrPromise<void>(callback))
   }

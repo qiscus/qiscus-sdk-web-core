@@ -1,4 +1,4 @@
-import xs, { Stream, Subscription } from 'xstream'
+import xs, { Listener, Producer, Stream, Subscription } from 'xstream'
 import { Subscription as Subs, IQCallback2 as Callback2, IQCallback1 as Callback1 } from '../defs'
 import { isCallback1, isCallback2 } from './param-utils'
 
@@ -198,4 +198,26 @@ export function fromAsyncGenerator<T>(generator: AsyncIterable<T>): Stream<T> {
       isCanceled = true
     },
   })
+}
+
+export class IntervalProducer implements Producer<number> {
+  accumulator: number = 0
+  _isCanceled = false
+  constructor(private getInterval: () => number, private getSyncInterval: () => number) {}
+
+  async start(sink: Listener<number>) {
+    while (true) {
+      this.accumulator += this.getInterval()
+
+      if (this.accumulator >= this.getSyncInterval()) {
+        sink.next(this.accumulator)
+        this.accumulator = 0
+      }
+      if (this._isCanceled) break
+      await sleep(this.getInterval())
+    }
+  }
+  stop() {
+    this._isCanceled = true
+  }
 }
