@@ -9,7 +9,8 @@
   "exports": {
     ".": {
       "import": "./dist/qiscus-sdk-javascript.mjs",
-      "require": "./dist/qiscus-sdk-javascript.umd.js"
+      "require": "./dist/qiscus-sdk-javascript.umd.js",
+      "types": "./types/index.d.ts"
     }
   },
   "files": [
