@@ -42,6 +42,7 @@ export default class MqttAdapter {
       [when(this.reNotification)]: (topic) =>
         this.notificationHandler.bind(this, topic),
       [when(this.reTyping)]: (topic) => this.typingHandler.bind(this, topic),
+      [when(this.reRoomTyping)]: (topic) => this.roomTypingHandler.bind(this, topic),
       [when(this.reDelivery)]: (topic) =>
         this.deliveryReceiptHandler.bind(this, topic),
       [when(this.reRead)]: (topic) => this.readReceiptHandler.bind(this, topic),
@@ -281,6 +282,9 @@ export default class MqttAdapter {
   get reTyping() {
     return /^r\/([\d]+)\/([\d]+)\/(.+)\/t$/i
   }
+  get reRoomTyping() {
+    return /^r\/(.+)\/typing$/i
+  }
   get reDelivery() {
     return /^r\/([\d]+)\/([\d]+)\/(.+)\/d$/i
   }
@@ -328,6 +332,37 @@ export default class MqttAdapter {
     }
   }
 
+  /**
+   * @param {string} t
+   * @param {string} message
+   */
+  roomTypingHandler(t, message) {
+    this.logger('on:room-typing', t)
+    // topic: r/{roomId}/typing
+
+    let roomId = t.match(this.reRoomTyping)?.[1]
+
+    /**
+     * {
+     *   "room_id": "12333",
+     *   "status": "typing_on",// or "typing_off"
+     *   "sender_id": "user-987",
+     *   "sender_name": "Botku AI",
+     *   "text": "Analyzing your request..."   // optional, max 50 chars
+     * }
+     * @typedef {Object} RoomTypingPayload
+     * @property {number} room_id
+     * @property {('typing_on'|'typing_off')} status
+     * @property {string} sender_id
+     * @property {string} text
+     */
+
+    /**
+     * @type {RoomTypingPayload}
+     */
+    let parsedMessage = JSON.parse(message)
+    this.emit('room-typing', {...parsedMessage, room_id: roomId})
+  }
   typingHandler(t, message) {
     this.logger('on:typing', t)
     // r/{roomId}/{roomId}/{userId}/t
@@ -418,6 +453,7 @@ export default class MqttAdapter {
   subscribeRoom(roomId) {
     if (this.core.selected == null) return
     roomId = roomId || this.core.selected.id
+    this.subscribe(`r/${roomId}/typing`)
     this.subscribe(`r/${roomId}/${roomId}/+/t`)
     this.subscribe(`r/${roomId}/${roomId}/+/d`)
     this.subscribe(`r/${roomId}/${roomId}/+/r`)
@@ -426,6 +462,7 @@ export default class MqttAdapter {
   unsubscribeRoom(roomId) {
     if (this.core.selected == null) return
     roomId = roomId || this.core.selected.id
+    this.unsubscribe(`r/${roomId}/typing`)
     this.unsubscribe(`r/${roomId}/${roomId}/+/t`)
     this.unsubscribe(`r/${roomId}/${roomId}/+/d`)
     this.unsubscribe(`r/${roomId}/${roomId}/+/r`)

@@ -353,6 +353,18 @@ class QiscusSDK {
         this.options.messageUpdatedCallback(message)
       }
     })
+    this.realtimeAdapter.on('room-typing', (data) => {
+      this.events.emit('typing', {
+        message: data.message,
+        username: data.sender_name,
+        email: data.sender_id,
+        room_id: data.room_id,
+      })
+      if (this.options.onRoomTypingCallback != null) {
+        this.events.emit('room-typing', data)
+        this.options.onRoomTypingCallback(data)
+      }
+    })
 
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
       getToken: () => this.userData.token,
