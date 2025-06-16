@@ -1,11 +1,22 @@
 import { match, when } from '../match'
 import mitt from 'mitt'
 import connect from 'mqtt/lib/connect'
+// import {connect} from 'mqtt'
 import request from 'superagent'
 import debounce from 'lodash.debounce'
 import { wrapP } from '../util'
 
 export default class MqttAdapter {
+  /**
+   * @type {import('pino').Logger}
+   */
+  logger
+
+  /**
+   * @type {import('mqtt').MqttClient | null}
+   */
+  mqtt = null
+
   /**
    * @typedef {Function} GetClientId
    * @return {string}
@@ -16,10 +27,11 @@ export default class MqttAdapter {
    * @property {string} brokerLbUrl
    * @property {boolean} enableLb
    * @property {GetClientId} getClientId
+   * @property {import('../../logger.js').Logger} logger
    */
   /**
    * @param {string} url
-   * @param {QiscusSDK} core
+   * @param {import('../../index').default} core
    * @param {boolean} login
    * @param {MqttAdapterParams} obj
    */
@@ -27,8 +39,10 @@ export default class MqttAdapter {
     url,
     core,
     login,
-    { shouldConnect = true, brokerLbUrl, enableLb, getClientId }
+    { shouldConnect = true, brokerLbUrl, enableLb, getClientId, logger }
   ) {
+    this.logger = logger.child('MqttAdapter')
+
     this.emitter = mitt()
     this.core = core
     this.mqtt = null
@@ -51,7 +65,7 @@ export default class MqttAdapter {
         this.channelMessageHandler.bind(this, topic),
       [when(this.reMessageUpdated)]: (topic) =>
         this.messageUpdatedHandler.bind(this, topic),
-      [when()]: (topic) => this.logger('topic not handled', topic),
+      [when()]: (topic) => this.logger.debug('topic not handled', topic),
     })
 
     let mqtt = this.__mqtt_conneck(url)
@@ -65,60 +79,77 @@ export default class MqttAdapter {
 
     this.willConnectToRealtime = false
 
-    // handle load balencer
+    // handle load balancer
     this.emitter.on('close', this._on_close_handler)
-    // this.emitter.on('connected', () => {
-    //   this.willConnectToRealtime = false
-    // })
   }
 
   _getClientId = () => {
-    if (this.getClientId == null)
-      return `${this.core.AppId}_${this.core.user_id}_${Date.now()}`
-    return this.getClientId()
+    let clientId
+    if (this.getClientId == null) {
+      clientId = `${this.core.AppId}_${this.core.user_id}_${Date.now()}`
+    } else {
+      clientId = this.getClientId()
+    }
+
+    this.logger.debug('Generated clientId', { clientId })
+    return clientId
   }
 
   __mqtt_connected_handler = () => {
+    this.logger.debug('connected')
     this.emitter.emit('connected')
   }
   __mqtt_reconnect_handler = () => {
+    this.logger.debug('reconnecting')
     this.emitter.emit('reconnect')
   }
   __mqtt_closed_handler = (...args) => {
+    this.logger.debug('closed', { args })
     this.emitter.emit('close', args)
   }
   __mqtt_message_handler = (t, m) => {
+    this.logger.debug('message', { t, m: JSON.stringify(m) })
     const message = m.toString()
     const func = this.matcher(t)
-    this.logger('message', t, m)
     if (func != null) func(message)
   }
   __mqtt_error_handler = (err) => {
+    this.logger.debug('error', { err })
     if (err && err.message === 'client disconnecting') return
     this.emitter.emit('error', err.message)
-    this.logger('error', err.message)
   }
   __mqtt_conneck = (brokerUrl) => {
     const topics = []
+    /**
+     * @type {import('mqtt').IClientOptions}
+     */
     const opts = {
       will: {
         topic: `u/${this.core.user_id}/s`,
-        payload: 0,
+        payload: '0',
         retain: true,
+        qos: 1,
       },
       clientId: this._getClientId(),
       // reconnectPeriod: 0,
       // connectTimeout: 1 * 1000,
     }
 
+    this.logger.debug('Connecting to', {
+      brokerUrl,
+      cachedRealtimeURL: this.cacheRealtimeURL,
+      existingTopics: this.mqtt?._resubscribeTopics
+        ? Object.keys(this.mqtt._resubscribeTopics)
+        : [],
+    })
     if (brokerUrl == null) brokerUrl = this.cacheRealtimeURL
     if (this.mqtt != null) {
-      const _topics = Object.keys(this.mqtt._resubscribeTopics)
+      const _topics = Object.keys(this.mqtt._resubscribeTopics ?? {})
       topics.push(..._topics)
 
       this.mqtt.removeAllListeners()
       this.mqtt.end(true)
-      delete this.mqtt
+      // delete this.mqtt
       this.mqtt = null
     }
 
@@ -132,7 +163,7 @@ export default class MqttAdapter {
     mqtt.addListener('message', this.__mqtt_message_handler)
     // #endregion
 
-    this.logger(`resubscribe to old topics ${topics}`)
+    this.logger.debug(`resubscribe to old topics ${topics}`)
     topics.forEach((topic) => mqtt.subscribe(topic))
 
     return mqtt
@@ -144,28 +175,26 @@ export default class MqttAdapter {
       this.shouldConnect === true && // should reconnect?
       !this.willConnectToRealtime // is there still reconnect process in progress?
 
-    if (this.logEnabled) {
-      console.group('@mqtt.closed')
-      console.log(`this.enableLb(${this.enableLb})`)
-      console.log(`this.core.isLogin(${this.core.isLogin})`)
-      console.log(`this.shouldConnect(${this.shouldConnect})`)
-      console.log(`this.willConnectToRealtime(${this.willConnectToRealtime})`)
-      console.log(`shouldReconnect(${shouldReconnect})`)
-      console.groupEnd()
-    }
+    this.logger.debug('closed', {
+      enableLb: this.enableLb,
+      isLogin: this.core.isLogin,
+      shouldConnect: this.shouldConnect,
+      willConnectToRealtime: this.willConnectToRealtime,
+      shouldReconnect,
+    })
 
     if (!shouldReconnect) return
     this.willConnectToRealtime = true
 
     const [url, err] = await wrapP(this.getMqttNode())
     if (err) {
-      this.logger(
-        `cannot get new brokerURL, using old url instead (${this.cacheRealtimeURL})`
+      this.logger.debug(
+        `cannot get new brokerURL (through ${this.brokerLbUrl}), using old url instead (${this.cacheRealtimeURL})`
       )
       this.mqtt = this.__mqtt_conneck(this.cacheRealtimeURL)
     } else {
       this.cacheRealtimeURL = url
-      this.logger('trying to reconnect to', url)
+      this.logger.debug('trying to reconnect to', url)
       this.mqtt = this.__mqtt_conneck(url)
     }
 
@@ -184,11 +213,12 @@ export default class MqttAdapter {
   }
 
   /**
-   * @return {Promise<boolean}
+   * @return {Promise<boolean>}
    */
   async openConnection() {
     this.shouldConnect = true
     this.__mqtt_conneck()
+    return true
   }
 
   /**
@@ -196,7 +226,8 @@ export default class MqttAdapter {
    */
   async closeConnection() {
     this.shouldConnect = false
-    this.mqtt.end(true)
+    this.mqtt?.end(true)
+    return true
   }
 
   async getMqttNode() {
@@ -211,64 +242,123 @@ export default class MqttAdapter {
     return this.mqtt.connected
   }
 
+  /**
+   * @type {[string, import('mqtt').IClientSubscribeOptions][]}
+   */
   subscribtionBuffer = []
+  /**
+   * Subscribe to a topic.
+   * @param {[string, import('mqtt').IClientSubscribeOptions]} args - The topic to subscribe to.
+   */
   subscribe(...args) {
-    this.logger('subscribe to', args)
+    this.logger.debug('subscribe', { ...args })
     this.subscribtionBuffer.push(args)
     if (this.mqtt != null) {
-      do {
+      while (this.subscribtionBuffer.length > 0) {
         const subs = this.subscribtionBuffer.shift()
-        if (subs != null) this.mqtt.subscribe(...args)
-      } while (this.subscribtionBuffer.length > 0)
+        if (subs != null)
+          this.mqtt.subscribe(subs[0], subs[1], (err, granted) => {
+            if (err) {
+              this.logger.error('subscribe.error', { err, topic: subs[0] })
+            } else {
+              this.logger.debug('subscribe.success', {
+                granted,
+                topic: subs[0],
+              })
+            }
+          })
+      }
     }
   }
 
+  /**
+   * @type {[string, import('mqtt').IClientSubscribeOptions][]}
+   */
   unsubscribtionBuffer = []
+  /**
+   * @param {[string, import('mqtt').IClientSubscribeOptions]} args
+   */
   unsubscribe(...args) {
-    this.logger('unsubscribe from', args)
+    this.logger.debug('unsubscribe', { ...args })
     this.unsubscribtionBuffer.push(args)
     if (this.mqtt != null) {
-      do {
+      while (this.unsubscribtionBuffer.length > 0) {
         const subs = this.unsubscribtionBuffer.shift()
         if (subs != null) {
-          this.mqtt.unsubscribe(...subs)
+          this.mqtt.unsubscribe(subs[0], subs[1], (err, packet) => {
+            if (err) {
+              this.logger.error('unsubscribe.error', { err, topic: subs[0] })
+            } else {
+              this.logger.debug('unsubscribe.success', {
+                packet,
+                topic: subs[0],
+              })
+            }
+          })
         }
-      } while (this.unsubscribtionBuffer.length > 0)
+      }
     }
   }
 
+  /**
+   * @type {Array<{topic: string, payload: string | Buffer, options: import('mqtt').IClientPublishOptions}>}
+   */
   publishBuffer = []
+  /**
+   * Publish a message to a topic.
+   * @param {string} topic - The topic to publish to.
+   * @param {string | Buffer} payload - The message to publish.
+   * @param {import('mqtt').IClientPublishOptions} [options] - Options for publishing.
+   */
   publish(topic, payload, options = {}) {
     this.publishBuffer.push({ topic, payload, options })
-    do {
-      const data = this.publishBuffer.shift()
-      if (data != null) {
-        return this.mqtt.publish(
+    if (this.mqtt != null) {
+      while (this.publishBuffer.length > 0) {
+        const data = this.publishBuffer.shift()
+        if (data == null) continue
+        this.logger.debug('publish', {
+          topic: data.topic,
+          payload: data.payload.toString(),
+          options: data.options,
+        })
+        this.mqtt.publish(
           data.topic,
           data.payload.toString(),
-          data.options
+          data.options,
+          (err, packet) => {
+            if (err) {
+              this.logger.error('publish.error', { err, topic: data.topic })
+            } else {
+              this.logger.debug('publish.success', {
+                packet,
+                topic: data.topic,
+              })
+            }
+          }
         )
       }
-    } while (this.publishBuffer.length > 0)
+    }
   }
 
+  /**
+   * Emit an event with the given arguments.
+   * @param {[string, any]} args - The arguments to emit.
+   */
   emit(...args) {
     this.emitter.emit(...args)
   }
 
+  /**
+   * @param {[string, mitt.Handler]} args
+   */
   on(...args) {
     this.emitter.on(...args)
   }
+  /**
+   * @param {[string, mitt.Handler]} args
+   */
   off(...args) {
     this.emitter.off(...args)
-  }
-
-  get logEnabled() {
-    return this.core.debugMQTTMode
-  }
-  get logger() {
-    if (!this.core.debugMQTTMode) return this.noop
-    return console.log.bind(console, 'QRealtime ->')
   }
 
   // #region regexp
@@ -298,16 +388,16 @@ export default class MqttAdapter {
   }
   // #endregion
 
-  noop() { }
+  noop() {}
 
   newMessageHandler(topic, message) {
     message = JSON.parse(message)
-    this.logger('on:new-message', message)
+    this.logger.debug('on:new-message', message)
     this.emit('new-message', message)
   }
 
   notificationHandler(topic, message) {
-    this.logger('on:notification', message)
+    this.logger.debug('on:notification', message)
     message = JSON.parse(message)
     const data = message.payload.data
     if ('deleted_messages' in data) {
@@ -329,7 +419,7 @@ export default class MqttAdapter {
   }
 
   typingHandler(t, message) {
-    this.logger('on:typing', t)
+    this.logger.debug('on:typing', t)
     // r/{roomId}/{roomId}/{userId}/t
     const topic = t.match(this.reTyping)
     if (topic[3] === this.core.user_id) return
@@ -354,12 +444,12 @@ export default class MqttAdapter {
       const displayName = actor.username
       this.core.isTypingStatus = `${displayName} is typing ...`
     } else {
-      this.core.isTypingStatus = null
+      this.core.isTypingStatus = ''
     }
   }
 
   deliveryReceiptHandler(t, message) {
-    this.logger('on:delivered', t, message)
+    this.logger.debug('on:delivered', t, message)
     // r/{roomId}/{roomId}/{userId}/d
     const topic = t.match(this.reDelivery)
     const data = message.split(':')
@@ -375,7 +465,7 @@ export default class MqttAdapter {
   }
 
   readReceiptHandler(t, message) {
-    this.logger('on:read', t, message)
+    this.logger.debug('on:read', t, message)
     // r/{roomId}/{roomId}/{userId}/r
     const topic = t.match(this.reRead)
     const data = message.split(':')
@@ -391,22 +481,22 @@ export default class MqttAdapter {
   }
 
   onlinePresenceHandler(topic, message) {
-    this.logger('on:online-presence', topic, message)
+    this.logger.debug('on:online-presence', topic, message)
     // u/guest-1002/s
     const topicData = this.reOnlineStatus.exec(topic)
-    const userId = topicData[1]
+    const userId = topicData?.[1]
 
     this.emit('presence', { message, userId })
   }
 
   channelMessageHandler(topic, message) {
-    this.logger('on:channel-message', topic, message)
+    this.logger.debug('on:channel-message', topic, message)
     this.emit('new-message', JSON.parse(message))
   }
 
   messageUpdatedHandler(topic, message) {
     message = JSON.parse(message)
-    this.logger('on:message-updated', topic, message)
+    this.logger.debug('on:message-updated', topic, message)
     this.emit('message:updated', message)
   }
 
@@ -440,15 +530,15 @@ export default class MqttAdapter {
   }
 
   subscribeUserChannel() {
-    this.subscribe(`${this.core.userData.token}/c`)
-    this.subscribe(`${this.core.userData.token}/n`)
-    this.subscribe(`${this.core.userData.token}/update`)
+    this.subscribe(`${this.core.userData.token}/c`, { qos: 1 })
+    this.subscribe(`${this.core.userData.token}/n`, { qos: 1 })
+    this.subscribe(`${this.core.userData.token}/update`, { qos: 1 })
   }
 
   publishPresence(userId, isOnline = true) {
     isOnline
-      ? this.publish(`u/${userId}/s`, 1, { retain: true })
-      : this.publish(`u/${userId}/s`, 0, { retain: true })
+      ? this.publish(`u/${userId}/s`, '1', { retain: true })
+      : this.publish(`u/${userId}/s`, '0', { retain: true })
   }
 
   disconnect() {

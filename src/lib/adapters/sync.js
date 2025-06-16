@@ -4,6 +4,14 @@ import UrlBuilder from '../url-builder'
 const noop = () => {}
 const sleep = (time) => new Promise((res) => setTimeout(res, time))
 
+/**
+ * @param {Function} getHttp - Function to get the HTTP adapter
+ * @param {Function} getInterval - Function to get the sync interval
+ * @param {Function} getSync - Function to check if sync is enabled
+ * @param {Function} getId - Function to get the last message ID
+ * @param {import('pino').Logger} logger - Logger function
+ * @returns {Object} Synchronization factory object
+ */
 function synchronizeFactory(getHttp, getInterval, getSync, getId, logger) {
   const emitter = mitt()
   const synchronize = (messageId) => {
@@ -61,12 +69,21 @@ function synchronizeFactory(getHttp, getInterval, getSync, getId, logger) {
             emitter.emit('last-message-id.new', messageId)
           }
         } catch (e) {
-          logger('error when sync', e.message)
+          logger.error('error when sync', { message: e.message })
         }
       }
     },
   }
 }
+
+/**
+ * @param {Function} getHttp - Function to get the HTTP adapter
+ * @param {Function} getInterval - Function to get the sync interval
+ * @param {Function} getSync - Function to check if sync is enabled
+ * @param {Function} getId - Function to get the last event ID
+ * @param {import('pino').Logger} logger - Logger function
+ * @returns {Object} Synchronization event factory object
+ */
 function synchronizeEventFactory(getHttp, getInterval, getSync, getId, logger) {
   const emitter = mitt()
   const synchronize = (messageId) => {
@@ -146,7 +163,7 @@ function synchronizeEventFactory(getHttp, getInterval, getSync, getId, logger) {
             result.roomCleared.forEach((it) => emitter.emit('room.cleared', it))
           }
         } catch (e) {
-          logger('error when sync event', e.message)
+          logger.error('error when sync event', e.message)
         }
       }
     },
@@ -156,7 +173,6 @@ function synchronizeEventFactory(getHttp, getInterval, getSync, getId, logger) {
 export default function SyncAdapter(
   getHttpAdapter,
   {
-    isDebug = false,
     syncInterval,
     getShouldSync,
     syncOnConnect,
@@ -164,10 +180,11 @@ export default function SyncAdapter(
     statusLogin,
     enableSync,
     enableSyncEvent,
+    logger,
   }
 ) {
+  logger = logger.child('SyncAdapter')
   const emitter = mitt()
-  const logger = (...args) => (isDebug ? console.log('QSync:', ...args) : {})
 
   let lastMessageId = 0
   let lastEventId = 0
@@ -186,11 +203,11 @@ export default function SyncAdapter(
     getInterval,
     _getShouldSync,
     lastCommentId,
-    logger,
+    logger
   )
   syncFactory.on('last-message-id.new', (id) => (lastMessageId = id))
   syncFactory.on('message.new', (m) => emitter.emit('message.new', m))
-  syncFactory.run().catch((err) => logger('got error when sync', err))
+  syncFactory.run().catch((err) => logger.error('got error when sync', err))
 
   const _getShouldSyncEvent = () => getShouldSync() && enableSyncEvent()
   const syncEventFactory = synchronizeEventFactory(
@@ -198,7 +215,7 @@ export default function SyncAdapter(
     getInterval,
     _getShouldSyncEvent,
     () => lastEventId,
-    logger,
+    logger
   )
   syncEventFactory.on('last-event-id.new', (id) => {
     lastEventId = id
@@ -215,7 +232,7 @@ export default function SyncAdapter(
   syncEventFactory.on('room.cleared', (it) => emitter.emit('room.cleared', it))
   syncEventFactory
     .run()
-    .catch((err) => logger('got error when sync event', err))
+    .catch((err) => logger.error('got error when sync event', err))
 
   return {
     get on() {

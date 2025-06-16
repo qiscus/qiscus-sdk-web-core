@@ -1,13 +1,29 @@
 import request from "superagent";
 
 export default class HttpAdapter {
-  constructor({ baseURL, AppId, userId, version, getCustomHeader }) {
+  /**
+   * @type {import('pino').Logger}
+   */
+  logger;
+
+
+  /**
+   * @param {Object} options
+   * @param {string} options.baseURL
+   * @param {string} options.AppId
+   * @param {string} options.userId
+   * @param {string} options.version
+   * @param {() => Object} options.getCustomHeader
+   * @param {import('../../logger').Logger} options.logger
+   */
+  constructor({ baseURL, AppId, userId, version, getCustomHeader, logger }) {
     this.baseURL = baseURL;
     this.token = null;
     this.userId = userId;
     this.AppId = AppId;
     this.version = version;
     this.getCustomHeader = getCustomHeader;
+    this.logger = logger.child('HttpAdapter');
   }
 
   setToken(token) {
@@ -16,6 +32,7 @@ export default class HttpAdapter {
 
   get(path, headers = {}, options) {
     return new Promise((resolve, reject) => {
+      this.logger.debug(`${this.baseURL}/${path}`, { method: 'get' });
       var req = request.get(`${this.baseURL}/${path}`);
       if (options && options.baseURL)
         req = request.get(`${options.baseURL}/${path}`);
@@ -31,6 +48,7 @@ export default class HttpAdapter {
   }
   // eslint-disable-next-line
   get_request(path) {
+    this.logger.debug(`${this.baseURL}/${path}`, { method: 'get_request' });
     let req = request.get(`${this.baseURL}/${path}`);
     req = this.setupHeaders(req, {});
     return req;
@@ -38,6 +56,7 @@ export default class HttpAdapter {
 
   post(path, body = {}, headers = {}) {
     return new Promise((resolve, reject) => {
+      this.logger.debug(`${this.baseURL}/${path}`, { method: 'post' });
       let req = request.post(`${this.baseURL}/${path}`);
       req = this.setupHeaders(req, headers);
       req
@@ -56,6 +75,7 @@ export default class HttpAdapter {
   // eslint-disable-next-line
   post_json(path, body = {}, headers = {}) {
     return new Promise((resolve, reject) => {
+      this.logger.debug(`${this.baseURL}/${path}`, { method: 'post_json' });
       let req = request.post(`${this.baseURL}/${path}`);
       req = this.setupHeaders(req, headers);
       req
@@ -73,6 +93,7 @@ export default class HttpAdapter {
 
   put(path, body = {}, headers = {}) {
     return new Promise((resolve, reject) => {
+      this.logger.debug(`${this.baseURL}/${path}`, { method: 'put' });
       let req = request.put(`${this.baseURL}/${path}`);
       req = this.setupHeaders(req, headers);
       req
@@ -90,6 +111,7 @@ export default class HttpAdapter {
 
   patch(path, body = {}, headers = {}) {
     return new Promise((resolve, reject) => {
+      this.logger.debug(`${this.baseURL}/${path}`, { method: 'patch' });
       let req = request.patch(`${this.baseURL}/${path}`);
       req = this.setupHeaders(req, headers);
       req
@@ -107,6 +129,7 @@ export default class HttpAdapter {
 
   del(path, body = {}, headers = {}) {
     return new Promise((resolve, reject) => {
+      this.logger.debug(`${this.baseURL}/${path}`, { method: 'del' });
       let req = request.del(`${this.baseURL}/${path}`);
       req = this.setupHeaders(req, headers);
       req
@@ -158,7 +181,9 @@ export default class HttpAdapter {
     let status = err.response?.status
     let body = err.response?.body
 
+
     if (status === 403 && body.error?.message?.toLowerCase() === 'unauthorized. token is expired') {
+      this.logger.debug('Token expired', { status, body })
       throw new Error('Token expired')
     }
   }
