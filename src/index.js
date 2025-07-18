@@ -355,7 +355,7 @@ class QiscusSDK {
     })
     this.realtimeAdapter.on('room-typing', (data) => {
       this.events.emit('typing', {
-        message: data.message,
+        message: data.text,
         username: data.sender_name,
         email: data.sender_id,
         room_id: data.room_id,
