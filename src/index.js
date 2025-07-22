@@ -704,6 +704,11 @@ class QiscusSDK {
                 'this message has been deleted'
             }
           }
+
+          // Find last comment object on `self.selected.comments` array
+          const lastComment = self.selected.comments[self.selected.comments.length - 1]
+          self.selected.last_comment_id = lastComment.id
+          self.selected.last_comment_message = lastComment.message
         })
       }
       if (self.options.commentDeletedCallback) {
