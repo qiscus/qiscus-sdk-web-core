@@ -54,40 +54,36 @@ export class ExpiredTokenAdapter {
     if (expiredAt != null && expiredAt !== '') {
       this._expiredAt = new Date(expiredAt)
     }
-
     this._isExpiredTokenEnabled = this._refreshToken != null && this._expiredAt != null;
-
-    // this._timerId = setInterval(this._checkToken, 1000)
-    this._checkToken()
+    this._setTimer(this._expiredAt);
   }
 
-
-  async _checkToken() {
-    const timeToSleep = 5000 // 5 seconds
-
-    if (this._getAuthenticationStatus() == false || this._refreshToken == null) {
-      // console.log('not authenticated, break out of recursion')
-      return;
+  /**
+   * @param {Date | null} expiredAt
+   *
+   * Sets a timer to refresh the authentication token when it expires.
+   * If the token is already expired, it will immediately trigger the refresh.
+   */
+  _setTimer(expiredAt) {
+    if (this._timerId != null) {
+      clearTimeout(this._timerId);
+      this._timerId = null;
     }
 
-    if (this._expiredAt != null && this._isExpiredTokenEnabled) {
-      let now = Date.now();
+    const delay = Math.floor((expiredAt?.getTime() ?? NaN) - Date.now());
+    if (!isNaN(delay) && delay > 0) {
+      this._timerId = setTimeout(() => {
+        this.refreshAuthToken();
+      }, delay);
 
-      // @ts-ignore
-      let diff = Math.floor((this._expiredAt - now) / 1000)
-      // console.log('diff', diff)
-      if (diff < (timeToSleep / 1000)) {
-        // console.log('diff is less than time to sleep', diff)
-        // console.log('do refresh auth token!')
-        await this.refreshAuthToken()
-      }
     }
-
-    await sleep(timeToSleep)
-    this._checkToken()
   }
 
   async refreshAuthToken() {
+    if (this._getAuthenticationStatus() == false || this._refreshToken == null) {
+      return;
+    }
+
     return this._http.post('api/v2/sdk/refresh_user_token', {
       user_id: this._userId,
       refresh_token: this._refreshToken,
@@ -104,6 +100,7 @@ export class ExpiredTokenAdapter {
 
       // @ts-ignore
       this._onTokenRefreshed?.(token, this._refreshToken, this._expiredAt)
+      this._setTimer(this._expiredAt);
 
       return res;
     })
