@@ -189,7 +189,7 @@ export default class MqttAdapter {
    */
   async openConnection() {
     this.shouldConnect = true
-    this.__mqtt_conneck()
+    this.mqtt = this.__mqtt_conneck()
   }
 
   /**
@@ -197,7 +197,13 @@ export default class MqttAdapter {
    */
   async closeConnection() {
     this.shouldConnect = false
-    this.mqtt.end(true)
+    this.mqtt.end(true, (err) => {
+      console.log('close connection', err)
+      if (err) {
+        this.logger('error when close connection', err.message)
+      }
+    })
+    this.mqtt = null
   }
 
   async getMqttNode() {
@@ -216,41 +222,39 @@ export default class MqttAdapter {
   subscribe(...args) {
     this.logger('subscribe to', args)
     this.subscribtionBuffer.push(args)
-    if (this.mqtt != null) {
-      do {
-        const subs = this.subscribtionBuffer.shift()
-        if (subs != null) this.mqtt.subscribe(...args)
-      } while (this.subscribtionBuffer.length > 0)
+    while (this.mqtt != null && this.subscribtionBuffer.length > 0) {
+      const subs = this.subscribtionBuffer.shift()
+      if (subs != null) {
+        console.log('@mqtt.subscribe', subs)
+        this.mqtt.subscribe(...subs)
+      }
     }
   }
 
   unsubscribtionBuffer = []
   unsubscribe(...args) {
-    this.logger('unsubscribe from', args)
     this.unsubscribtionBuffer.push(args)
-    if (this.mqtt != null) {
-      do {
-        const subs = this.unsubscribtionBuffer.shift()
-        if (subs != null) {
-          this.mqtt.unsubscribe(...subs)
-        }
-      } while (this.unsubscribtionBuffer.length > 0)
+    while (this.mqtt != null && this.unsubscribtionBuffer.length > 0) {
+      const subs = this.unsubscribtionBuffer.shift()
+      if (subs != null) {
+        this.mqtt.unsubscribe(...subs)
+      }
     }
   }
 
   publishBuffer = []
   publish(topic, payload, options = {}) {
     this.publishBuffer.push({ topic, payload, options })
-    do {
+    while (this.mqtt != null && this.publishBuffer.length > 0) {
       const data = this.publishBuffer.shift()
       if (data != null) {
-        return this.mqtt.publish(
+        this.mqtt.publish(
           data.topic,
           data.payload.toString(),
           data.options
         )
       }
-    } while (this.publishBuffer.length > 0)
+    }
   }
 
   emit(...args) {

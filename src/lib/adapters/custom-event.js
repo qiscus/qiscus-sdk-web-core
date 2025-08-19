@@ -23,7 +23,7 @@ export default function CustomEventAdapter (mqttAdapter, userId) {
         sender: userId, // ?
         data: payload
       })
-      mqttAdapter.mqtt.publish(getTopic(roomId), _payload)
+      mqttAdapter.publish(getTopic(roomId), _payload)
     },
     subscribeEvent (roomId, callback) {
       if (is.undefined(roomId)) throw new Error('`roomId` required')
@@ -34,7 +34,7 @@ export default function CustomEventAdapter (mqttAdapter, userId) {
       const topic = getTopic(roomId)
       // Only allow 1 subcription for now
       if (subscribedTopics[topic]) return
-      mqttAdapter.mqtt.subscribe(topic)
+      mqttAdapter.subscribe(topic)
 
       const cb = (payload) => {
         const parsedPayload = JSON.parse(payload)
@@ -49,7 +49,7 @@ export default function CustomEventAdapter (mqttAdapter, userId) {
 
       const topic = getTopic(roomId)
       if (!subscribedTopics[topic]) return
-      mqttAdapter.mqtt.unsubscribe(topic)
+      mqttAdapter.unsubscribe(topic)
       events.off(topic, subscribedTopics[topic])
       subscribedTopics[topic] = null
       delete subscribedTopics[topic]
