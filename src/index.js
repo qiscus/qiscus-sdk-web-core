@@ -428,6 +428,10 @@ class QiscusSDK {
         this.events.emit('room-cleared', room)
       })
     })
+    this.syncAdapter.on('synchronize', () => {
+      const messages = this.selected?.comments?.filter((m) => m.status === 'pending') ?? []
+      messages.forEach((m) => this._retrySendComment(m))
+    })
 
     this.customEventAdapter = CustomEventAdapter(
       this.realtimeAdapter,
@@ -614,6 +618,7 @@ class QiscusSDK {
         userId: this.user_id,
         version: this.version,
         getCustomHeader: () => this._customHeader,
+        expiredTokenAdapterGetter: () => this.expiredTokenAdapter,
       })
       this.HTTPAdapter.setToken(this.userData.token)
 
@@ -1368,6 +1373,7 @@ class QiscusSDK {
     }
     self.pendingCommentId--
     const commentData = {
+      room_id: topicId,
       message: commentMessage,
       username_as: this.username,
       username_real: this.user_id,
@@ -1437,6 +1443,8 @@ class QiscusSDK {
         messageData.before_id = res.comment_before_id
         // update the timestamp also then re-sort the comment list
         messageData.unix_timestamp = res.unix_timestamp
+        this.options.commentSentCallback?.({ comment: messageData })
+        self.events.emit('comment-sent', messageData)
 
         self.sortComments()
 
@@ -1446,6 +1454,44 @@ class QiscusSDK {
         messageData.markAsFailed()
         return Promise.reject(err)
       })
+  }
+
+  async _retrySendComment(comment) {
+    this.logger('Retrying send comment', comment);
+    return this.userAdapter.postComment(
+      '' + comment.room_id,
+      comment.message,
+      comment.unique_id,
+      comment.type,
+      comment.payload,
+      comment.extras
+    ).then(async (res) => {
+      if (this.selected?.id !== comment.room_id) {
+        return res
+      }
+
+      Object.assign(comment, res)
+      comment.markAsSent()
+      comment.id = res.id
+      comment.before_id = res.comment_before_id
+      comment.unix_timestamp = res.unix_timestamp
+
+      const index = this.selected?.comments.findIndex(
+        (c) => c.unique_id === comment.unique_id
+      )
+      if (index > -1) {
+        this.selected.comments[index] = comment
+      }
+      this.sortComments()
+
+      this.options.commentSentCallback?.({ comment })
+      this.events.emit('comment-sent', comment)
+
+      return comment
+    }).catch((err) => {
+      comment.markAsFailed()
+      return Promise.reject(err)
+    })
   }
 
   // #endregion

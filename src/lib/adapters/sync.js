@@ -53,7 +53,10 @@ function synchronizeFactory(getHttp, getInterval, getSync, getId, logger) {
     },
     async run() {
       for await (let result of generator()) {
+        if (result == null) continue;
+
         try {
+          emitter.emit('synchronize', Date.now())
           const messageId = result.lastMessageId
           const messages = result.messages
           if (messageId > getId()) {
@@ -62,6 +65,7 @@ function synchronizeFactory(getHttp, getInterval, getSync, getId, logger) {
           }
         } catch (e) {
           logger('error when sync', e.message)
+          console.log('error when sync', e)
         }
       }
     },
@@ -190,6 +194,7 @@ export default function SyncAdapter(
   )
   syncFactory.on('last-message-id.new', (id) => (lastMessageId = id))
   syncFactory.on('message.new', (m) => emitter.emit('message.new', m))
+  syncFactory.on('synchronize', (m) => emitter.emit('synchronize', m))
   syncFactory.run().catch((err) => logger('got error when sync', err))
 
   const _getShouldSyncEvent = () => getShouldSync() && enableSyncEvent()
@@ -223,6 +228,12 @@ export default function SyncAdapter(
     },
     get off() {
       return emitter.off
+    },
+    get interval() {
+      return getInterval()
+    },
+    get enabled() {
+      return enableSync()
     },
     synchronize() {
       syncFactory.synchronize()

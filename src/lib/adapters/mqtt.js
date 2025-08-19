@@ -198,7 +198,6 @@ export default class MqttAdapter {
   async closeConnection() {
     this.shouldConnect = false
     this.mqtt.end(true, (err) => {
-      console.log('close connection', err)
       if (err) {
         this.logger('error when close connection', err.message)
       }
@@ -225,7 +224,6 @@ export default class MqttAdapter {
     while (this.mqtt != null && this.subscribtionBuffer.length > 0) {
       const subs = this.subscribtionBuffer.shift()
       if (subs != null) {
-        console.log('@mqtt.subscribe', subs)
         this.mqtt.subscribe(...subs)
       }
     }
