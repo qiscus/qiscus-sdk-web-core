@@ -53,15 +53,15 @@ function synchronizeFactory(getHttp, getInterval, getSync, getId, logger) {
     },
     async run() {
       for await (let result of generator()) {
-        if (result == null) continue;
-
         try {
           emitter.emit('synchronize', Date.now())
-          const messageId = result.lastMessageId
-          const messages = result.messages
-          if (messageId > getId()) {
-            messages.forEach((m) => emitter.emit('message.new', m))
-            emitter.emit('last-message-id.new', messageId)
+          if (result?.lastMessageId != null && result?.messages != null) {
+            const messageId = result.lastMessageId
+            const messages = result.messages
+            if (messageId > getId()) {
+              messages.forEach((m) => emitter.emit('message.new', m))
+              emitter.emit('last-message-id.new', messageId)
+            }
           }
         } catch (e) {
           logger('error when sync', e.message)

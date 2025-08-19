@@ -429,8 +429,7 @@ class QiscusSDK {
       })
     })
     this.syncAdapter.on('synchronize', () => {
-      const messages = this.selected?.comments?.filter((m) => m.status === 'pending') ?? []
-      messages.forEach((m) => this._retrySendComment(m))
+      this._pendingComments.forEach((m) => this._retrySendComment(m))
     })
 
     this.customEventAdapter = CustomEventAdapter(
@@ -1419,7 +1418,7 @@ class QiscusSDK {
 
     if (self.selected) self.selected.comments.push(messageData)
 
-    return this.userAdapter
+    const sendComment = () => this.userAdapter
       .postComment(
         '' + topicId,
         messageData.message,
@@ -1428,36 +1427,77 @@ class QiscusSDK {
         messageData.payload,
         messageData.extras
       )
-      .then(async (res) => {
-        res = await this._hookAdapter.trigger(
-          Hooks.MESSAGE_BEFORE_RECEIVED,
-          res
-        )
-        Object.assign(messageData, res)
 
-        if (!self.selected) return Promise.resolve(messageData)
-        // When the posting succeeded, we mark the Comment as sent,
-        // so all the interested party can be notified.
-        messageData.markAsSent()
-        messageData.id = res.id
-        messageData.before_id = res.comment_before_id
-        // update the timestamp also then re-sort the comment list
-        messageData.unix_timestamp = res.unix_timestamp
-        this.options.commentSentCallback?.({ comment: messageData })
-        self.events.emit('comment-sent', messageData)
+    try {
+      let res = await sendComment()
+      res = await this._hookAdapter.trigger(
+        Hooks.MESSAGE_BEFORE_RECEIVED,
+        res
+      )
+      Object.assign(messageData, res)
 
-        self.sortComments()
+      if (!self.selected) return Promise.resolve(messageData)
+      // When the posting succeeded, we mark the Comment as sent,
+      // so all the interested party can be notified.
+      messageData.markAsSent()
+      messageData.id = res.id
+      messageData.before_id = res.comment_before_id
+      // update the timestamp also then re-sort the comment list
+      messageData.unix_timestamp = res.unix_timestamp
+      this.options.commentSentCallback?.({ comment: messageData })
+      self.events.emit('comment-sent', messageData)
 
-        return messageData
-      })
-      .catch((err) => {
-        messageData.markAsFailed()
-        return Promise.reject(err)
-      })
+      self.sortComments()
+      const commentIndex = self._pendingComments.findIndex(c => c.unique_id === messageData.unique_id)
+      if (commentIndex > -1) {
+        self._pendingComments.splice(commentIndex, 1)
+      }
+
+      return messageData
+    } catch (error) {
+      messageData.markAsFailed()
+      // From superagent: `https://forwardemail.github.io/superagent/#retrying-requests`
+      const whitelistedErrorStatus = [undefined, 408, 413, 429, 500, 502, 503, 504, 521, 522, 524]
+      const message = error.message?.toLowerCase() ?? ''
+      const isOffline = message.includes('offline')
+      if (whitelistedErrorStatus.includes(error.status) || isOffline) {
+        this._pendingComments.push(messageData)
+        this.logger('Failed sending comment', error)
+      }
+      return Promise.reject(error)
+    }
   }
 
+  _pendingComments = []
+
+  // count of how much does a comment has been retried
+  _pendingCommentsCount = {}
   async _retrySendComment(comment) {
     this.logger('Retrying send comment', comment);
+
+    this._pendingCommentsCount[comment.unique_id] =
+      (this._pendingCommentsCount[comment.unique_id] ?? 0) + 1
+
+    // If it is exceeding the maximum retry count (which is 10), we will not retry anymore
+    if (this._pendingCommentsCount[comment.unique_id] > 10) {
+      this.logger(
+        `Exceeding maximum retry count for comment ${comment.unique_id}, not retrying anymore`
+      )
+      this.options.commentRetryExceedCallback?.(comment)
+      // Remove the comment from pending comments
+      const index = this._pendingComments.findIndex(c => c.unique_id === comment.unique_id)
+      if (index > -1) {
+        this._pendingComments.splice(index, 1)
+      }
+      // Mark the comment as failed
+      comment.markAsFailed()
+      // Emit the event
+      this.events.emit('comment-retry-exceed', comment)
+
+
+      return Promise.reject(new Error('Exceeding maximum retry count'))
+    }
+
     return this.userAdapter.postComment(
       '' + comment.room_id,
       comment.message,
@@ -1486,6 +1526,10 @@ class QiscusSDK {
 
       this.options.commentSentCallback?.({ comment })
       this.events.emit('comment-sent', comment)
+      const commentIndex = this._pendingComments.findIndex(c => c.unique_id === comment.unique_id)
+      if (commentIndex > -1) {
+        this._pendingComments.splice(commentIndex, 1)
+      }
 
       return comment
     }).catch((err) => {
