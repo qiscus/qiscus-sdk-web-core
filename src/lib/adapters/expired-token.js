@@ -1,13 +1,13 @@
 // @ts-check
 
-import { sleep } from '../util';
+import { sleep } from '../util'
 
 export class ExpiredTokenAdapter {
   /** @type {boolean} */
-  _isExpiredTokenEnabled = false;
+  _isExpiredTokenEnabled = false
 
   /** @type {string | null} */
-  _refreshToken = null;
+  _refreshToken = null
 
   /** @type {Date | null} */
   _expiredAt = null
@@ -37,16 +37,19 @@ export class ExpiredTokenAdapter {
    * }} param
    */
   constructor({
-    httpAdapter, refreshToken, expiredAt, userId,
+    httpAdapter,
+    refreshToken,
+    expiredAt,
+    userId,
     onTokenRefreshed,
     getAuthenticationStatus,
   }) {
-    this._http = httpAdapter;
+    this._http = httpAdapter
     this._refreshToken = refreshToken
     // this._expiredAt = expiredAt == null ? null : new Date(expiredAt)
     this._userId = userId
     this._onTokenRefreshed = onTokenRefreshed
-    this._getAuthenticationStatus = getAuthenticationStatus;
+    this._getAuthenticationStatus = getAuthenticationStatus
 
     if (this._refreshToken != null && this._refreshToken === '') {
       this._refreshToken = null
@@ -54,8 +57,9 @@ export class ExpiredTokenAdapter {
     if (expiredAt != null && expiredAt !== '') {
       this._expiredAt = new Date(expiredAt)
     }
-    this._isExpiredTokenEnabled = this._refreshToken != null && this._expiredAt != null;
-    this._setTimer(this._expiredAt);
+    this._isExpiredTokenEnabled =
+      this._refreshToken != null && this._expiredAt != null
+    this._setTimer(this._expiredAt)
   }
 
   /**
@@ -66,44 +70,48 @@ export class ExpiredTokenAdapter {
    */
   _setTimer(expiredAt) {
     if (this._timerId != null) {
-      clearTimeout(this._timerId);
-      this._timerId = null;
+      clearTimeout(this._timerId)
+      this._timerId = null
     }
 
-    const delay = Math.floor((expiredAt?.getTime() ?? NaN) - Date.now());
+    const delay = Math.floor((expiredAt?.getTime() ?? NaN) - Date.now())
     if (!isNaN(delay) && delay > 0) {
       this._timerId = setTimeout(() => {
-        this.refreshAuthToken();
-      }, delay);
-
+        this.refreshAuthToken()
+      }, delay)
     }
   }
 
   async refreshAuthToken() {
-    if (this._getAuthenticationStatus() == false || this._refreshToken == null) {
-      return;
+    if (
+      this._getAuthenticationStatus() == false ||
+      this._refreshToken == null
+    ) {
+      return
     }
 
-    return this._http.post('api/v2/sdk/refresh_user_token', {
-      user_id: this._userId,
-      refresh_token: this._refreshToken,
-    }).then((r) => {
-      let res = r.body.results;
-      let token = res.token;
+    return this._http
+      .post('api/v2/sdk/refresh_user_token', {
+        user_id: this._userId,
+        refresh_token: this._refreshToken,
+      })
+      .then((r) => {
+        let res = r.body.results
+        let token = res.token
 
-      this._refreshToken = res.refresh_token;
-      this._http.setToken(res.token)
+        this._refreshToken = res.refresh_token
+        this._http.setToken(res.token)
 
-      if (res.token_expires_at != null) {
-        this._expiredAt = new Date(res.token_expires_at);
-      }
+        if (res.token_expires_at != null) {
+          this._expiredAt = new Date(res.token_expires_at)
+        }
 
-      // @ts-ignore
-      this._onTokenRefreshed?.(token, this._refreshToken, this._expiredAt)
-      this._setTimer(this._expiredAt);
+        // @ts-ignore
+        this._onTokenRefreshed?.(token, this._refreshToken, this._expiredAt)
+        this._setTimer(this._expiredAt)
 
-      return res;
-    })
+        return res
+      })
   }
 
   async logout() {
@@ -112,5 +120,4 @@ export class ExpiredTokenAdapter {
       token: this._http.token,
     })
   }
-
 }
