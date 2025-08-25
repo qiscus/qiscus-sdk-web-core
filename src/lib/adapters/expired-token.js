@@ -15,7 +15,7 @@ export class ExpiredTokenAdapter {
   /** @type {import('./http').default} */
   _http
 
-  /** @type {(token: string, refreshToken: string, expiredAt: Date) => void | undefined} */
+  /** @type {(token: string, refreshToken: string, expiredAt: Date, oldToken: string) => void | undefined} */
   _onTokenRefreshed
 
   /** @type {any} */
@@ -32,7 +32,7 @@ export class ExpiredTokenAdapter {
    *  userId: string,
    *  refreshToken: string | null,
    *  expiredAt: string | null,
-   *  onTokenRefreshed: (token: string, refreshToken: string, expiredAt: Date) => void
+   *  onTokenRefreshed: (token: string, refreshToken: string, expiredAt: Date, oldToken: string) => void
    *  getAuthenticationStatus: () => boolean,
    * }} param
    */
@@ -100,14 +100,14 @@ export class ExpiredTokenAdapter {
         let token = res.token
 
         this._refreshToken = res.refresh_token
+        // @ts-ignore
+        this._onTokenRefreshed?.(token, this._refreshToken, this._expiredAt, this._http.token)
         this._http.setToken(res.token)
 
         if (res.token_expires_at != null) {
           this._expiredAt = new Date(res.token_expires_at)
         }
 
-        // @ts-ignore
-        this._onTokenRefreshed?.(token, this._refreshToken, this._expiredAt)
         this._setTimer(this._expiredAt)
 
         return res

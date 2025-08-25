@@ -185,7 +185,7 @@ export default class MqttAdapter {
   }
 
   /**
-   * @return {Promise<boolean}
+   * @return {Promise<boolean>}
    */
   async openConnection() {
     this.shouldConnect = true
@@ -219,11 +219,11 @@ export default class MqttAdapter {
 
   subscribtionBuffer = []
   subscribe(...args) {
-    this.logger('subscribe to', args)
     this.subscribtionBuffer.push(args)
     while (this.mqtt != null && this.subscribtionBuffer.length > 0) {
       const subs = this.subscribtionBuffer.shift()
       if (subs != null) {
+        this.logger('subscribe topic', subs)
         this.mqtt.subscribe(...subs)
       }
     }
@@ -235,6 +235,7 @@ export default class MqttAdapter {
     while (this.mqtt != null && this.unsubscribtionBuffer.length > 0) {
       const subs = this.unsubscribtionBuffer.shift()
       if (subs != null) {
+        this.logger('unsubscribe topic', subs)
         this.mqtt.unsubscribe(...subs)
       }
     }
@@ -246,6 +247,7 @@ export default class MqttAdapter {
     while (this.mqtt != null && this.publishBuffer.length > 0) {
       const data = this.publishBuffer.shift()
       if (data != null) {
+        this.logger('publish to', data.topic, data.payload, data.options)
         this.mqtt.publish(
           data.topic,
           data.payload.toString(),
@@ -482,6 +484,22 @@ export default class MqttAdapter {
     this.subscribe(`${this.core.userData.token}/c`)
     this.subscribe(`${this.core.userData.token}/n`)
     this.subscribe(`${this.core.userData.token}/update`)
+  }
+
+  subscribeUserChannelByToken(token) {
+    this.subscribe(`${token}/c`)
+    this.subscribe(`${token}/n`)
+    this.subscribe(`${token}/update`)
+  }
+  unsubscribeUserChannel() {
+    this.unsubscribe(`${this.core.userData.token}/c`)
+    this.unsubscribe(`${this.core.userData.token}/n`)
+    this.unsubscribe(`${this.core.userData.token}/update`)
+  }
+  unsusbcribeUserChannelByToken(token) {
+    this.unsubscribe(`${token}/c`)
+    this.unsubscribe(`${token}/n`)
+    this.unsubscribe(`${token}/update`)
   }
 
   publishPresence(userId, isOnline = true) {

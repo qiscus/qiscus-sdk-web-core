@@ -627,11 +627,13 @@ class QiscusSDK {
         refreshToken: user.refresh_token,
         expiredAt: user.token_expires_at,
         userId: this.user_id,
-        onTokenRefreshed: (token, refreshToken, expiredAt) => {
+        onTokenRefreshed: (token, refreshToken, expiredAt, oldToken) => {
           this.userData.token = token
           this.userData.refresh_token = refreshToken
           this.userData.token_expires_at = expiredAt?.toJSON()
-          this.events.emit('token-refreshed', { token, refreshToken, expiredAt })
+          this.events.emit('token-refreshed', { token, refreshToken, expiredAt, oldToken })
+          this.realtimeAdapter.unsusbcribeUserChannelByToken(oldToken)
+          this.realtimeAdapter.subscribeUserChannelByToken(token)
         },
         getAuthenticationStatus: () => {
           return this.user_id != null && this.isLogin
@@ -1493,7 +1495,6 @@ class QiscusSDK {
       comment.markAsFailed()
       // Emit the event
       this.events.emit('comment-retry-exceed', comment)
-
 
       return Promise.reject(new Error('Exceeding maximum retry count'))
     }
