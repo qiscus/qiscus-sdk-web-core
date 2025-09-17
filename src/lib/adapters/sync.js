@@ -190,7 +190,7 @@ export default function SyncAdapter(
     getInterval,
     _getShouldSync,
     lastCommentId,
-    logger,
+    logger
   )
   syncFactory.on('last-message-id.new', (id) => (lastMessageId = id))
   syncFactory.on('message.new', (m) => emitter.emit('message.new', m))
@@ -203,7 +203,7 @@ export default function SyncAdapter(
     getInterval,
     _getShouldSyncEvent,
     () => lastEventId,
-    logger,
+    logger
   )
   syncEventFactory.on('last-event-id.new', (id) => {
     lastEventId = id
@@ -235,11 +235,36 @@ export default function SyncAdapter(
     get enabled() {
       return enableSync()
     },
-    synchronize() {
-      syncFactory.synchronize()
+    async synchronize() {
+      let id = lastCommentId()
+      let result = await syncFactory.synchronize(id)
+      let messages = result?.messages ?? []
+      let lastMessageId = result?.lastMessageId ?? -1
+      for (let message of messages) {
+        emitter.emit('message.new', message)
+      }
+      if (lastMessageId > 0) {
+        emitter.emit('last-message-id.new', lastMessageId)
+      }
     },
-    synchronizeEvent() {
-      syncEventFactory.synchronize()
+    async synchronizeEvent() {
+      let result = await syncEventFactory.synchronize(lastEventId)
+      try {
+        const eventId = result.lastId
+        if (eventId > getId()) {
+          emitter.emit('last-event-id.new', eventId)
+          result.messageDelivered.forEach((it) =>
+            emitter.emit('message.delivered', it)
+          )
+          result.messageDeleted.forEach((it) =>
+            emitter.emit('message.deleted', it)
+          )
+          result.messageRead.forEach((it) => emitter.emit('message.read', it))
+          result.roomCleared.forEach((it) => emitter.emit('room.cleared', it))
+        }
+      } catch (e) {
+        logger('error when sync event', e.message)
+      }
     },
   }
 }
