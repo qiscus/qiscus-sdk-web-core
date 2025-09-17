@@ -12,7 +12,7 @@ import RoomAdapter from './lib/adapters/room'
 import MqttAdapter from './lib/adapters/mqtt'
 import CustomEventAdapter from './lib/adapters/custom-event'
 import SyncAdapter from './lib/adapters/sync'
-import { GroupChatBuilder } from './lib/utils'
+import { delayed, GroupChatBuilder } from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
@@ -431,6 +431,9 @@ class QiscusSDK {
     this.syncAdapter.on('synchronize', () => {
       this._pendingComments.forEach((m) => this._retrySendComment(m))
     })
+    this.syncAdapter.on('last-message-id.new', (id) => {
+      this.last_received_comment_id = id
+    })
 
     this.customEventAdapter = CustomEventAdapter(
       this.realtimeAdapter,
@@ -622,6 +625,10 @@ class QiscusSDK {
       this.HTTPAdapter.setToken(this.userData.token)
 
       let user = response.user;
+      this._delayedSync = delayed(() => {
+        this.synchronize()
+        this.synchronizeEvent()
+      }, 500)
       this.expiredTokenAdapter = new ExpiredTokenAdapter({
         httpAdapter: this.HTTPAdapter,
         refreshToken: user.refresh_token,
@@ -634,6 +641,7 @@ class QiscusSDK {
           this.events.emit('token-refreshed', { token, refreshToken, expiredAt, oldToken })
           this.realtimeAdapter.unsusbcribeUserChannelByToken(oldToken)
           this.realtimeAdapter.subscribeUserChannelByToken(token)
+          this._delayedSync()
         },
         getAuthenticationStatus: () => {
           return this.user_id != null && this.isLogin
