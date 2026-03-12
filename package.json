@@ -28,7 +28,8 @@
     "prepublishOnly": "npm-run-all clean build",
     "serve": "http-server -p 1234 -c-1 dist",
     "dev:serve": "run-p serve watch",
-    "release:patch": "np patch --any-branch --yolo"
+    "release:patch": "np patch --any-branch --yolo",
+    "release:minor": "np minor --any-branch --yolo"
   },
   "devDependencies": {
     "@babel/cli": "^7.10.5",
