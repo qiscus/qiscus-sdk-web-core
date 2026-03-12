@@ -27,7 +27,14 @@ export default class MqttAdapter {
     url,
     core,
     login,
-    { shouldConnect = true, brokerLbUrl, enableLb, getClientId }
+    {
+      shouldConnect = true,
+      brokerLbUrl,
+      enableLb,
+      getClientId,
+      mqttUsername,
+      mqttPassword,
+    }
   ) {
     this.emitter = mitt()
     this.core = core
@@ -42,7 +49,8 @@ export default class MqttAdapter {
       [when(this.reNotification)]: (topic) =>
         this.notificationHandler.bind(this, topic),
       [when(this.reTyping)]: (topic) => this.typingHandler.bind(this, topic),
-      [when(this.reRoomTyping)]: (topic) => this.roomTypingHandler.bind(this, topic),
+      [when(this.reRoomTyping)]: (topic) =>
+        this.roomTypingHandler.bind(this, topic),
       [when(this.reDelivery)]: (topic) =>
         this.deliveryReceiptHandler.bind(this, topic),
       [when(this.reRead)]: (topic) => this.readReceiptHandler.bind(this, topic),
@@ -55,7 +63,11 @@ export default class MqttAdapter {
       [when()]: (topic) => this.logger('topic not handled', topic),
     })
 
+    this.mqttUsername = mqttUsername
+    this.mqttPassword = mqttPassword
+
     let mqtt = this.__mqtt_conneck(url)
+    this.cacheRealtimeURL = url
     this.mqtt = mqtt
 
     // if appConfig set realtimeEnabled to false,
@@ -71,6 +83,10 @@ export default class MqttAdapter {
     // this.emitter.on('connected', () => {
     //   this.willConnectToRealtime = false
     // })
+  }
+
+  get http() {
+    return this.core.HTTPAdapter
   }
 
   _getClientId = () => {
@@ -111,6 +127,8 @@ export default class MqttAdapter {
       // reconnectPeriod: 0,
       // connectTimeout: 1 * 1000,
     }
+    if (this.mqttUsername != null) opts.username = this.mqttUsername
+    if (this.mqttPassword != null) opts.password = this.mqttPassword
 
     if (brokerUrl == null) brokerUrl = this.cacheRealtimeURL
     if (this.mqtt != null) {
@@ -188,6 +206,10 @@ export default class MqttAdapter {
    * @return {Promise<boolean>}
    */
   async openConnection() {
+    if (this.mqtt != null) {
+      await this.closeConnection()
+    }
+
     this.shouldConnect = true
     this.mqtt = this.__mqtt_conneck()
   }
@@ -197,19 +219,27 @@ export default class MqttAdapter {
    */
   async closeConnection() {
     this.shouldConnect = false
-    this.mqtt.end(true, (err) => {
-      if (err) {
-        this.logger('error when close connection', err.message)
-      }
+    await new Promise((resolve, reject) => {
+      this.mqtt.end(true, null, (err) => {
+        if (err) {
+          this.logger('error when close connection', err.message)
+          reject(err)
+        } else {
+          resolve()
+        }
+      })
     })
     this.mqtt = null
   }
 
   async getMqttNode() {
-    const res = await request.get(this.brokerLbUrl)
-    const url = res.body.data.url
-    const port = res.body.data.wss_port
-    return `wss://${url}:${port}/mqtt`
+    const res = await this.http.get('api/v2/sdk/mqtt_config')
+    const mqttUsername = res.body.results.username
+    const mqttPassword = res.body.results.password
+    const mqttURL = `wss://${res.body.results.url}:1886/mqtt`
+    this.mqttUsername = mqttUsername
+    this.mqttPassword = mqttPassword
+    return mqttURL
   }
 
   get connected() {
@@ -248,11 +278,7 @@ export default class MqttAdapter {
       const data = this.publishBuffer.shift()
       if (data != null) {
         this.logger('publish to', data.topic, data.payload, data.options)
-        this.mqtt.publish(
-          data.topic,
-          data.payload.toString(),
-          data.options
-        )
+        this.mqtt.publish(data.topic, data.payload.toString(), data.options)
       }
     }
   }
@@ -272,7 +298,7 @@ export default class MqttAdapter {
     return this.core.debugMQTTMode
   }
   get logger() {
-    if (!this.core.debugMQTTMode) return this.noop
+    if (!this.logEnabled) return this.noop
     return console.log.bind(console, 'QRealtime ->')
   }
 
@@ -306,7 +332,7 @@ export default class MqttAdapter {
   }
   // #endregion
 
-  noop() { }
+  noop() {}
 
   newMessageHandler(topic, message) {
     message = JSON.parse(message)
@@ -365,7 +391,7 @@ export default class MqttAdapter {
      * @type {RoomTypingPayload}
      */
     let parsedMessage = JSON.parse(message)
-    this.emit('room-typing', {...parsedMessage, room_id: roomId})
+    this.emit('room-typing', { ...parsedMessage, room_id: roomId })
   }
   typingHandler(t, message) {
     this.logger('on:typing', t)
