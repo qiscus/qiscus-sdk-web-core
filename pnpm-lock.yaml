@@ -28,8 +28,8 @@ importers:
         specifier: ^4.3.8
         version: 4.3.8
       nanoid:
-        specifier: ^4.0.0
-        version: 4.0.0
+        specifier: ^5.0.9
+        version: 5.0.9
       pietile-eventemitter:
         specifier: ^1.0.0
         version: 1.0.1
@@ -1832,14 +1832,9 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  nanoid@3.3.4:
-    resolution: {integrity: sha512-MqBkQh/OHTS2egovRtLk45wEyNXwF+cokD+1YPf9u5VfJiRdAiRwB2froX5Co9Rh20xs4siNPm8naNotSD6RBw==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-
-  nanoid@4.0.0:
-    resolution: {integrity: sha512-IgBP8piMxe/gf73RTQx7hmnhwz0aaEXYakvqZyE302IXW3HyVNhdNGC+O2MwMAVhLEnvXlvKtGbtJf6wvHihCg==}
-    engines: {node: ^14 || ^16 || >=18}
+  nanoid@5.0.9:
+    resolution: {integrity: sha512-Aooyr6MXU6HpvvWXKoVoXwKMs/KyVakWwg7xQfv5/S/RIgJMy0Ifa45H9qqYy7pTCszrHzP21Uk4PZq2HpEM8Q==}
+    engines: {node: ^18 || >=20}
     hasBin: true
 
   negotiator@0.6.2:
@@ -4528,9 +4523,7 @@ snapshots:
 
   nanoid@3.3.11: {}
 
-  nanoid@3.3.4: {}
-
-  nanoid@4.0.0: {}
+  nanoid@5.0.9: {}
 
   negotiator@0.6.2: {}
 
@@ -4812,7 +4805,7 @@ snapshots:
 
   postcss@8.4.20:
     dependencies:
-      nanoid: 3.3.4
+      nanoid: 3.3.11
       picocolors: 1.0.0
       source-map-js: 1.0.2
 
