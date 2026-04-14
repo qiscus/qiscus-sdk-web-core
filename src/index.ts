@@ -1115,8 +1115,10 @@ export default class Qiscus {
       url: this.storage.getUploadUrl(),
       method: 'post',
       data: data,
-      onUploadProgress(event: ProgressEvent) {
-        const percentage = ((event.loaded / event.total) * 100).toFixed(2)
+      onUploadProgress(event) {
+        const loaded = event.loaded
+        const total = event.total ?? file.size
+        const percentage = ((loaded / total) * 100).toFixed(2)
         callback?.(undefined, Number(percentage))
       },
     })
