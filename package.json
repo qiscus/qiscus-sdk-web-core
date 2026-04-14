@@ -45,7 +45,7 @@
     "lodash.debounce": "^4.0.8",
     "lodash.flatten": "^4.4.0",
     "mqtt": "^4.3.8",
-    "nanoid": "^4.0.0",
+    "nanoid": "^5.0.9",
     "pietile-eventemitter": "^1.0.0",
     "xstream": "^11.11.0"
   },
