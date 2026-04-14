@@ -40,7 +40,7 @@
     "printWidth": 120
   },
   "dependencies": {
-    "axios": "^0.27.2",
+    "axios": "^1.15.0",
     "is_js": "^0.9.0",
     "lodash.debounce": "^4.0.8",
     "lodash.flatten": "^4.4.0",
