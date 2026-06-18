@@ -1,4 +1,4 @@
-import is from 'is_js'
+import is from '../is'
 import mitt from 'mitt'
 
 export default function CustomEventAdapter (mqttAdapter, userId) {

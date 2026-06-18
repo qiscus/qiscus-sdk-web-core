@@ -1,6 +1,6 @@
 import request from 'superagent'
 import mitt from 'mitt'
-import is from 'is_js'
+import is from './lib/is'
 import format from 'date-fns/format'
 import distanceInWordsToNow from 'date-fns/distance_in_words_to_now'
 import Comment from './lib/Comment'
