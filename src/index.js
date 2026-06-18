@@ -1,6 +1,6 @@
 import request from 'superagent'
 import mitt from 'mitt'
-import is from 'is_js'
+import is from './lib/is'
 import format from 'date-fns/format'
 import distanceInWordsToNow from 'date-fns/distance_in_words_to_now'
 import Comment from './lib/Comment'
@@ -62,7 +62,7 @@ class QiscusSDK {
     this.enableSync = true
     this.enableSyncEvent = false
     this.HTTPAdapter = null
-    this.expiredTokenAdapter = null
+    this.expiredTokenAdapter = null;
     this.realtimeAdapter = null
     this.customEventAdapter = null
     this.isInit = false
@@ -139,9 +139,9 @@ class QiscusSDK {
     if ((isDifferentBaseUrl || isDifferentMqttUrl) && !isDifferentBrokerLbUrl) {
       this.logger(
         '' +
-          'force disable load balancing for realtime server, because ' +
-          '`baseURL` or `mqttURL` get changed but ' +
-          'did not provide `brokerLbURL`'
+        'force disable load balancing for realtime server, because ' +
+        '`baseURL` or `mqttURL` get changed but ' +
+        'did not provide `brokerLbURL`'
       )
       this.enableLb = false
     } else if (config.enableRealtimeLB != null) {
@@ -245,6 +245,8 @@ class QiscusSDK {
           const enableEventReport = this.enableEventReport // default value for enableEventReport
           const configExtras = {} // default value for extras
 
+
+
           this.baseURL = setterHelper(config.baseURL, cfg.base_url, baseUrl)
           this.brokerLbUrl = setterHelper(
             config.brokerLbURL,
@@ -282,16 +284,8 @@ class QiscusSDK {
           )
           this.extras = setterHelper(null, cfg.extras, configExtras)
           this.enableSync = setterHelper(null, cfg.enable_sync, this.enableSync)
-          this.enableSyncEvent = setterHelper(
-            null,
-            cfg.enable_sync_event,
-            this.enableSyncEvent
-          )
-          this._autoRefreshToken = setterHelper(
-            null,
-            cfg.auto_refresh_token,
-            false
-          )
+          this.enableSyncEvent = setterHelper(null, cfg.enable_sync_event, this.enableSyncEvent)
+          this._autoRefreshToken = setterHelper(null, cfg.auto_refresh_token, false)
         })
         .catch((err) => {
           this.logger('got error when trying to get app config', err)
@@ -302,24 +296,81 @@ class QiscusSDK {
     }
 
     // set Event Listeners
-    this.setEventListeners()
-  }
 
-  _setupCustomEventAdapter() {
-    this.customEventAdapter = CustomEventAdapter(
-      this.realtimeAdapter,
-      this.user_id
+    this._getMqttClientId = () => `${this.AppId}_${this.user_id}_${Date.now()}`
+
+    this.realtimeAdapter = new MqttAdapter(this.mqttURL, this, this.isLogin, {
+      brokerLbUrl: this.brokerLbUrl,
+      enableLb: this.enableLb,
+      shouldConnect: this.enableRealtime,
+      getClientId: this._getMqttClientId,
+    })
+    this.realtimeAdapter.on('connected', () => {
+      if (this.isLogin || !this.realtimeAdapter.connected) {
+        this.last_received_comment_id = this.userData.last_comment_id
+        this.updateLastReceivedComment(this.last_received_comment_id)
+      }
+    })
+    this.realtimeAdapter.on('close', () => { })
+    this.realtimeAdapter.on('reconnect', () => {
+      this.options.onReconnectCallback?.()
+    })
+    this.realtimeAdapter.on(
+      'message-delivered',
+      ({ commentId, commentUniqueId, userId }) =>
+        this._setDelivered(commentId, commentUniqueId, userId)
     )
-  }
+    this.realtimeAdapter.on(
+      'message-read',
+      ({ commentId, commentUniqueId, userId }) =>
+        this._setRead(commentId, commentUniqueId, userId)
+    )
+    this.realtimeAdapter.on('new-message', async (message) => {
+      message = await this._hookAdapter.trigger(
+        Hooks.MESSAGE_BEFORE_RECEIVED,
+        message
+      )
+      this.events.emit('newmessages', [message])
+    })
+    this.realtimeAdapter.on('presence', (data) =>
+      this.events.emit('presence', data)
+    )
+    this.realtimeAdapter.on('comment-deleted', (data) =>
+      this.events.emit('comment-deleted', data)
+    )
+    this.realtimeAdapter.on('room-cleared', (data) =>
+      this.events.emit('room-cleared', data)
+    )
+    this.realtimeAdapter.on('typing', (data) =>
+      this.events.emit('typing', {
+        message: data.message,
+        username: data.userId,
+        room_id: data.roomId,
+      })
+    )
+    this.realtimeAdapter.on('message:updated', (message) => {
+      if (this.options.messageUpdatedCallback != null) {
+        this.options.messageUpdatedCallback(message)
+      }
+    })
+    this.realtimeAdapter.on('room-typing', (data) => {
+      this.events.emit('typing', {
+        message: data.text,
+        username: data.sender_name,
+        email: data.sender_id,
+        room_id: data.room_id,
+      })
+      if (this.options.onRoomTypingCallback != null) {
+        this.events.emit('room-typing', data)
+        this.options.onRoomTypingCallback(data)
+      }
+    })
 
-  _setupSyncAdapter() {
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
       getToken: () => this.userData.token,
       syncInterval: () => this.syncInterval,
-      getShouldSync: () =>
-        this._forceEnableSync &&
-        this.isLogin &&
-        !this.realtimeAdapter.connected,
+      getShouldSync: () => this._forceEnableSync
+        && (this.isLogin && !this.realtimeAdapter.connected),
       syncOnConnect: () => this.syncOnConnect,
       lastCommentId: () => this.last_received_comment_id,
       statusLogin: () => this.isLogin,
@@ -383,84 +434,13 @@ class QiscusSDK {
     this.syncAdapter.on('last-message-id.new', (id) => {
       this.last_received_comment_id = id
     })
-  }
 
-  async _setupRealtimeAdapter() {
-    this._getMqttClientId = () => `${this.AppId}_${this.user_id}_${Date.now()}`
+    this.customEventAdapter = CustomEventAdapter(
+      this.realtimeAdapter,
+      this.user_id
+    )
 
-    const res = await this.HTTPAdapter.get('api/v2/sdk/mqtt_config')
-    const mqttUsername = res.body.results.username
-    const mqttPassword = res.body.results.password
-    const mqttURL = `wss://${res.body.results.url}:1886/mqtt`
-
-    this.realtimeAdapter = new MqttAdapter(mqttURL, this, this.isLogin, {
-      brokerLbUrl: this.brokerLbUrl,
-      enableLb: this.enableLb,
-      shouldConnect: this.enableRealtime,
-      getClientId: this._getMqttClientId,
-      mqttUsername,
-      mqttPassword,
-    })
-    this.realtimeAdapter.on('connected', () => {
-      if (this.isLogin || !this.realtimeAdapter.connected) {
-        this.last_received_comment_id = this.userData.last_comment_id
-        this.updateLastReceivedComment(this.last_received_comment_id)
-      }
-    })
-    this.realtimeAdapter.on('close', () => {})
-    this.realtimeAdapter.on('reconnect', () => {
-      this.options.onReconnectCallback?.()
-    })
-    this.realtimeAdapter.on(
-      'message-delivered',
-      ({ commentId, commentUniqueId, userId }) =>
-        this._setDelivered(commentId, commentUniqueId, userId)
-    )
-    this.realtimeAdapter.on(
-      'message-read',
-      ({ commentId, commentUniqueId, userId }) =>
-        this._setRead(commentId, commentUniqueId, userId)
-    )
-    this.realtimeAdapter.on('new-message', async (message) => {
-      message = await this._hookAdapter.trigger(
-        Hooks.MESSAGE_BEFORE_RECEIVED,
-        message
-      )
-      this.events.emit('newmessages', [message])
-    })
-    this.realtimeAdapter.on('presence', (data) =>
-      this.events.emit('presence', data)
-    )
-    this.realtimeAdapter.on('comment-deleted', (data) =>
-      this.events.emit('comment-deleted', data)
-    )
-    this.realtimeAdapter.on('room-cleared', (data) =>
-      this.events.emit('room-cleared', data)
-    )
-    this.realtimeAdapter.on('typing', (data) =>
-      this.events.emit('typing', {
-        message: data.message,
-        username: data.userId,
-        room_id: data.roomId,
-      })
-    )
-    this.realtimeAdapter.on('message:updated', (message) => {
-      if (this.options.messageUpdatedCallback != null) {
-        this.options.messageUpdatedCallback(message)
-      }
-    })
-    this.realtimeAdapter.on('room-typing', (data) => {
-      this.events.emit('typing', {
-        message: data.text,
-        username: data.sender_name,
-        email: data.sender_id,
-        room_id: data.room_id,
-      })
-      if (this.options.onRoomTypingCallback != null) {
-        this.events.emit('room-typing', data)
-        this.options.onRoomTypingCallback(data)
-      }
-    })
+    this.setEventListeners()
   }
 
   _setRead(messageId, messageUniqueId, userId) {
@@ -564,7 +544,7 @@ class QiscusSDK {
       if (
         lastReceivedMessageNotEmpty &&
         this.lastReceiveMessages[0].unique_temp_id ===
-          comments[0].unique_temp_id
+        comments[0].unique_temp_id
       ) {
         this.logging('lastReceiveMessages double', comments)
         return
@@ -626,10 +606,12 @@ class QiscusSDK {
      * This event will be called when login is sucess
      * Basically, it sets up necessary properties for qiscusSDK
      */
-    this.events.on('login-success', async (response) => {
+    this.events.on('login-success', (response) => {
       this.isLogin = true
       this.userData = response.user
       this.last_received_comment_id = this.userData.last_comment_id
+      if (!this.realtimeAdapter.connected)
+        this.updateLastReceivedComment(this.last_received_comment_id)
 
       // now that we have the token, etc, we need to set all our adapters
       this.HTTPAdapter = new HttpAdapter({
@@ -642,17 +624,7 @@ class QiscusSDK {
       })
       this.HTTPAdapter.setToken(this.userData.token)
 
-      await this._setupRealtimeAdapter()
-      this._setupSyncAdapter()
-      this._setupCustomEventAdapter()
-      this.realtimeAdapter.connect()
-      // this.setEventListeners()
-
-      if (!this.realtimeAdapter.connected) {
-        this.updateLastReceivedComment(this.last_received_comment_id)
-      }
-
-      let user = response.user
+      let user = response.user;
       this._delayedSync = delayed(() => {
         this.synchronize()
         this.synchronizeEvent()
@@ -666,19 +638,14 @@ class QiscusSDK {
           this.userData.token = token
           this.userData.refresh_token = refreshToken
           this.userData.token_expires_at = expiredAt?.toJSON()
-          this.events.emit('token-refreshed', {
-            token,
-            refreshToken,
-            expiredAt,
-            oldToken,
-          })
+          this.events.emit('token-refreshed', { token, refreshToken, expiredAt, oldToken })
           this.realtimeAdapter.unsusbcribeUserChannelByToken(oldToken)
           this.realtimeAdapter.subscribeUserChannelByToken(token)
           this._delayedSync()
         },
         getAuthenticationStatus: () => {
           return this.user_id != null && this.isLogin
-        },
+        }
       })
 
       this.userAdapter = new UserAdapter(this.HTTPAdapter)
@@ -753,8 +720,7 @@ class QiscusSDK {
           }
 
           // Find last comment object on `self.selected.comments` array
-          const lastComment =
-            self.selected.comments[self.selected.comments.length - 1]
+          const lastComment = self.selected.comments[self.selected.comments.length - 1]
           self.selected.last_comment_id = lastComment.id
           self.selected.last_comment_message = lastComment.message
         })
@@ -828,8 +794,8 @@ class QiscusSDK {
           payload[0] === 1
             ? 'Online'
             : `Last seen ${distanceInWordsToNow(
-                Number(payload[1].substring(0, 13))
-              )}`
+              Number(payload[1].substring(0, 13))
+            )}`
       }
       if (self.options.presenceCallback)
         self.options.presenceCallback(message, userId)
@@ -944,6 +910,7 @@ class QiscusSDK {
               self.isInit = true
               self.refresh_token = response.user.refresh_token
               self.events.emit('login-success', response)
+              this.realtimeAdapter.connect()
               resolve(response)
             },
             (error) => {
@@ -952,7 +919,7 @@ class QiscusSDK {
             }
           )
 
-          return login$
+          return login$;
         }
       }, 300)
     })
@@ -980,7 +947,7 @@ class QiscusSDK {
   }
 
   refreshAuthToken() {
-    return this.expiredTokenAdapter.refreshAuthToken()
+    return this.expiredTokenAdapter.refreshAuthToken();
   }
 
   publishOnlinePresence(val) {
@@ -1006,16 +973,14 @@ class QiscusSDK {
   }
 
   async logout() {
-    try {
-      await this.expiredTokenAdapter.logout()
-      clearInterval(this.presensePublisherId)
-      this.publishOnlinePresence(false)
-      this.selected = null
-      this.isInit = false
-      this.isLogin = false
-      this.realtimeAdapter.disconnect()
-      this.userData = {}
-    } catch (_) {}
+    await this.expiredTokenAdapter.logout()
+    clearInterval(this.presensePublisherId)
+    this.publishOnlinePresence(false)
+    this.selected = null
+    this.isInit = false
+    this.isLogin = false
+    this.realtimeAdapter.disconnect()
+    this.userData = {}
   }
 
   get synchronize() {
@@ -1463,8 +1428,8 @@ class QiscusSDK {
 
     if (self.selected) self.selected.comments.push(messageData)
 
-    const sendComment = () =>
-      this.userAdapter.postComment(
+    const sendComment = () => this.userAdapter
+      .postComment(
         '' + topicId,
         messageData.message,
         messageData.unique_id,
@@ -1475,7 +1440,10 @@ class QiscusSDK {
 
     try {
       let res = await sendComment()
-      res = await this._hookAdapter.trigger(Hooks.MESSAGE_BEFORE_RECEIVED, res)
+      res = await this._hookAdapter.trigger(
+        Hooks.MESSAGE_BEFORE_RECEIVED,
+        res
+      )
       Object.assign(messageData, res)
 
       if (!self.selected) return Promise.resolve(messageData)
@@ -1490,9 +1458,7 @@ class QiscusSDK {
       self.events.emit('comment-sent', messageData)
 
       self.sortComments()
-      const commentIndex = self._pendingComments.findIndex(
-        (c) => c.unique_id === messageData.unique_id
-      )
+      const commentIndex = self._pendingComments.findIndex(c => c.unique_id === messageData.unique_id)
       if (commentIndex > -1) {
         self._pendingComments.splice(commentIndex, 1)
       }
@@ -1501,19 +1467,7 @@ class QiscusSDK {
     } catch (error) {
       messageData.markAsFailed()
       // From superagent: `https://forwardemail.github.io/superagent/#retrying-requests`
-      const whitelistedErrorStatus = [
-        undefined,
-        408,
-        413,
-        429,
-        500,
-        502,
-        503,
-        504,
-        521,
-        522,
-        524,
-      ]
+      const whitelistedErrorStatus = [undefined, 408, 413, 429, 500, 502, 503, 504, 521, 522, 524]
       const message = error.message?.toLowerCase() ?? ''
       const isOffline = message.includes('offline')
       if (whitelistedErrorStatus.includes(error.status) || isOffline) {
@@ -1529,7 +1483,7 @@ class QiscusSDK {
   // count of how much does a comment has been retried
   _pendingCommentsCount = {}
   async _retrySendComment(comment) {
-    this.logger('Retrying send comment', comment)
+    this.logger('Retrying send comment', comment);
 
     this._pendingCommentsCount[comment.unique_id] =
       (this._pendingCommentsCount[comment.unique_id] ?? 0) + 1
@@ -1541,9 +1495,7 @@ class QiscusSDK {
       )
       this.options.commentRetryExceedCallback?.(comment)
       // Remove the comment from pending comments
-      const index = this._pendingComments.findIndex(
-        (c) => c.unique_id === comment.unique_id
-      )
+      const index = this._pendingComments.findIndex(c => c.unique_id === comment.unique_id)
       if (index > -1) {
         this._pendingComments.splice(index, 1)
       }
@@ -1555,49 +1507,44 @@ class QiscusSDK {
       return Promise.reject(new Error('Exceeding maximum retry count'))
     }
 
-    return this.userAdapter
-      .postComment(
-        '' + comment.room_id,
-        comment.message,
-        comment.unique_id,
-        comment.type,
-        comment.payload,
-        comment.extras
+    return this.userAdapter.postComment(
+      '' + comment.room_id,
+      comment.message,
+      comment.unique_id,
+      comment.type,
+      comment.payload,
+      comment.extras
+    ).then(async (res) => {
+      if (this.selected?.id !== comment.room_id) {
+        return res
+      }
+
+      Object.assign(comment, res)
+      comment.markAsSent()
+      comment.id = res.id
+      comment.before_id = res.comment_before_id
+      comment.unix_timestamp = res.unix_timestamp
+
+      const index = this.selected?.comments.findIndex(
+        (c) => c.unique_id === comment.unique_id
       )
-      .then(async (res) => {
-        if (this.selected?.id !== comment.room_id) {
-          return res
-        }
+      if (index > -1) {
+        this.selected.comments[index] = comment
+      }
+      this.sortComments()
 
-        Object.assign(comment, res)
-        comment.markAsSent()
-        comment.id = res.id
-        comment.before_id = res.comment_before_id
-        comment.unix_timestamp = res.unix_timestamp
+      this.options.commentSentCallback?.({ comment })
+      this.events.emit('comment-sent', comment)
+      const commentIndex = this._pendingComments.findIndex(c => c.unique_id === comment.unique_id)
+      if (commentIndex > -1) {
+        this._pendingComments.splice(commentIndex, 1)
+      }
 
-        const index = this.selected?.comments.findIndex(
-          (c) => c.unique_id === comment.unique_id
-        )
-        if (index > -1) {
-          this.selected.comments[index] = comment
-        }
-        this.sortComments()
-
-        this.options.commentSentCallback?.({ comment })
-        this.events.emit('comment-sent', comment)
-        const commentIndex = this._pendingComments.findIndex(
-          (c) => c.unique_id === comment.unique_id
-        )
-        if (commentIndex > -1) {
-          this._pendingComments.splice(commentIndex, 1)
-        }
-
-        return comment
-      })
-      .catch((err) => {
-        comment.markAsFailed()
-        return Promise.reject(err)
-      })
+      return comment
+    }).catch((err) => {
+      comment.markAsFailed()
+      return Promise.reject(err)
+    })
   }
 
   // #endregion
@@ -1858,11 +1805,10 @@ class QiscusSDK {
     )
   }
   upload(file, callback) {
-    let req = request.post(this.uploadURL)
+    let req = request.post(this.uploadURL);
 
     req = this.HTTPAdapter.setupHeaders(req)
-    return req
-      .attach('file', file)
+    return req.attach('file', file)
       .on('progress', (event) => {
         if (event.direction === 'upload') callback(null, event)
       })
@@ -1875,6 +1821,7 @@ class QiscusSDK {
         callback(error)
         return Promise.reject(error)
       })
+
   }
 
   /**
@@ -2075,7 +2022,7 @@ class QiscusSDK {
     return this.noop
   }
 
-  noop() {}
+  noop() { }
 
   get _throttleDelay() {
     if (
@@ -2136,7 +2083,7 @@ class QiscusSDK {
 
     this.userAdapter
       .updateCommentStatus(roomId, commentId1, commentId2)
-      .catch((err) => {})
+      .catch((err) => { })
   }
 
   _readComment = (roomId, commentId) => this._updateStatus(roomId, commentId)
@@ -2425,10 +2372,10 @@ class QiscusSDK {
   }
 
   async startSync() {
-    this._forceEnableSync = true
+    this._forceEnableSync = true;
   }
   async stopSync() {
-    this._forceEnableSync = false
+    this._forceEnableSync = false;
   }
 }
 
