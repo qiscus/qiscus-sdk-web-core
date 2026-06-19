@@ -19,6 +19,7 @@
     "build:web": "webpack --env.production --env.target=web",
     "build:web:dev": "webpack --env.development --env.target=web",
     "build:web:watch": "webpack --env.development --env.target=web --watch",
+    "build:matrix": "bash scripts/build-matrix.sh",
     "dev": "webpack --env.development --progress --colors --watch",
     "watch": "npm-run-all build:web:watch build:node:watch",
     "test": "mocha --require @babel/register --colors 'test/**/*test.js'",
@@ -90,9 +91,6 @@
     "semi": false,
     "singleQuote": true,
     "trailingComma": "es5"
-  },
-  "engines": {
-    "node": "16.15.1"
   },
   "packageManager": "pnpm@8.15.9"
 }
