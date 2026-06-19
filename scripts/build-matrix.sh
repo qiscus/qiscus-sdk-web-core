@@ -9,10 +9,11 @@
 # A shared pnpm store volume is reused across versions to avoid re-downloading
 # dependencies every time.
 #
-# pnpm: pinned to 8.15.9 by default (matches package.json "packageManager").
-# This is the newest pnpm line that runs across the whole Node 16..26 range we
-# test -- pnpm >=10/11 require the node:sqlite builtin (Node 22.5+) and refuse
-# to start on older Node. Override for a newer-Node-only run, e.g.:
+# pnpm: pinned to 8.15.9 by default -- the newest pnpm line that runs across
+# the whole Node 16..26 range we test. pnpm >=10/11 require the node:sqlite
+# builtin (Node 22.5+) and refuse to start on older Node, so they can't be
+# used here even though that's what package.json "packageManager" now pins.
+# Override for a newer-Node-only run, e.g.:
 #   PNPM_SPEC=pnpm@latest scripts/build-matrix.sh 22 24 26
 #
 # Usage:
