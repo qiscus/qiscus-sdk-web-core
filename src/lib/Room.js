@@ -8,7 +8,7 @@ import Comment from './Comment'
  * @export
  * @class Room
  */
-export class Room {
+export default class Room {
   /**
    * Creates an instance of Room.
    * @param {any} roomData
@@ -87,7 +87,7 @@ export class Room {
       commentToFind.time = comment.time
       commentToFind.unix_timestamp = comment.unix_timestamp
     } else {
-      this.comments = [...this.comments, comment];
+      this.comments = [...this.comments, comment]
     }
   }
 
@@ -107,5 +107,3 @@ export class Room {
     if (!participantToFind) this.participants.push(participant)
   }
 }
-
-export default Room
