@@ -9,28 +9,29 @@
 # A shared pnpm store volume is reused across versions to avoid re-downloading
 # dependencies every time.
 #
-# pnpm: pinned to 8.15.9 by default -- the newest pnpm line that runs across
-# the whole Node 16..26 range we test. pnpm >=10/11 require the node:sqlite
-# builtin (Node 22.5+) and refuse to start on older Node, so they can't be
-# used here even though that's what package.json "packageManager" now pins.
-# Override for a newer-Node-only run, e.g.:
-#   PNPM_SPEC=pnpm@latest scripts/build-matrix.sh 22 24 26
+# pnpm: pinned to 9 by default -- it reads the v9 lockfile (written by the
+# pinned pnpm 11) and runs across the whole Node 18..26 range we test. pnpm
+# >=10/11 require the node:sqlite builtin (Node 22.5+) and refuse to start on
+# older Node, so they can't be used for the lower rows. Override for a
+# newer-Node-only run: PNPM_SPEC=pnpm@latest scripts/build-matrix.sh 22 24 26
+#
+# Node 16 is dropped: it is EOL and Vite 6 requires Node >=18.
 #
 # Usage:
-#   scripts/build-matrix.sh                # default: 16 18 20 22 24 26
+#   scripts/build-matrix.sh                # default: 18 20 22 24 26
 #   scripts/build-matrix.sh 20 22 26       # custom set of major versions
 #
 set -uo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STORE_VOLUME="qiscus_pnpm_store"          # cached pnpm store, shared across versions
-PNPM_SPEC="${PNPM_SPEC:-pnpm@8.15.9}"     # pnpm to install in each container
+PNPM_SPEC="${PNPM_SPEC:-pnpm@9}"          # pnpm to install in each container
 
 # Node major versions to test (override via CLI args).
 if [ "$#" -gt 0 ]; then
   VERSIONS=("$@")
 else
-  VERSIONS=(16 18 20 22 24 26)
+  VERSIONS=(18 20 22 24 26)
 fi
 
 # --- preflight: Docker must be available and running ----------------------
@@ -71,7 +72,7 @@ for ver in "${VERSIONS[@]}"; do
         set -e
         export npm_config_manage_package_manager_versions=false
         mkdir -p /app && cd /src
-        cp -a package.json pnpm-lock.yaml webpack.config.js .eslintrc .npmrc /app/ 2>/dev/null || true
+        cp -a package.json pnpm-lock.yaml vite.config.js .eslintrc .npmrc /app/ 2>/dev/null || true
         cp -a src /app/
         cd /app
         npm install -g '"$PM"' >/dev/null 2>&1

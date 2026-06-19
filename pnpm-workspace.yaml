@@ -1,0 +1,6 @@
+# pnpm >=10 blocks dependency build scripts until explicitly allowed.
+# esbuild (used by Vite) needs its install step; core-js@2 only prints a
+# postinstall ad, so it stays disabled.
+allowBuilds:
+  esbuild: true
+  core-js: false
