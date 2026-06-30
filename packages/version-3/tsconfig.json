@@ -1,6 +1,7 @@
 {
   "include": ["src"],
   "exclude": ["**/*.test.ts", "lib", "lib-esm", "dist", "node_modules"],
+  "references": [{ "path": "../core-v3" }],
   "compilerOptions": {
     "target": "esnext",
     "module": "CommonJS",

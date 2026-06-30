@@ -1,3 +1,8 @@
+import xs from 'xstream'
+import { toCallbackOrPromise } from './utils/stream'
+import type { IQCallback2 } from './defs'
+import type { QiscusDeps } from './usecases/types'
+
 // Factories
 export { storageFactory } from './storage'
 export { makeApiRequest } from './api'
@@ -11,6 +16,9 @@ export { getMessageAdapter } from './adapters/message'
 // Model types
 export type { IQUser, IQAccount, IQParticipant, IQMessage, IQChatRoom } from './model'
 
+// Callback / subscription types from defs
+export type { IQCallback1, IQCallback2, IQProgressListener, Subscription, Callback } from './defs'
+
 // QiscusDeps contract
 export type { QiscusDeps } from './usecases/types'
 
@@ -21,3 +29,11 @@ export * from './usecases/room'
 export * from './usecases/message'
 export * from './usecases/realtime'
 export * from './usecases/message-factory'
+
+// hasSetupUser — simple state-read helper that doesn't belong to any sub-domain
+export function hasSetupUser(deps: QiscusDeps, callback?: IQCallback2<boolean>): void | Promise<boolean> {
+  return xs
+    .of(deps.storage.getCurrentUser())
+    .map((user) => user != null)
+    .compose(toCallbackOrPromise(callback))
+}

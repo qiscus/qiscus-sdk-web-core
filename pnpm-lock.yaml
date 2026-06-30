@@ -180,6 +180,9 @@ importers:
 
   packages/version-3:
     dependencies:
+      '@qiscus/core-v3':
+        specifier: workspace:*
+        version: link:../core-v3
       axios:
         specifier: ^1.15.0
         version: 1.18.1
