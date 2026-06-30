@@ -1,14 +1,3 @@
-/node_modules/
-/.vscode/
-/.idea/
-yarn-error.log
-
-/typings/
-/dist/
-/lib/
-/lib-esm/
-/types/
-/src/**/*.js
-/src/**/*.js.map
-!/src/lib/**/*.js
-/coverage/
+node_modules/
+.DS_Store
+coverage/

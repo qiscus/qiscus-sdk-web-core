@@ -1,76 +1,10 @@
 {
-  "name": "qiscus-sdk-javascript",
-  "version": "3.4.2",
-  "description": "Qiscus Web SDK Core",
-  "license": "MIT",
-  "main": "dist/qiscus-sdk-javascript.umd.js",
-  "module": "dist/qiscus-sdk-javascript.mjs",
-  "types": "types/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/qiscus-sdk-javascript.mjs",
-      "require": "./dist/qiscus-sdk-javascript.umd.js",
-      "types": "./types/index.d.ts"
-    }
-  },
-  "files": [
-    "dist",
-    "types"
-  ],
+  "name": "qiscus-sdk-monorepo",
+  "private": true,
+  "packageManager": "pnpm@11.8.0",
   "scripts": {
-    "serve": "serve dist -l 1235",
-    "clean": "rimraf dist lib lib-esm types typings",
-    "dev": "vite",
-    "build": "run-s clean build:*",
-    "build:bundle": "vite build",
-    "build:type": "tsc --build tsconfig.json",
-    "test": "vitest --run",
-    "test:w:coverage": "vitest --coverage",
-    "prepublish": "run-s clean build:*",
-    "release:minor": "np --any-branch --yolo minor",
-    "release:patch": "np --any-branch --yolo patch",
-    "release:pre-alpha": "np --any-branch --yolo --tag=alpha prerelease"
-  },
-  "prettier": {
-    "semi": false,
-    "useTabs": false,
-    "tabWidth": 2,
-    "singleQuote": true,
-    "trailingComma": "es5",
-    "printWidth": 120
-  },
-  "dependencies": {
-    "axios": "^1.15.0",
-    "is_js": "^0.9.0",
-    "lodash.debounce": "^4.0.8",
-    "lodash.flatten": "^4.4.0",
-    "mqtt": "^4.3.8",
-    "nanoid": "^4.0.0",
-    "pietile-eventemitter": "^1.0.0",
-    "xstream": "^11.11.0"
-  },
-  "devDependencies": {
-    "@types/is": "0.0.21",
-    "@types/jest": "^25.1.2",
-    "@types/lodash.debounce": "^4.0.6",
-    "@types/lodash.flatten": "^4.4.6",
-    "@types/node": "^18.11.14",
-    "@types/ws": "^7.4.7",
-    "@vitest/coverage-c8": "^0.25.8",
-    "msw": "^0.49.2",
-    "np": "^10.0.7",
-    "npm-run-all": "^4.1.5",
-    "rimraf": "^2.7.1",
-    "serve": "14.1.2",
-    "typescript": "^4.9.5",
-    "vite": "^8.0.8",
-    "vitest": "^0.25.7"
-  },
-  "pnpm": {
-    "overrides": {
-      "shell-quote": "1.7.3",
-      "minimist": "1.2.6"
-    }
-  },
-  "packageManager": "pnpm@9.3.0+sha512.ee7b93e0c2bd11409c6424f92b866f31d3ea1bef5fbe47d3c7500cdc3c9668833d2e55681ad66df5b640c61fa9dc25d546efa54d76d7f8bf54b13614ac293631"
+    "build": "pnpm -r run build",
+    "build:v2": "pnpm --filter qiscus-sdk-core run build",
+    "build:v3": "pnpm --filter qiscus-sdk-javascript run build"
+  }
 }
