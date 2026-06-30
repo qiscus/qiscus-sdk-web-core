@@ -5,3 +5,5 @@ allowBuilds:
   fsevents: true
   core-js: false
   msw: false
+overrides:
+  msw>headers-polyfill: "3.2.5"

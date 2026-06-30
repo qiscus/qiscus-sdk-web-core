@@ -1,3 +1,5 @@
 node_modules/
 .DS_Store
 coverage/
+packages/core-v3/dist-types/
+*.tsbuildinfo
