@@ -54,9 +54,13 @@ Naming decided with user: the module is **`v3`** (it is specifically for shell-v
 
 **Consequence:** the seam is the **adapter boundary**. If we split each adapter into a
 *raw* variant (fetch, no decode) and a *v3* variant (raw + decode → IQ), then the
-**exact same usecases** serve both shells:
+**same HTTP usecases** serve both shells:
 - shell-v3 injects **v3 (decoding) adapters** → usecases return `IQ*` (types hold).
 - shell-v2 injects **raw adapters** → usecases return raw JSON at runtime.
+
+⚠ **This holds only for usecases that pass the result through untouched** — verified
+true for the HTTP usecases, **false for the realtime usecases** (they read decoded
+fields). Realtime is shared at the raw-stream level instead. **See §5.**
 
 v2's `index.js` is **JavaScript**, so the fact that the shared usecases are *typed* to
 return `IQ*` doesn't obstruct v2 — at runtime v2 receives raw and decodes to
@@ -156,13 +160,33 @@ Notes:
 
 ---
 
-## 5. Usecases: untouched
+## 5. Usecases: HTTP shared (untouched); realtime split
 
-`usecases/*.ts` **do not change**. They already call `deps.<adapter>.<method>` and pass
-through the result. The only thing that differs between shells is *which* adapters are
-in `deps` (raw vs decoding). Do **not** move validation/`bufferUntil`/stream logic; it
-is shared orchestration and must stay in one place so both shells inherit it. This is
-the whole point — the DRY win the user asked for.
+**Two classes of usecase — verified by scanning `usecases/*.ts`:**
+
+- **HTTP request/response usecases (room / message / user / setup) — SHARED, untouched.**
+  They validate args then call `deps.<adapter>.<method>(args)` and **pass the result
+  straight through** `flattenConcurrently → toCallbackOrPromise` **without reading any
+  field of it**. So the same usecase yields IQ (v3 decoding adapters) or raw (v2 raw
+  adapters) purely by which adapters are in `deps`. Do **not** move their validation/
+  `bufferUntil`/stream logic — it is the shared orchestration (the DRY win). These live
+  on the shared/raw surface.
+
+- **Realtime usecases (`makeOnMessageReceived$` etc. in `usecases/realtime.ts`) — STAY
+  in the `v3/` module; v2 does NOT reuse them.** ⚠ These are **not** pure pass-through:
+  they read **decoded (IQ camelCase) fields** off the streamed message. Verified:
+  - `realtime.ts:36` auto-delivery — `if (storage.getCurrentUser()?.id !== message.sender.id) markAsDelivered(message.chatRoomId, message.id)` reads `message.sender.id` / `.chatRoomId` / `.id`.
+  - `realtime.ts:218` — `isChatRoom(data)` type-guard + `data.id`.
+  Feeding these a **raw** payload (fields `email`/`room_id`) would break them. Therefore
+  realtime is shared **only at the raw-stream level** (§4): the raw payload stream is on
+  the shared surface; the v3 realtime usecases (which decode + read IQ fields) stay in
+  `v3/`. **v2 subscribes to the raw stream and implements its own realtime semantics in
+  `compat/realtime-bridge.js`** (delivery receipts, `selected` mutation, mitt events) —
+  exactly what v2's `init()` does today. v2 gets no auto-delivery-from-usecase; it keeps
+  its own `_setDelivered`/`_setRead`. This matches the v2 plan §7.
+
+**Rule of thumb:** share a usecase across shells **only if it never inspects the shape of
+the adapter/stream result.** HTTP usecases qualify; realtime usecases do not.
 
 ---
 
