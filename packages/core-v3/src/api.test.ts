@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest'
-import { IQUser } from './model'
+import { IQUser } from './v3/model'
 import * as t from './api'
 
 const o = {

@@ -14,7 +14,7 @@ export { getRoomAdapter } from './adapters/room'
 export { getMessageAdapter } from './adapters/message'
 
 // Model types
-export type { IQUser, IQAccount, IQParticipant, IQMessage, IQChatRoom } from './model'
+export type { IQUser, IQAccount, IQParticipant, IQMessage, IQChatRoom } from './v3/model'
 
 // Callback / subscription types from defs
 export type { IQCallback1, IQCallback2, IQProgressListener, Subscription, Callback } from './defs'

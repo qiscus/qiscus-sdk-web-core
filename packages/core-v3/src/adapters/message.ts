@@ -2,8 +2,8 @@
 import { Storage } from '../storage'
 import * as Api from '../api'
 import * as Provider from '../provider'
-import * as Decoder from '../decoder'
-import * as model from '../model'
+import * as Decoder from '../v3/decoder'
+import * as model from '../v3/model'
 import { nanoid } from 'nanoid/non-secure'
 
 export const getMessageAdapter = (s: Storage, api: Api.ApiRequester) => ({

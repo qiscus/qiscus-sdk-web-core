@@ -1,6 +1,6 @@
 import { EventEmitter } from 'pietile-eventemitter'
 import * as Api from '../api'
-import * as m from '../model'
+import * as m from '../v3/model'
 import { Storage } from '../storage'
 import { synchronizeEventFactory } from './sync-event-factory'
 import { synchronizeFactory } from './sync-factory'

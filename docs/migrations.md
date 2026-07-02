@@ -128,15 +128,20 @@ Side-by-side done (`version-2/src/lib/adapters/mqtt.js` vs `core-v3/src/adapters
 | Resolved broker URL | writes **public `this.mqttURL`** (`mqtt.js:176-181`) | local `cacheUrl`, not persisted (`mqtt.ts:122,229`) | ⚠ **byte-for-byte break** |
 | will qos | unset | qos:1 | minor |
 
-**TWO OPEN QUESTIONS awaiting the user's answer (this is exactly where the conversation
-paused):**
-1. **`this.mqttURL` mirroring:** v2 mutates the public `mqttURL` on every LB reconnect;
-   v3 keeps it internal. Proposed fix (recommended = option b): have v3's mqtt adapter
-   **write the resolved broker URL into storage**, and v2 mirrors `storage → this.mqttURL`.
-   (Small, gated v3 change; also benefits v3.) — **need user's yes/no.**
-2. **Presence heartbeat:** v3 auto-publishes presence every 3.5s; v2 never did. **May v2
-   inherit this (small behavior change, probably fine) or must it be disabled to stay
-   identical to v2?** — **product decision, need user's call.**
+**TWO OPEN QUESTIONS — RESOLVED (user answered 2026-07-01):**
+1. **`this.mqttURL` mirroring:** ✅ **DECIDED = option b.** v3's mqtt adapter **writes the
+   resolved broker URL into storage**, and v2 mirrors `storage → this.mqttURL`. (Small,
+   gated v3 change; also benefits v3.) Lands in Phase C / v2 work, not Phase A.
+2. **Presence heartbeat:** ✅ **DECIDED = keep v2 as-is.** v2 does NOT inherit v3's auto
+   presence heartbeat (3.5s); v2 stays identical to today (manual only). v3 keeps its
+   auto-heartbeat unchanged.
+3. **Unified reconnect policy (user, 2026-07-02):** ✅ **DECIDED — standardize the shared
+   core-v3 mqtt adapter for BOTH versions:** (a) library `reconnectPeriod` = **1000 ms**
+   (explicit); (b) LB-reconnect debounce = **1000 ms** (align v3 up from 300 ms to match
+   v2); (c) **add v2's `willConnectToRealtime` re-entrancy guard** to core-v3; (d) **NEW:
+   exponential backoff** — if reconnects keep failing (e.g. broker down), increment the
+   retry delay instead of hammering at 1 s, reset on successful connect. Full spec in
+   `core-v3-decode-module-refactor.md` §4a. Lands with the realtime work (Phase C).
 
 ### Remaining major issues (raised, not yet worked through)
 - **#2 `init()` / config negotiation ownership.** v2's `init()` does the

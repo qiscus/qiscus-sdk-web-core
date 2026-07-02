@@ -160,6 +160,47 @@ Notes:
 
 ---
 
+## 4a. Unified MQTT reconnect policy (shared adapter — applies to BOTH v2 & v3)
+
+Decision (user, 2026-07-02): the shared core-v3 mqtt adapter
+(`adapters/mqtt.ts` → moves to the raw/shared surface) gets **one canonical reconnect
+policy** that both shells inherit. This standardizes today's divergence (v2 debounces
+1000ms + has a re-entrancy guard; v3 debounces 300ms + no guard) and **adds backoff**,
+which neither version has today.
+
+**Target behavior:**
+1. **Library-level reconnect:** set `reconnectPeriod: 1000` **explicitly** in the
+   `connect()` options (don't rely on the mqtt-lib default / the commented-out line in
+   v2). → retries the *same* broker URL every **1 s**.
+2. **LB-reconnect debounce = 1000 ms.** On `close`, the handler that re-fetches a fresh
+   broker node from the load balancer (`getMqttNode` → `wss://url:wss_port/mqtt`) and
+   reconnects is debounced **1 s** (raise v3 from 300 ms to match v2).
+3. **Re-entrancy guard.** Port v2's `willConnectToRealtime` flag into the adapter: while
+   an LB-reconnect cycle is in flight, **skip** starting another (v2 `mqtt.js:146,159,173`).
+   v3 currently lacks this and can overlap reconnects.
+4. **Exponential backoff on persistent failure (NEW).** Track **consecutive failed
+   reconnect attempts**. The delay before each LB-reconnect grows:
+   `delay = min(base * 2^failures, cap)` with `base = 1000 ms`, recommended
+   `cap = 30000 ms` (30 s) — **tunable**. **Reset `failures` to 0 (delay back to 1 s) on a
+   successful `connect`.** Purpose: if the broker is down, stop hammering every 1 s and
+   back off (1s → 2s → 4s → … → 30s) until it recovers.
+
+**Implementation caveat (for the executor):** the library's fixed 1 s `reconnectPeriod`
+and our backoff'd LB-reconnect must not double-hammer a dead broker. Govern reconnection
+through the LB handler: when entering backoff, end the current client (`mqtt.end(true)`)
+so the library stops its own 1 s retry, and schedule the next attempt ourselves after the
+computed backoff delay; on a healthy connection, the plain 1 s library reconnect handles
+transient blips. Keep gating conditions (v2: `enableLb && isLogin && shouldConnect`;
+v3: `brokerLbEnabled && user≠null && shouldConnect`) — unify them into one predicate.
+
+**Parity notes:** this is a **shared behavior change touching v3's realtime** (approved as
+part of "samakan kedua versi"). It also interacts with the `this.mqttURL` mirroring
+decision (Issue #1.1): when the LB handler switches broker URL, write the resolved URL to
+storage so v2 can mirror it to its public `this.mqttURL` field. Land all of §4a together
+in **Phase C**.
+
+---
+
 ## 5. Usecases: HTTP shared (untouched); realtime split
 
 **Two classes of usecase — verified by scanning `usecases/*.ts`:**
@@ -250,10 +291,14 @@ Keep pre-decode massaging on the v3 side. `QiscusDeps` unchanged. Verify tests
 (the existing adapter tests assert IQ → they now exercise the v3 wrapper; keep them
 under `v3/` or point them at the wrapper).
 
-**Phase C — Split the realtime streams.**
+**Phase C — Split the realtime streams + apply the unified reconnect policy (§4a).**
 Separate raw payload streams (shared) from `Decoder.message`-mapped streams (`v3/`).
 shell-v3's realtime usecases consume the decoded streams (unchanged behavior). Expose
-the raw streams on the root barrel for v2's bridge.
+the raw streams on the root barrel for v2's bridge. **Also implement §4a here:**
+`reconnectPeriod: 1000`, LB-reconnect debounce 1000ms, `willConnectToRealtime` guard,
+exponential backoff (base 1s, cap 30s, reset on connect), and write the resolved broker
+URL to storage (for v2's `this.mqttURL` mirroring, Issue #1.1). Re-run the 74 core-v3
+tests — this changes v3's realtime timing, so verify no test depends on the old 300ms.
 
 **Phase D — Barrels + deps builders.**
 Finalize root barrel (raw surface) and `v3/deps.ts` (`buildV3Deps`). Point

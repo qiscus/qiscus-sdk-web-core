@@ -1,7 +1,7 @@
 import xs from 'xstream'
 import flattenConcurrently from 'xstream/extra/flattenConcurrently'
 import { IQCallback1, IQCallback2 } from '../defs'
-import * as model from '../model'
+import * as model from '../v3/model'
 import {
   bufferUntil,
   process,

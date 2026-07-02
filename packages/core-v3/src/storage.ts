@@ -1,4 +1,4 @@
-import { IQAccount, IQChatRoom, IQMessage } from './model'
+import { IQAccount, IQChatRoom, IQMessage } from './v3/model'
 
 export type Storage = ReturnType<typeof storageFactory>
 

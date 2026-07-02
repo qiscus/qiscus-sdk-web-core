@@ -1,7 +1,7 @@
 import xs from 'xstream'
 import flattenConcurrently from 'xstream/extra/flattenConcurrently'
 import { Callback, IQCallback1, Subscription } from '../defs'
-import * as model from '../model'
+import * as model from '../v3/model'
 import { tap } from '../utils/stream'
 import {
   bufferUntil,

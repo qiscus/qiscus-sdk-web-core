@@ -1,6 +1,6 @@
-import { IAppConfig } from './defs'
+import { IAppConfig } from '../defs'
 import { IQAccount, IQChatRoom, IQMessage, IQParticipant, IQUser } from './model'
-import { tryCatch } from './utils/try-catch'
+import { tryCatch } from '../utils/try-catch'
 
 export const loginOrRegister = <T extends Record<string, any>>(json: T): IQAccount => ({
   id: json.email,

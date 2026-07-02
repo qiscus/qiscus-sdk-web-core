@@ -1,4 +1,4 @@
-import * as model from '../model'
+import * as model from '../v3/model'
 
 export const tryCatch = <T>(
   fn: () => T,

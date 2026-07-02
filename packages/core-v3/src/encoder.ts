@@ -1,4 +1,4 @@
-import { IQUser } from './model'
+import { IQUser } from './v3/model'
 import { loginOrRegisterParams } from './api'
 
 export const loginOrRegister = (o: loginOrRegisterParams) => ({

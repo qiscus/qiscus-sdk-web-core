@@ -25,6 +25,9 @@
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
     "baseUrl": ".",
+    "paths": {
+      "@qiscus/core-v3/v3": ["../core-v3/dist-types/v3/index.d.ts"]
+    },
     "declarationDir": "./types",
     "esModuleInterop": true,
     "resolveJsonModule": true,

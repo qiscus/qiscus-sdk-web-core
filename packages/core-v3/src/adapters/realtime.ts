@@ -1,7 +1,7 @@
 import { ApiRequester } from 'src/api'
 import xs from 'xstream'
 import { Callback, Subscription } from '../defs'
-import * as model from '../model'
+import * as model from '../v3/model'
 import { Storage } from '../storage'
 import { subscribeOnNext } from '../utils/stream'
 import { getLogger } from './logger'

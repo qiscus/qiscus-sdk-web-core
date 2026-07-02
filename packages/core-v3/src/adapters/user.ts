@@ -1,6 +1,6 @@
 import { IQUserExtraProps, IAppConfig } from '../defs'
-import * as Decoder from '../decoder'
-import * as model from '../model'
+import * as Decoder from '../v3/decoder'
+import * as model from '../v3/model'
 import * as Api from '../api'
 import { Storage } from '../storage'
 import * as Provider from '../provider'

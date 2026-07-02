@@ -3,7 +3,7 @@ import xs from 'xstream'
 import flattenConcurrently from 'xstream/extra/flattenConcurrently'
 import { IQCallback1, IQCallback2, IQProgressListener, UploadResult } from '../defs'
 import { Hooks } from '../hook'
-import * as model from '../model'
+import * as model from '../v3/model'
 import * as Provider from '../provider'
 import {
   bufferUntil,

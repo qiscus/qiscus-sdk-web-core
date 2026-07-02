@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { IQUser, IQChatRoom, IQMessage } from './model'
+import { IQUser, IQChatRoom, IQMessage } from './v3/model'
 import * as Encode from './encoder'
 import { tryCatch } from './utils/try-catch'
 import type { Storage } from './storage'

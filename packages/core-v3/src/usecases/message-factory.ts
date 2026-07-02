@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid/non-secure'
 import { IQMessageStatus, IQMessageType } from '../defs'
-import * as model from '../model'
+import * as model from '../v3/model'
 import { QiscusDeps } from './types'
 
 export function generateUniqueId(): string {

@@ -1,7 +1,7 @@
-import * as model from '../model'
+import * as model from '../v3/model'
 import * as Api from '../api'
 import * as Provider from '../provider'
-import * as Decoder from '../decoder'
+import * as Decoder from '../v3/decoder'
 import { Storage } from '../storage'
 
 export const getRoomAdapter = (s: Storage, api: Api.ApiRequester) => ({
