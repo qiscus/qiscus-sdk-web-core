@@ -1,4 +1,4 @@
-import { PostCommentResponse } from './adapters/message'
+import { PostCommentResponse } from './adapters/message.raw'
 import * as model from './v3/model'
 
 export type IQCallback2<T> = (response?: T, error?: Error) => void

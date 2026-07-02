@@ -12,6 +12,9 @@ export { default as getRealtimeAdapter } from './adapters/realtime'
 export { getLogger } from './adapters/logger'
 export { getRoomAdapter } from './adapters/room'
 export { getMessageAdapter } from './adapters/message'
+export { default as getUserAdapterRaw } from './adapters/user.raw'
+export { getRoomAdapterRaw } from './adapters/room.raw'
+export { getMessageAdapterRaw } from './adapters/message.raw'
 
 // Model types
 export type { IQUser, IQAccount, IQParticipant, IQMessage, IQChatRoom } from './v3/model'

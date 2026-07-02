@@ -1,4 +1,4 @@
-import { GetCommentsResponse } from 'src/adapters/message'
+import { GetCommentsResponse } from 'src/adapters/message.raw'
 import { storageFactory, Storage } from 'src/storage'
 
 export function getMockedStorage(): Storage {
