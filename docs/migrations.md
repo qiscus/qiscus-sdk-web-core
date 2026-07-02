@@ -21,13 +21,29 @@
   - `c9c107c` — **Phase B** done: HTTP adapters split into `*.raw.ts` (fetch-only, raw)
     + decoding adapters delegating to them; raw factories exported from root barrel.
     Green (build 0, 74 tests).
-- **Phase C scoped down (user, option A, 2026-07-02):** Phase C now = **unified MQTT
-  reconnect policy §4a ONLY** (in `adapters/mqtt.ts`). The **raw realtime-stream split is
-  DEFERRED** to the v2 realtime-bridge work (v2 Phase 4) — deep `mqtt.ts`/`sync.ts`
-  surgery whose only consumer is v2's future bridge, so co-design/co-test it there. The
-  core-v3 refactor is **complete for the HTTP path**.
-- **Next action:** implement §4a (see `core-v3-decode-module-refactor.md` Phase C), then
-  move to the **v2 re-platform** (`v2-on-core-v3-plan.md`, Phase 0 onward).
+  - `bddf594` — **Phase C** done: unified MQTT reconnect policy §4a (reconnectPeriod 1s,
+    guard, exponential backoff, persist broker URL). Realtime raw-stream split DEFERRED to
+    v2 Phase 4a. core-v3 refactor **complete for the HTTP path**.
+  - `40d08c8` — Fable architecture review folded into `v2-on-core-v3-plan.md`.
+- **v2 re-platform progress (committed, NOT pushed):**
+  - `1ef478a` — **Phase 0a**: `compat/requester.js` (superagent-backed ApiRequester over
+    v2's HttpAdapter) + `compat/deps.js` + Hooks import switched to `@qiscus/core-v3`.
+    Wiring proof 5/5, build green. Nothing rewired yet.
+  - **Phase 0b** (this commit): `compat/to-v2.js` (raw→Comment/Room/User normalizers),
+    `compat/parity.js` + self-tests (failure-path harness, 10/10), and DRAFT
+    `docs/v2-core-v3-gaps.md`.
+- **Phase 0 findings to fold into the plan (from Phase 0b + Opus):**
+  - **`mqttURL` liveness CONFIRMED (Issue #1.1):** core-v3 `mqtt.ts` `conneck()` reads
+    `storage.getBrokerUrl()` **fresh** each connect (mqtt.ts:296), and LB-reconnect
+    persists via `setBrokerUrl` (Phase C). → make v2's `this.mqttURL` a **getter/setter
+    backed by storage** → bidirectionally live. Caveat: constructor-time fallback needed
+    (storage not ready yet). Implement in Phase 4b.
+  - **Gaps draft correction:** `Core.setupWithCustomServer` **already replicates** v2's
+    `setterHelper`/`mqttWssCheck` `api/v2/sdk/config` negotiation (contradicts plan §8's
+    "likely keep-in-shell" guess for Issue #2) — CONFIRM before init() work.
+  - **`getUserPresences`** has no core-v3 primitive → `keep-in-shell` (new).
+- **Next action:** review `docs/v2-core-v3-gaps.md`, then **Phase 1** — rewire the
+  stateless read methods (`v2-on-core-v3-plan.md` §9 Phase 1) using the parity harness.
 
 ---
 
