@@ -92,6 +92,9 @@ importers:
 
   packages/version-2:
     dependencies:
+      '@qiscus/core-v3':
+        specifier: workspace:*
+        version: link:../core-v3
       date-fns:
         specifier: ^1.30.1
         version: 1.30.1

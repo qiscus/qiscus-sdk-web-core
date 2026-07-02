@@ -15,7 +15,7 @@ import SyncAdapter from './lib/adapters/sync'
 import { delayed, GroupChatBuilder } from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
-import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
+import { Hooks, hookAdapterFactory } from '@qiscus/core-v3'
 import { ExpiredTokenAdapter } from './lib/adapters/expired-token'
 
 // helper for setup publishOnlinePresence status
