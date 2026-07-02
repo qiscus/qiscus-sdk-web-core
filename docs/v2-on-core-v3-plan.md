@@ -201,11 +201,44 @@ export function makeDeps(self) {
 > **Config sync is bidirectional and must stay live.** v2 mutates `this.baseURL`,
 > `this.mqttURL`, etc. *after* `init()`. Two options: (a) rebuild `deps` lazily, or
 > (b) make `compat/deps.js` read getters that point back at `self` (so storage
-> reflects current field values). Prefer (b): wire core-v3 storage setters from
-> `self` whenever the corresponding v2 field changes, OR seed storage at `init()` and
-> document that post-init mutation of those fields is a known v2 quirk (check whether
-> any consumer relies on it — `init()` already reads config once). **Decide this in
-> Phase 0 by reading how `storage` is consumed inside core-v3 adapters.**
+> reflects current field values). **Decision (Fable review): (b) is REQUIRED, not
+> just preferred** — see §4a and the `mqttURL` note in §11. Wire core-v3 storage from
+> `self` so both reads and post-init writes stay live. **Confirm in Phase 0.**
+
+### 4a. Transport strategy — inject a superagent-backed requester (Fable review, 2026-07-02)
+
+**This is the most important refinement and the primary Phase 0 decision.** The plan
+above says v2 calls the shared usecases, which run on core-v3's `apiAdapter`
+(`makeApiRequest`, **axios**). But v2's public contract includes **error behavior**, and
+v2's transport is **superagent** (`lib/adapters/http.js`) with observable quirks that
+axios does not reproduce:
+- superagent exposes `err.response.body`; axios exposes `err.response.data`. A customer
+  `.catch(e => e.response.body.error.message)` breaks.
+- v2 methods sometimes reject with the **whole superagent `res`** (e.g. `user.js:23`
+  `if (res.body.status !== 200) return Promise.reject(res)`) — not reconstructable from
+  an axios rejection.
+- v2's `http.js` `_retryHelper` transparently **retries once on 403 "token is expired"**
+  after `refreshAuthToken()` — wrapping *every* request (~40 endpoints).
+- v2 sends headers axios/`provider.ts` doesn't: `QISCUS-SDK-PLATFORM: javascript`,
+  its own `QISCUS-SDK-VERSION`, and a `qiscus-sdk-user-id` v2 sometimes omits.
+
+**The move:** core-v3's `ApiRequester` is just `{ request(api): Promise<resp> }`, and
+every raw adapter takes it via DI. So `compat/deps.js` builds a requester that maps the
+core-v3 `Api` descriptor (`{ method, url, headers, params, body, baseUrl }`) onto **v2's
+existing `HttpAdapter` (superagent)** instead of `Core.makeApiRequest`. For free this
+yields: byte-identical error shapes (incl. full-`res` rejections), the 403 refresh-retry
+on every call, and the exact header set — while still reusing `Api.*` builders + raw
+adapters + the shared usecase *code*. This is strictly better than "axios + an error
+translator"; evaluate/adopt it in Phase 0.
+
+**Consequence for the usecase-vs-raw question:** the requester fixes *transport* parity,
+but the shared usecases still add xstream **validation errors + `bufferUntil(login)`**
+buffering, which diverge from v2 (a pre-login call today fails fast; through a usecase it
+silently buffers). So for error-/timing-sensitive methods, v2 should call the **raw
+adapter directly** (`Api.*` builder + the superagent requester), *bypassing* the usecase
+orchestration — reviving the original `compat/raw.js` idea, now justified by parity. Net:
+v2 reuses `Api.*` builders + raw adapters + v2 transport, and uses shared usecases only
+where their orchestration is observably identical. Classify per method in Phase 0/1.
 
 ---
 
@@ -358,6 +391,11 @@ export function subscribeRealtime(self, deps) {
   subs.push(Core.onMessageDeleted(deps,   /*…*/, d => self.events.emit('comment-deleted', d)))
   subs.push(Core.onRoomCleared(deps,      /*…*/, d => self.events.emit('room-cleared', d)))
   // typing / room-typing / presence → emit the SAME mitt payloads as index.js:344–367
+  // ⚠ incoming typing ALSO mutates public state (M): mqtt.js:387–397 sets
+  //   self.isTypingStatus = `${displayName} is typing ...` (displayName from
+  //   self.selected.participants), and clears it. This mutation must be reproduced
+  //   here — it is NOT covered by the publish-side flip in §6.5, and dropping it is
+  //   exactly the "lost mutation timing" failure mode (§11).
   // reconnect → self.options.onReconnectCallback?.() ; update last_received_comment_id
   self._realtimeSubs = subs
 }
@@ -381,18 +419,43 @@ v3's decoded realtime streams must remain byte-for-byte unchanged (guarded by th
 core-v3 tests). Note: the unified reconnect policy (§4a of the refactor plan) lands
 separately/earlier and is independent of this split.
 
-**Sync vs MQTT:** v2 ran *both* `MqttAdapter` and a `SyncAdapter` HTTP-polling
-fallback feeding the same bus. core-v3 already has a `synchronize` usecase. Decide in
-Phase 0 whether core-v3's realtime adapter already includes the sync-fallback (so we
-drop v2's `SyncAdapter`) or whether we keep driving `Core.synchronize` on an interval
-from the shell. **Do not lose the offline-sync behavior** — it is observable
-(messages still arrive when MQTT is down).
+**Sync vs MQTT (Fable review — do NOT rush the SyncAdapter deletion).** v2 ran *both*
+`MqttAdapter` and a `SyncAdapter` HTTP-polling fallback feeding the same bus. core-v3
+has its own sync loop, but the **gating predicates differ** — v2:
+`_forceEnableSync && isLogin && !realtimeAdapter.connected`; core-v3: `shouldSync`.
+Sync is the **offline-delivery guarantee**, so a silent cadence mismatch = lost/late
+messages. **Keep v2's `SyncAdapter` running through Phase 4** and only delete it in
+**Phase 5**, after core-v3 sync cadence parity is *demonstrated* against fixtures. §8
+must treat "drop v2 SyncAdapter" as a **verification with a real fallback**, not a
+foregone deletion.
 
 ---
 
 ## 8. Known feature gaps to resolve BEFORE coding (Phase 0 spike)
 
-From `docs/features.md`, v2 has surface with no obvious 1:1 v3 usecase. For each,
+### 8.0 Phase 0 deliverables (Fable review, 2026-07-02) — do these FIRST
+
+Phase 0 grew. Before any executor touches Phase 1, produce:
+1. **Custom-requester decision (§4a).** Prototype `compat/deps.js` building a
+   superagent-backed `ApiRequester` over v2's `HttpAdapter`; confirm one raw read call
+   works through it. Adopt this over axios.
+2. **Failure-path parity harness — now a DELIVERABLE, not optional.** Verified: v2 has
+   **~158 lines of tests total** (`version-2/test/` = `custom-event.test.js` +
+   `test.js`) → effectively no parity anchor. Build a harness that records fixtures for
+   **200 / 400 / 403 / 500** per endpoint and diffs old-vs-new implementation on **both
+   resolved values AND rejection shapes**. The §10 shape-diff gate cannot see error-path
+   divergence; this harness is the only thing that can.
+3. **Headers parity checklist.** Ensure the requester/storage sends v2's exact headers
+   (`QISCUS-SDK-PLATFORM: javascript`, v2's `QISCUS-SDK-VERSION`, `qiscus-sdk-user-id`
+   semantics). Backend analytics/gating may key on these.
+4. **`mqttURL` field→storage liveness.** Confirm the getter-backed storage wiring (§4a /
+   §11) so a customer *setting* `qiscus.mqttURL` post-init changes the next reconnect
+   target (bidirectional, not just storage→field).
+5. **P-1 scope note.** Fold the transport-level 403 refresh-retry into the P-1 plan (or
+   note it's obviated by the superagent requester — §13).
+6. `docs/v2-core-v3-gaps.md` classifying each gap (below).
+
+Then, from `docs/features.md`, v2 has surface with no obvious 1:1 v3 usecase. For each,
 confirm the core-v3 path **before** writing the method. When there is no 1:1 path,
 classify it (this is the output of Phase 0) into one of three buckets:
 
@@ -479,19 +542,28 @@ Rewire `loadComments`, `loadMore`, send/resend/prepare, delete, status
 upload/`uploadFile`, generators. Preserve optimistic-send + `_pendingComments` retry +
 `selected.comments` mutations + status-throttle behavior.
 
-**Phase 4 — Realtime, sync & `init()` (1 Sonnet, last & riskiest).**
-Implement `compat/realtime-bridge.js`; replace the `MqttAdapter`/`SyncAdapter`/
-`CustomEventAdapter` wiring in `init()` with core-v3 `getRealtimeAdapter` +
-`on*` subscriptions + (if needed) a `Core.synchronize` interval. Keep
-`this.realtimeAdapter`/`this.HTTPAdapter`/`this.syncAdapter`/`this.customEventAdapter`
-field references pointing at core-v3-backed objects (consumers and the bridge read
-them). Rewire `publishTyping`/`publishOnlinePresence`/`publish|subscribe|unsubscribeEvent`/
-`subscribeUserPresence`. Trigger `MESSAGE_BEFORE_RECEIVED` before emit. Preserve all
-mitt payloads & `options.*Callback`.
+**Phase 4 — Realtime & `init()` (last & riskiest; SPLIT into 4a + 4b per Fable review).**
+This phase previously stacked too much (deferred core-v3 stream split + bridge + `init()`
+rewire + sync + custom events). Split into two separately-verifiable checkpoints:
+- **Phase 4a — core-v3 realtime raw-stream split (1 Sonnet).** The split deferred from the
+  refactor (see §7): make `mqtt.ts`/`sync.ts` expose a **raw payload stream** alongside the
+  existing `Decoder.message`-mapped stream. **Standalone commit, gated by the 74 core-v3
+  tests keeping v3's decoded streams byte-identical.** No v2 changes yet.
+- **Phase 4b — v2 bridge + `init()` (1 Sonnet).** Implement `compat/realtime-bridge.js`
+  subscribing to the raw stream; rewire `init()`'s `MqttAdapter`/`CustomEventAdapter`
+  wiring to core-v3 `getRealtimeAdapter` + `on*`. **Keep v2's `SyncAdapter` running** (do
+  NOT drop it here — see §8 Sync note; deletion is Phase 5 after cadence parity). Keep
+  `this.realtimeAdapter`/`this.HTTPAdapter`/`this.syncAdapter`/`this.customEventAdapter`
+  field refs pointing at backing objects. Rewire `publishTyping`/`publishOnlinePresence`/
+  `publish|subscribe|unsubscribeEvent`/`subscribeUserPresence`. Trigger
+  `MESSAGE_BEFORE_RECEIVED` before emit. **Reproduce the incoming-typing
+  `isTypingStatus` mutation (§7).** Preserve all mitt payloads & `options.*Callback`.
 
 **Phase 5 — Cleanup (1 Sonnet, only after 1–4 verified).**
-Delete now-dead `lib/adapters/*` (http, user, room, mqtt, sync, auth, expired-token,
-custom-event) and dead helpers — **only those with zero remaining references.** Keep
+Delete now-dead `lib/adapters/*` (http, user, room, mqtt, auth, expired-token,
+custom-event) and dead helpers — **only those with zero remaining references.** **`sync`
+(v2 SyncAdapter) is deleted here too, but ONLY after core-v3 sync cadence parity is
+demonstrated** (§8 Sync note). Keep
 `Comment.js`, `Room.js`, and any util still used. Re-run full build + tests.
 
 ---
@@ -515,6 +587,20 @@ custom-event) and dead helpers — **only those with zero remaining references.*
 
 ## 11. Risks & watch-list
 
+- **⚠ Transport / error-path parity (Fable review — the top unknown).** v2 = superagent,
+  core-v3 `apiAdapter` = axios: different rejection shapes (`err.response.body` vs
+  `.data`), v2's full-`res` rejections, the 403 refresh-retry, and header deltas. This
+  cuts **silently across Phases 1–3** and the §10.4 shape-diff gate **cannot see it**.
+  Mitigation = the superagent-backed requester (§4a) + the failure-path parity harness
+  (§8.0). Treat as higher-risk than realtime because it's invisible without the harness.
+- **Header parity** — `QISCUS-SDK-PLATFORM`/version/`qiscus-sdk-user-id` must match v2
+  (§4a, §8.0.3); backend analytics/gating may depend on them.
+- **`mqttURL` is bidirectionally live** — `mqtt.js:176–181` reads AND writes
+  `core.mqttURL` at reconnect. Issue #1.1 (v3→storage→field) covers the read side; a
+  customer who *sets* `qiscus.mqttURL` post-init must still steer the next reconnect →
+  **field→storage sync is required** (getter-backed storage, §4a). Not optional.
+- **Incoming-typing mutation** — reproduce `isTypingStatus` on inbound typing (§7); it's
+  a classic "lost mutation timing" trap not covered by the publish-side flip.
 - **Model mapping drift** — *greatly reduced* by raw-passthrough (§3): raw-read mode
   feeds `Comment`/`Room` the same backend JSON they always used, so `compat/to-v2.js`
   is a near-identity normalizer, not a lossy IQ→raw reconstructor. Still unit-test the
@@ -578,6 +664,16 @@ same refresh/logout usecases.
   `onTokenRefreshed(token, refreshToken, expiredAt, oldToken)` callback.
 - `refreshAuthToken()` — manual trigger of the same flow.
 - `logout()` — `POST api/v2/sdk/logout` `{ user_id, token }`.
+
+**⚠ Also (Fable review): there is a SECOND refresh mechanism P-1 originally missed —**
+`http.js` `_retryHelper` (lines 128–145) wraps **every** HTTP request: on `403` +
+`"unauthorized. token is expired"` it calls `refreshAuthToken()` and **retries the
+request once**, transparently, across all ~40 endpoints. This is transport-level, not the
+expiry timer. **If v2 adopts the superagent-backed requester (§4a), this behavior is
+preserved for free** (v2's `HttpAdapter` still wraps the calls) and P-1 shrinks to just
+the expiry timer + refresh/logout usecases. If v2 instead routed HTTP through core-v3's
+axios requester, P-1 would have to grow a transport-level 403-retry hook. → **Prefer the
+requester route; confirm in Phase 0.**
 
 **Proposed core-v3 shape** (to confirm with Opus + user — do **not** implement yet):
 - New adapter method(s) on the user/auth adapter, e.g.

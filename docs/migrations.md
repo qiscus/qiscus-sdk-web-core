@@ -151,17 +151,33 @@ Side-by-side done (`version-2/src/lib/adapters/mqtt.js` vs `core-v3/src/adapters
    retry delay instead of hammering at 1 s, reset on successful connect. Full spec in
    `core-v3-decode-module-refactor.md` §4a. Lands with the realtime work (Phase C).
 
-### Remaining major issues (raised, not yet worked through)
-- **#2 `init()` / config negotiation ownership.** v2's `init()` does the
-  `api/v2/sdk/config` fetch + `setterHelper`/`mqttWssCheck` + LB-disable logic
-  (`index.js:124-296`). Decision leaning: keep this block in the v2 shell, feed resolved
-  values into core-v3 storage; ensure core-v3 `setup` doesn't double-fetch/conflict.
-- **#3 v2 test coverage.** Unknown whether `version-2` has a test suite (need to check).
-  Our parity safety net = public-surface diff + fixtures + realtime-bridge unit tests. If
-  no v2 tests exist, invest in a small parity harness early.
-- **#4 Outgoing wire-format parity (encoder).** `sendMessage` payload keys must match v2
-  exactly. Claimed `encoder.ts` is version-agnostic — **verify** v3's encoder produces the
-  same wire shape v2 sends before v2 Phase 3.
+### Fable architecture review (2026-07-02) — folded into `v2-on-core-v3-plan.md`
+A second-opinion review (model: Fable) surfaced findings now written into the v2 plan
+(§4a, §7, §8.0, §9 Phase 4a/4b, §11, §13). Headlines:
+- **Biggest gap = TRANSPORT/error-path parity** (v2 superagent vs core-v3 axios): error
+  shapes, full-`res` rejections, `bufferUntil` buffering, 403-retry, headers — invisible
+  to the shape-diff gate. **Fix = inject a superagent-backed `ApiRequester` over v2's
+  `HttpAdapter`** (`v2-on-core-v3-plan.md` §4a) → error/retry/header parity for free while
+  still reusing `Api.*` + raw adapters. Pushes v2 toward raw-adapter-direct calls over
+  usecases for error-sensitive methods.
+- **Phase 0 grew** (§8.0): custom-requester decision, **failure-path parity harness**
+  (200/400/403/500 fixtures — now a deliverable), header parity, `mqttURL` field→storage
+  liveness, P-1 scope note.
+- **Phase 4 split** into 4a (core-v3 raw-stream split) + 4b (v2 bridge + `init()`).
+- **Don't rush deleting v2 `SyncAdapter`** — keep through Phase 4, delete Phase 5 only
+  after cadence parity proven.
+- Add **incoming-typing `isTypingStatus` mutation** to the bridge (§7).
+
+### Remaining major issues
+- **#2 `init()` / config negotiation ownership.** Keep v2's `init()` config block in the
+  shell, feed resolved values into core-v3 storage; ensure core-v3 `setup` doesn't
+  double-fetch/conflict. (Confirm Phase 0.)
+- **#3 v2 test coverage — ANSWERED (Fable):** `version-2/test/` ≈ **158 lines** total →
+  effectively no parity anchor. The failure-path parity harness is now a **Phase 0
+  deliverable** (§8.0.2).
+- **#4 wire-format parity — PARTIALLY ANSWERED (Fable):** `Api.postComment` body keys
+  match v2; the real wire issue is **transport** (headers + error shapes), not the
+  encoder — see §4a.
 - **#5 Operational (defer).** Update `sample-js`'s `link:` from `../sdk-js` to
   `../sdk-js/packages/version-2`; decide when `monorepo` merges to `master`.
 
