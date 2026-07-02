@@ -14,12 +14,20 @@
   **both actively maintained with bidirectional feature parity**.
 - v3 logic has already been extracted into `@qiscus/core-v3` (the `Qiscus` class is now a
   "dumb shell"). Build + 74 core-v3 tests green.
-- **Planning is done and committed** (docs only, commit `f1af198`, NOT pushed). Three
-  plans exist (see §3). No implementation of the new plans has started yet.
-- **Next action:** after the two open realtime questions in §5 are answered, begin
-  **Phase A** of `core-v3-decode-module-refactor.md` (via a Sonnet subagent, per the
-  working rules in §6). Phases A & B are low-risk and independent of the open questions,
-  so they can start even before the realtime questions are fully resolved.
+- **Planning committed** (`f1af198`, NOT pushed). Three plans exist (see §3).
+- **Refactor progress (committed, NOT pushed):**
+  - `5580f05` — **Phase A** done: decode/model moved into `v3/` module, `./v3` subpath
+    export, shell re-pointed. Green.
+  - `c9c107c` — **Phase B** done: HTTP adapters split into `*.raw.ts` (fetch-only, raw)
+    + decoding adapters delegating to them; raw factories exported from root barrel.
+    Green (build 0, 74 tests).
+- **Phase C scoped down (user, option A, 2026-07-02):** Phase C now = **unified MQTT
+  reconnect policy §4a ONLY** (in `adapters/mqtt.ts`). The **raw realtime-stream split is
+  DEFERRED** to the v2 realtime-bridge work (v2 Phase 4) — deep `mqtt.ts`/`sync.ts`
+  surgery whose only consumer is v2's future bridge, so co-design/co-test it there. The
+  core-v3 refactor is **complete for the HTTP path**.
+- **Next action:** implement §4a (see `core-v3-decode-module-refactor.md` Phase C), then
+  move to the **v2 re-platform** (`v2-on-core-v3-plan.md`, Phase 0 onward).
 
 ---
 

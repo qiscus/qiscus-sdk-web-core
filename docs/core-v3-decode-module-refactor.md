@@ -291,14 +291,25 @@ Keep pre-decode massaging on the v3 side. `QiscusDeps` unchanged. Verify tests
 (the existing adapter tests assert IQ → they now exercise the v3 wrapper; keep them
 under `v3/` or point them at the wrapper).
 
-**Phase C — Split the realtime streams + apply the unified reconnect policy (§4a).**
-Separate raw payload streams (shared) from `Decoder.message`-mapped streams (`v3/`).
-shell-v3's realtime usecases consume the decoded streams (unchanged behavior). Expose
-the raw streams on the root barrel for v2's bridge. **Also implement §4a here:**
-`reconnectPeriod: 1000`, LB-reconnect debounce 1000ms, `willConnectToRealtime` guard,
-exponential backoff (base 1s, cap 30s, reset on connect), and write the resolved broker
-URL to storage (for v2's `this.mqttURL` mirroring, Issue #1.1). Re-run the 74 core-v3
-tests — this changes v3's realtime timing, so verify no test depends on the old 300ms.
+**Phase C — Unified reconnect policy (§4a) ONLY. Raw-stream split DEFERRED.**
+> Scope decision (user, 2026-07-02, option A): Phase C now implements **only** the
+> unified MQTT reconnect policy §4a. The **raw realtime-stream split is DEFERRED** to
+> the v2 realtime-bridge work (`v2-on-core-v3-plan.md` §7 / v2 Phase 4), because that
+> split is deep surgery into `mqtt.ts`/`sync.ts` whose *only* consumer is v2's future
+> bridge — doing it speculatively now front-loads the highest risk with no consumer to
+> validate against. v3's decoded realtime streams stay exactly as they are. The
+> decode-module refactor is therefore considered **complete for the HTTP path (Phases
+> A+B)**; realtime raw-split is co-designed/co-tested with the v2 bridge later.
+
+Implement §4a in `adapters/mqtt.ts`: set `reconnectPeriod: 1000` in the connect opts;
+raise the LB-reconnect from a fixed 300 ms `debounce` to a **backoff-scheduled**
+reconnect — add a `willConnectToRealtime` re-entrancy guard and a `reconnectFailures`
+counter; delay before each LB-reconnect = `min(1000 * 2**failures, 30000)`; reset
+`failures` to 0 on the `connect` event; on a successful LB node switch, persist the URL
+via `storage.setBrokerUrl(url)` (for v2's `this.mqttURL` mirroring, Issue #1.1). Keep the
+existing gating + topic-resubscribe. Re-run the 74 core-v3 tests (mqtt.ts is currently
+untested, so also review the diff carefully); this changes v3 realtime timing, so verify
+no test depends on the old 300 ms.
 
 **Phase D — Barrels + deps builders.**
 Finalize root barrel (raw surface) and `v3/deps.ts` (`buildV3Deps`). Point

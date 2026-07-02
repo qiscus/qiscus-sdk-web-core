@@ -367,13 +367,19 @@ export function subscribeRealtime(self, deps) {
 including the `'typing'` `{message, username, room_id}` remap and the `'room-typing'`
 dual-emit + `options.onRoomTypingCallback`.
 
-**Realtime raw — now provided by the refactor.** The decode-module refactor (Phase C
-in `core-v3-decode-module-refactor.md`) splits the realtime streams into a **raw
-payload stream** (shared) and a `Decoder.message`-mapped stream (`v3/`). v2's bridge
-subscribes to the **raw** stream via the raw `realtimeAdapter`, so `onMessageReceived`
-hands v2 raw JSON — feed it straight to `new Comment()`. No `IQMessage→raw` remap
-needed. `MESSAGE_BEFORE_RECEIVED` still fires before the emit; the `selected` mutation +
-`'newmessages'` payload stay identical.
+**Realtime raw — split happens HERE, together with this bridge (deferred from the core
+refactor).** Scope decision (2026-07-02, option A): the core-v3 decode-module refactor
+did the HTTP raw split (Phases A+B) but **deferred the realtime-stream split** to this
+v2 realtime work, since it's deep surgery into `mqtt.ts`/`sync.ts` whose only consumer is
+this bridge. So **as part of building `compat/realtime-bridge.js`, also split the core-v3
+realtime path**: make `mqtt.ts`/`sync.ts` expose a **raw payload stream** (shared) in
+addition to the existing `Decoder.message`-mapped stream (which v3 keeps using). v2's
+bridge subscribes to the **raw** stream, so `onMessageReceived` hands v2 raw JSON — feed
+it straight to `new Comment()`, no `IQMessage→raw` remap. `MESSAGE_BEFORE_RECEIVED` still
+fires before the emit; the `selected` mutation + `'newmessages'` payload stay identical.
+v3's decoded realtime streams must remain byte-for-byte unchanged (guarded by the 74
+core-v3 tests). Note: the unified reconnect policy (§4a of the refactor plan) lands
+separately/earlier and is independent of this split.
 
 **Sync vs MQTT:** v2 ran *both* `MqttAdapter` and a `SyncAdapter` HTTP-polling
 fallback feeding the same bus. core-v3 already has a `synchronize` usecase. Decide in

@@ -1,5 +1,4 @@
 import { match, when } from '../utils/match'
-import debounce from 'lodash.debounce'
 import { EventEmitter } from 'pietile-eventemitter'
 
 // import { connect } from '../lib/mqtt'
@@ -121,6 +120,9 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
   let mqtt: _MqttClient | undefined = undefined
   let cacheUrl: string = s.getBrokerUrl()
   let shouldConnect = true
+  let reconnectFailures = 0
+  let willConnectToRealtime = false
+  let reconnectTimerId: ReturnType<typeof setTimeout> | undefined = undefined
 
   const emitter = new EventEmitter<Events>()
   const handler = getMqttHandler(emitter)
@@ -150,7 +152,11 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
         return `wss://${url}:${port}/mqtt`
       })
 
-  const __mqtt_connected_handler = () => emitter.emit('mqtt::connected')
+  const __mqtt_connected_handler = () => {
+    reconnectFailures = 0
+    willConnectToRealtime = false
+    emitter.emit('mqtt::connected')
+  }
   const __mqtt_reconnect_handler = () => emitter.emit('mqtt::reconnecting')
   const __mqtt_closed_handler = () => emitter.emit('mqtt::close')
   const __mqtt_message_handler = (t: string, m: string) => {
@@ -181,6 +187,7 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
     const lastWill = `u/${s.getCurrentUser().id}/s`
     const opts: IClientOptions = {
       clientId: _getClientId(),
+      reconnectPeriod: 1000,
       will: {
         topic: lastWill,
         payload: '0',
@@ -207,12 +214,26 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
 
   cacheUrl = s.getBrokerUrl()
 
-  emitter.on(
-    'mqtt::close',
-    debounce(async () => {
-      if (shouldConnect === false) return
-      if (s.getCurrentUser() == null) return
-      if (!s.getBrokerLbEnabled()) return
+  const __mqtt_schedule_lb_reconnect = () => {
+    if (willConnectToRealtime) return
+    if (shouldConnect === false) return
+    if (s.getCurrentUser() == null) return
+    if (!s.getBrokerLbEnabled()) return
+
+    if (reconnectTimerId != null) {
+      clearTimeout(reconnectTimerId)
+      reconnectTimerId = undefined
+    }
+
+    const delay = Math.min(1000 * 2 ** reconnectFailures, 30000)
+
+    // Prevent the mqtt library's own 1s auto-retry from hammering a dead
+    // broker while we wait for the backoff delay to elapse.
+    mqtt?.end(true)
+
+    reconnectTimerId = setTimeout(async () => {
+      willConnectToRealtime = true
+      reconnectFailures++
 
       if (intervalId !== -1) {
         clearInterval(intervalId)
@@ -220,20 +241,24 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
       }
 
       // TODO: Need a better way to get all subscribed topics
-      const topics = Object.keys((mqtt as any)._resubscribeTopics)
+      const topics = Object.keys((mqtt as any)?._resubscribeTopics ?? {})
       const [url, err] = await wrapP(getMqttNode())
       if (err) {
         logger.log(`cannot get new brokerUrl, using old url instead (${cacheUrl})`)
         mqtt = __mqtt_conneck(cacheUrl)
       } else {
         cacheUrl = url
+        s.setBrokerUrl(url)
         logger.log(`connecting to new broker url ${url}`)
         mqtt = __mqtt_conneck(url)
       }
       logger.log(`resubscribe to old topics ${topics}`)
       topics.forEach((t) => mqtt?.subscribe(t))
-    }, 300)
-  )
+      willConnectToRealtime = false
+    }, delay)
+  }
+
+  emitter.on('mqtt::close', __mqtt_schedule_lb_reconnect)
   emitter.on('custom-event', (data) => {
     const roomId = data.roomId
     if (subscribedCustomEventTopics.has(roomId)) {
