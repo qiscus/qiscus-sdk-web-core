@@ -87,6 +87,27 @@ function buildPath(api) {
  * full-`res` rejections some v2 methods rely on) and letting
  * `HttpAdapter._retryHelper`'s 403-refresh-retry keep working transparently.
  *
+ * Two ACCEPTED parity divergences (reviewed w/ Fable, docs/migrations.md
+ * "Phase 1"): both judged safe, byte-for-byte on everything a *customer app*
+ * can observe, and diverging only on wire/pathological details v3 already
+ * exercises in production.
+ *  1. POST Content-Type flips `application/x-www-form-urlencoded` -> JSON.
+ *     Old v2 sent some POSTs (e.g. block_user/unblock_user) via
+ *     `HttpAdapter.post` (urlencoded); this shim routes EVERY `post` through
+ *     `post_json`. Same endpoint + same body keys, only the encoding/header
+ *     differs — and version-3 (plain axios) already POSTs JSON to these exact
+ *     endpoints in production via the same `Api.*` builders, so backend
+ *     acceptance is proven. (Watch item: body *value types* — urlencoded
+ *     stringifies `true`/`9`; JSON keeps them native. Verify per endpoint that
+ *     carries non-string body values; the Phase 1 methods send only strings.)
+ *  2. Envelope-status reject shape. A few old methods reject with the WHOLE
+ *     superagent `res` on the (rare) HTTP-200-but-`body.status !== 200`
+ *     branch. This shim returns only `res.body`, so the re-platformed shell
+ *     methods reject with a reconstructed `{ status, body }` (same `.body`,
+ *     same `.status`, missing `.headers`/`.text`/`.ok`). The COMMON error
+ *     path (HTTP 4xx/5xx) is byte-identical — the superagent error object
+ *     propagates unchanged through this shim.
+ *
  * @param {import('../lib/adapters/http').default} httpAdapter
  * @returns {{ request(api: { method: 'get'|'post'|'put'|'patch'|'delete', url: string, baseUrl?: string, params?: object, body?: object, headers?: object }): Promise<unknown> }}
  */

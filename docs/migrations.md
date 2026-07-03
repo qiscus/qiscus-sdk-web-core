@@ -29,9 +29,25 @@
   - `1ef478a` — **Phase 0a**: `compat/requester.js` (superagent-backed ApiRequester over
     v2's HttpAdapter) + `compat/deps.js` + Hooks import switched to `@qiscus/core-v3`.
     Wiring proof 5/5, build green. Nothing rewired yet.
-  - **Phase 0b** (this commit): `compat/to-v2.js` (raw→Comment/Room/User normalizers),
+  - **Phase 0b** (`2639cbd`): `compat/to-v2.js` (raw→Comment/Room/User normalizers),
     `compat/parity.js` + self-tests (failure-path harness, 10/10), and DRAFT
     `docs/v2-core-v3-gaps.md`.
+  - **Phase 1** (this commit): re-platformed user-domain **read** methods onto core-v3's
+    raw user adapter via `this.deps` (`getUsers`, `getBlockedUser`, `blockUser`,
+    `unblockUser`, `getUserProfile`). Each keeps a verbatim `_legacy<Method>` copy; new
+    `compat/phase1.parity.test.js` diffs real legacy-vs-new resolve/reject across
+    200/400/403/500 (5/5) — full compat suite 20/20, `build:lib` green. Pre-existing v2
+    `test/**` failures (3: mqtt-stub `.subscribe`, HTML-escape) are unrelated (identical
+    on clean HEAD).
+    - **`getNonce` DEFERRED** (not in this commit): it bypasses `HttpAdapter` (raw
+      superagent + pre-auth `qiscus_sdk_*` lowercase headers, no token); routing it
+      through the shim changes its header set on a pre-auth flow → own careful step later.
+    - **Two parity divergences ACCEPTED (reviewed w/ Fable, A/A):** (1) POST Content-Type
+      urlencoded→JSON — v3 already POSTs JSON to these exact endpoints in prod, so
+      backend-proven (watch body value *types*, but Phase 1 bodies are string-only);
+      (2) envelope-status (HTTP-200-but-`body.status≠200`) rejects with reconstructed
+      `{status, body}` vs old whole-`res` — common HTTP-error path is byte-identical.
+      Both documented in `compat/requester.js`.
 - **Phase 0 findings to fold into the plan (from Phase 0b + Opus):**
   - **`mqttURL` liveness CONFIRMED (Issue #1.1):** core-v3 `mqtt.ts` `conneck()` reads
     `storage.getBrokerUrl()` **fresh** each connect (mqtt.ts:296), and LB-reconnect
@@ -42,8 +58,11 @@
     `setterHelper`/`mqttWssCheck` `api/v2/sdk/config` negotiation (contradicts plan §8's
     "likely keep-in-shell" guess for Issue #2) — CONFIRM before init() work.
   - **`getUserPresences`** has no core-v3 primitive → `keep-in-shell` (new).
-- **Next action:** review `docs/v2-core-v3-gaps.md`, then **Phase 1** — rewire the
-  stateless read methods (`v2-on-core-v3-plan.md` §9 Phase 1) using the parity harness.
+- **Next action:** **Phase 2** — Room/selected-room lifecycle (`v2-on-core-v3-plan.md` §9
+  Phase 2), same pattern: rewire onto `this.deps.roomAdapter` (raw) + `compat/to-v2.js`
+  `rawRoomToV2`, keep `_legacy*` copies, add `compat/phase2.parity.test.js`. Then Phase 3
+  (messages). Also still open: the deferred `getNonce`, and reviewing
+  `docs/v2-core-v3-gaps.md`.
 
 ---
 

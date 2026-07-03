@@ -17,6 +17,7 @@ import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from '@qiscus/core-v3'
 import { ExpiredTokenAdapter } from './lib/adapters/expired-token'
+import { makeDeps } from './compat/deps'
 
 // helper for setup publishOnlinePresence status
 let setBackToOnline
@@ -106,6 +107,14 @@ class QiscusSDK {
     this._uploadURL = null
 
     this._autoRefreshToken = false
+
+    // Phase 1 re-platform (docs/v2-on-core-v3-plan.md §4a/§9): lazily-built,
+    // memoized core-v3 `QiscusDeps` bundle wired to this instance's own
+    // `HTTPAdapter` (see `compat/deps.js`/`compat/requester.js`). Built on
+    // first access via the `deps` getter below, not here in the
+    // constructor, since it needs `this.HTTPAdapter` to exist (i.e. must be
+    // accessed post-`init()`).
+    this._deps = null
   }
 
   // this.uploadURL = `${this.baseURL}/api/v2/sdk/upload`
@@ -114,6 +123,21 @@ class QiscusSDK {
   }
   set uploadURL(uploadURL) {
     this._uploadURL = uploadURL
+  }
+
+  /**
+   * Lazily-built, memoized core-v3 `QiscusDeps` bundle (docs/v2-on-core-v3-plan.md
+   * §4/§4a/§9 Phase 1). Built once, on first access, from `makeDeps(this)` —
+   * NOT rebuilt per call. Only meaningful after `init()` has set
+   * `this.HTTPAdapter`; re-platformed methods that read `this.deps` are only
+   * ever called post-`init()`, same as today.
+   * @returns {import('@qiscus/core-v3').QiscusDeps}
+   */
+  get deps() {
+    if (this._deps == null) {
+      this._deps = makeDeps(this)
+    }
+    return this._deps
   }
 
   /**
@@ -1548,7 +1572,16 @@ class QiscusSDK {
   }
 
   // #endregion
-  getUsers(query = '', page = 1, limit = 20) {
+
+  /**
+   * TEMPORARY Phase 1 parity references (docs/v2-on-core-v3-plan.md §4a/§9,
+   * §14). `_legacy*` copies below are the pre-rewire method bodies, kept
+   * ONLY so `compat/phase1.parity.test.js` can assert the core-v3-backed
+   * replacements resolve/reject identically across 200/400/403/500
+   * responses. Remove both the `_legacy*` copies and this comment in the
+   * Phase 5 cleanup once parity is no longer being verified against them.
+   */
+  _legacyGetUsers(query = '', page = 1, limit = 20) {
     return this.HTTPAdapter.get_request('api/v2/sdk/get_user_list')
       .query({
         query,
@@ -1558,6 +1591,22 @@ class QiscusSDK {
       .then((resp) => {
         return Promise.resolve(resp.body.results)
       })
+  }
+
+  /**
+   * Re-platformed on core-v3's raw user adapter (docs/v2-on-core-v3-plan.md
+   * §9 Phase 1) — `deps.userAdapter.getUserList` hits the same
+   * `api/v2/sdk/get_user_list` endpoint through the same `this.HTTPAdapter`
+   * transport (via `compat/requester.js`), so headers/retry/error-shape are
+   * unchanged. Resolved value is passed through as-is (`body.results`, i.e.
+   * `{meta, users}`), exactly like the old implementation — no per-user
+   * `compat/to-v2.js` normalization is applied here since the old code never
+   * massaged this response either.
+   */
+  getUsers(query = '', page = 1, limit = 20) {
+    return this.deps.userAdapter.getUserList(query, page, limit).then((body) => {
+      return Promise.resolve(body.results)
+    })
   }
 
   getParticipants(roomUniqueId, page = 1, limit = 20) {
@@ -1744,7 +1793,8 @@ class QiscusSDK {
    * @returns Promise
    * @memberof QiscusSDK
    */
-  getBlockedUser(page = 1, limit = 20) {
+  /** TEMPORARY Phase 1 parity reference — see comment above `_legacyGetUsers`. */
+  _legacyGetBlockedUser(page = 1, limit = 20) {
     const self = this
     return self.userAdapter.getBlockedUser(page, limit).then(
       (res) => {
@@ -1755,13 +1805,33 @@ class QiscusSDK {
   }
 
   /**
-   * Add user to block list
-   *
-   * @param {any} email the email is required
-   * @returns Promise
-   * @memberof QiscusSDK
+   * Re-platformed on core-v3's raw user adapter (docs/v2-on-core-v3-plan.md
+   * §9 Phase 1) — same `api/v2/sdk/get_blocked_users` endpoint, same
+   * `this.HTTPAdapter` transport. The old adapter checked the *body-level*
+   * `status` field and rejected with the whole superagent-shaped `res`
+   * (`{status, body}`) when it wasn't 200 (`lib/adapters/user.js:157`); that
+   * check is replicated here in the shell (`compat/requester.js` only
+   * returns the parsed body, not the outer HTTP status, so the outer
+   * `status` is reconstructed as `200` — the only value it can ever be here,
+   * since this branch only runs when the HTTP transport itself already
+   * resolved successfully, and every one of this API's envelope endpoints
+   * uses HTTP 200 for a resolved response). Resolved value
+   * (`body.results.blocked_users`) is passed through as-is, exactly like
+   * the old implementation.
    */
-  blockUser(email) {
+  getBlockedUser(page = 1, limit = 20) {
+    const self = this
+    return self.deps.userAdapter.getBlockedUser(page, limit).then(
+      (body) => {
+        if (body.status !== 200) return Promise.reject({ status: 200, body })
+        return Promise.resolve(body.results.blocked_users)
+      },
+      (err) => Promise.reject(err)
+    )
+  }
+
+  /** TEMPORARY Phase 1 parity reference — see comment above `_legacyGetUsers`. */
+  _legacyBlockUser(email) {
     const self = this
     return self.userAdapter.blockUser(email).then(
       (res) => {
@@ -1773,16 +1843,67 @@ class QiscusSDK {
   }
 
   /**
+   * Add user to block list
+   *
+   * Re-platformed on core-v3's raw user adapter (docs/v2-on-core-v3-plan.md
+   * §9 Phase 1) — same `api/v2/sdk/block_user` endpoint/body
+   * (`{user_email: email}`), same `this.HTTPAdapter` transport. Preserves
+   * the old adapter's *synchronous* `throw` on a falsy `email`
+   * (`lib/adapters/user.js:167`, called synchronously from this method
+   * with no try/catch, so it always threw synchronously rather than
+   * rejecting) and the body-level-status reject-with-`res` check — see the
+   * comment on `getBlockedUser` above for why `status: 200` is
+   * reconstructed. Preserves the `'block-user'` event emit.
+   *
+   * @param {any} email the email is required
+   * @returns Promise
+   * @memberof QiscusSDK
+   */
+  blockUser(email) {
+    if (!email) throw new Error('email is required')
+    const self = this
+    return self.deps.userAdapter.blockUser(email).then(
+      (body) => {
+        if (body.status !== 200) return Promise.reject({ status: 200, body })
+        const res = body.results.user
+        self.events.emit('block-user', res)
+        return Promise.resolve(res)
+      },
+      (err) => Promise.reject(err)
+    )
+  }
+
+  /** TEMPORARY Phase 1 parity reference — see comment above `_legacyGetUsers`. */
+  _legacyUnblockUser(email) {
+    const self = this
+    return self.userAdapter.unblockUser(email).then(
+      (res) => {
+        self.events.emit('unblock-user', res)
+        return Promise.resolve(res)
+      },
+      (err) => Promise.reject(err)
+    )
+  }
+
+  /**
    * Remove user from block list
+   *
+   * Re-platformed on core-v3's raw user adapter (docs/v2-on-core-v3-plan.md
+   * §9 Phase 1) — same `api/v2/sdk/unblock_user` endpoint/body, same
+   * transport/throw/reject-shape preservation as `blockUser` above.
+   * Preserves the `'unblock-user'` event emit.
    *
    * @param {any} email the email is required
    * @returns Promise
    * @memberof QiscusSDK
    */
   unblockUser(email) {
+    if (!email) throw new Error('email is required')
     const self = this
-    return self.userAdapter.unblockUser(email).then(
-      (res) => {
+    return self.deps.userAdapter.unblockUser(email).then(
+      (body) => {
+        if (body.status !== 200) return Promise.reject({ status: 200, body })
+        const res = body.results.user
         self.events.emit('unblock-user', res)
         return Promise.resolve(res)
       },
@@ -1990,8 +2111,23 @@ class QiscusSDK {
     this._customHeader = headers
   }
 
-  getUserProfile() {
+  /** TEMPORARY Phase 1 parity reference — see comment above `_legacyGetUsers`. */
+  _legacyGetUserProfile() {
     return this.userAdapter.getProfile()
+  }
+
+  /**
+   * Re-platformed on core-v3's raw user adapter (docs/v2-on-core-v3-plan.md
+   * §9 Phase 1) — same `api/v2/sdk/my_profile` GET, same `this.HTTPAdapter`
+   * transport. The old `userAdapter.getProfile()` resolved
+   * `res.body.results.user` with no envelope-status check; the raw adapter's
+   * `getUserData()` returns the raw envelope body (`{status, results}`), so
+   * `.then((body) => body.results.user)` reproduces the exact same resolved
+   * value. The error path is the unchanged superagent rejection — there is no
+   * envelope-status check on either side, so nothing to reconstruct.
+   */
+  getUserProfile() {
+    return this.deps.userAdapter.getUserData().then((body) => body.results.user)
   }
 
   static Interceptor = Hooks
