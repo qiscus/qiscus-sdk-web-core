@@ -62,8 +62,16 @@
       `queryString(api.params)` for `delete`, or send params-as-body) before re-platforming
       it. Same gap will bite other param-carrying DELETE/GET-ish endpoints (e.g.
       `deleteComment`).
-    - **Phase 2b (room CONSTRUCTION) still open:** `chatTarget`/`getRoomById`/
-      `getOrCreateRoomByUniqueId`/`chatGroup`/`createGroupRoom` — these need `rawRoomToV2`
+    - **Phase 2b — `getRoomById` DONE (this commit):** pure data-source swap
+      `roomAdapter.getRoomById` → `deps.roomAdapter.getRoom` (both resolve the raw
+      `res.body` envelope from the same `get_room_by_id` GET; downstream body unchanged, no
+      `rawRoomToV2` needed). `chatGroup` rides along free (it just delegates to
+      `getRoomById`). Anchored by `compat/phase2b.parity.test.js` at the ADAPTER level
+      (old vs new resolve/reject identical over 200/envelope-400/400/403/500) — the right
+      anchor for side-effect-heavy construction methods (no giant `_legacy` body copy).
+      compat 26/26, build:lib green.
+    - **Phase 2b remaining (room CONSTRUCTION):** `chatTarget`/
+      `getOrCreateRoomByUniqueId`/`createGroupRoom` — these need `rawRoomToV2`
       reconstruction (old room adapter massages: `avatar` alias, `comments.reverse()`,
       rival/`room_name` naming) + preserving side effects (`setActiveRoom`/`readComment`/
       `subscribeChannel`/`MESSAGE_BEFORE_RECEIVED` hooks/events). Anchor parity at the
@@ -75,10 +83,15 @@
         `rawRoomToV2` only sets `name` when `targetEmail` is given. Add a `useRoomName`/
         per-path opt (or split helpers) + a `to-v2` unit test diffing `rawRoomToV2` output
         against a replica of each old adapter path before wiring the shell methods.
-      - `getRoomById` is the easy one in 2b — old `roomAdapter.getRoomById` already returned
-        raw `res.body`, and the shell method already does its own `results.room`/
-        `comments.reverse()`/`new Room(...)`, so it's a near-clean data-source swap to
-        `deps.roomAdapter.getRoom(id)` (no `rawRoomToV2` needed there).
+      - **core-v3 GAP → PROPOSE (gated, needs Opus+user):** `Api.getOrCreateRoomWithUniqueId`'s
+        encoder only sends `{unique_id}` — it DROPS `name`/`avatar_url`, but old v2
+        `getOrCreateRoomByUniqueId` sent `{unique_id, name, avatar_url}`. Re-platforming
+        `getOrCreateRoomByUniqueId` onto `deps.roomAdapter.getChannel` as-is would silently
+        stop sending name/avatar on channel create — a functional regression. Likely a v3
+        "forgot to wire it" miss. Fix = add `name`/`avatar_url`/`options` to that encoder in
+        core-v3 (v3 shell behavior unchanged since it passes them already), then wire the v2
+        method. Also minor: `chatUser`/`getOrCreateRoomWithTarget` drops the old `distinctId`
+        (old v2 set the buggy `params[distinctId]=distinctId`); accept + note.
 - **Phase 0 findings to fold into the plan (from Phase 0b + Opus):**
   - **`mqttURL` liveness CONFIRMED (Issue #1.1):** core-v3 `mqtt.ts` `conneck()` reads
     `storage.getBrokerUrl()` **fresh** each connect (mqtt.ts:296), and LB-reconnect
@@ -89,12 +102,14 @@
     `setterHelper`/`mqttWssCheck` `api/v2/sdk/config` negotiation (contradicts plan §8's
     "likely keep-in-shell" guess for Issue #2) — CONFIRM before init() work.
   - **`getUserPresences`** has no core-v3 primitive → `keep-in-shell` (new).
-- **Next action:** **Phase 2b** — room CONSTRUCTION methods (`chatTarget`, `getRoomById`,
-  `getOrCreateRoomByUniqueId`, `chatGroup`, `createGroupRoom`) via `this.deps.roomAdapter` +
-  `compat/to-v2.js` `rawRoomToV2` (verify `rawRoomToV2` replicates the old room adapter's
-  massaging), keeping side effects intact; anchor parity at the `rawRoomToV2`-output level.
-  Then the `makeV2Requester` delete-params fix + `clearRoomMessages`, then Phase 3
-  (messages). Also still open: deferred `getNonce`, reviewing `docs/v2-core-v3-gaps.md`.
+- **Next action:** finish **Phase 2b** — (1) fix `rawRoomToV2` naming (avatar unconditional;
+  target-mode fallback literal `'Room name'`; add a uniqueId `useRoomName` mode) + a `to-v2`
+  unit test vs each old-adapter massaging replica; (2) wire `chatTarget` (target mode,
+  anchor via `rawRoomToV2` unit test + adapter-shape parity; note dropped `distinctId`);
+  (3) PROPOSE the core-v3 `getOrCreateRoomWithUniqueId` encoder fix (gated) then wire
+  `getOrCreateRoomByUniqueId`; (4) `createGroupRoom` via `GroupChatBuilder`. Then the
+  `makeV2Requester` delete-params fix + `clearRoomMessages`, then Phase 3 (messages). Also
+  still open: deferred `getNonce`, reviewing `docs/v2-core-v3-gaps.md`.
 
 ---
 

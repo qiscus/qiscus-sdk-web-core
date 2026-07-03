@@ -1166,8 +1166,19 @@ class QiscusSDK {
     self.isLoading = true
     self.isTypingStatus = ''
 
-    return self.roomAdapter
-      .getRoomById(id)
+    // Phase 2b (docs/v2-on-core-v3-plan.md §9): data-source swap only. The old
+    // `roomAdapter.getRoomById` resolved the raw `res.body` envelope
+    // (`{status, results: {room, comments}}`) with no massaging, and everything
+    // downstream here already reads `resp.results.room`/`resp.results.comments`
+    // straight off that envelope — so `deps.roomAdapter.getRoom(id)`, which
+    // resolves the identical raw envelope from the same `get_room_by_id` GET,
+    // is byte-for-byte substitutable. No `rawRoomToV2` needed (this endpoint
+    // never went through the massaging path). Parity is anchored at the adapter
+    // level in `compat/phase2b.parity.test.js` (old `getRoomById` vs new
+    // `getRoom` resolve/reject identically) rather than by a `_legacy*` copy of
+    // this side-effect-heavy body.
+    return self.deps.roomAdapter
+      .getRoom(id)
       .then(async (resp) => {
         const roomData = resp.results.room
         const comments = []
