@@ -1689,8 +1689,32 @@ class QiscusSDK {
    * @param {id, room_name, avatar_url, options} args
    * @return Promise
    */
-  updateRoom(args) {
+  /** TEMPORARY Phase 2 parity reference — see comment above `_legacyGetUsers`. */
+  _legacyUpdateRoom(args) {
     return this.roomAdapter.updateRoom(args)
+  }
+
+  /**
+   * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
+   * §9 Phase 2) — same `api/v2/sdk/update_room` POST. `Api.updateRoom`'s
+   * encoder emits a byte-identical body (`{id, room_name, avatar_url,
+   * options: JSON.stringify(extras)}`), so `args.room_name -> name` and
+   * `args.options -> extras` reproduce the old wire request exactly. Preserves
+   * the old adapter's synchronous `throw` on a missing `id`, its body-level
+   * envelope-status reject (reconstructed `{status, body}` — see
+   * `compat/requester.js`), and its resolved value (`results.room`).
+   */
+  updateRoom(args) {
+    if (!args.id) throw new Error('id is required')
+    return this.deps.roomAdapter
+      .updateRoom(args.id, args.room_name, args.avatar_url, args.options)
+      .then(
+        (body) => {
+          if (body.status !== 200) return Promise.reject({ status: 200, body })
+          return Promise.resolve(body.results.room)
+        },
+        (err) => Promise.reject(err)
+      )
   }
 
   removeSelectedRoomParticipants(values = [], payload = 'id') {
@@ -1751,13 +1775,40 @@ class QiscusSDK {
    * @returns Promise
    * @memberof QiscusSDK
    */
-  addParticipantsToGroup(roomId, emails) {
+  /** TEMPORARY Phase 2 parity reference — see comment above `_legacyGetUsers`. */
+  _legacyAddParticipantsToGroup(roomId, emails) {
     const self = this
     if (!Array.isArray(emails)) {
       throw new Error(`emails' must be type of Array`)
     }
     return self.roomAdapter.addParticipantsToGroup(roomId, emails).then(
       (res) => {
+        self.events.emit('participants-added', res)
+        return Promise.resolve(res)
+      },
+      (err) => Promise.reject(err)
+    )
+  }
+
+  /**
+   * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
+   * §9 Phase 2) — same `api/v2/sdk/add_room_participants` POST. Preserves the
+   * shell's non-array `throw`, the old adapter's synchronous
+   * `throw new Error('room_id and emails is required')` on a falsy
+   * `roomId`/`emails`, the body-level envelope-status reject (reconstructed
+   * `{status, body}`), the resolved value (`results.participants_added`), and
+   * the `'participants-added'` event emit.
+   */
+  addParticipantsToGroup(roomId, emails) {
+    const self = this
+    if (!Array.isArray(emails)) {
+      throw new Error(`emails' must be type of Array`)
+    }
+    if (!roomId || !emails) throw new Error('room_id and emails is required')
+    return self.deps.roomAdapter.addParticipants(roomId, emails).then(
+      (body) => {
+        if (body.status !== 200) return Promise.reject({ status: 200, body })
+        const res = body.results.participants_added
         self.events.emit('participants-added', res)
         return Promise.resolve(res)
       },
@@ -1773,7 +1824,8 @@ class QiscusSDK {
    * @returns Promise
    * @memberof QiscusSDK
    */
-  removeParticipantsFromGroup(roomId, emails) {
+  /** TEMPORARY Phase 2 parity reference — see comment above `_legacyGetUsers`. */
+  _legacyRemoveParticipantsFromGroup(roomId, emails) {
     if (is.not.array(emails)) {
       return Promise.reject(new Error('`emails` must have type of array'))
     }
@@ -1783,6 +1835,28 @@ class QiscusSDK {
         this.events.emit('participants-removed', emails)
         return Promise.resolve(res)
       })
+  }
+
+  /**
+   * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
+   * §9 Phase 2) — same `api/v2/sdk/remove_room_participants` POST. Preserves
+   * the shell's non-array reject, the old adapter's synchronous
+   * `throw new Error('room_id and emails is required')` on a falsy
+   * `roomId`/`emails`, the body-level envelope-status reject (reconstructed
+   * `{status, body}`), the resolved value (`results.participants_removed`),
+   * and the `'participants-removed'` event emit (which carries `emails`, not
+   * the response — unchanged).
+   */
+  removeParticipantsFromGroup(roomId, emails) {
+    if (is.not.array(emails)) {
+      return Promise.reject(new Error('`emails` must have type of array'))
+    }
+    if (!roomId || !emails) throw new Error('room_id and emails is required')
+    return this.deps.roomAdapter.removeParticipants(roomId, emails).then((body) => {
+      if (body.status !== 200) return Promise.reject({ status: 200, body })
+      this.events.emit('participants-removed', emails)
+      return Promise.resolve(body.results.participants_removed)
+    })
   }
 
   /**
@@ -2078,7 +2152,8 @@ class QiscusSDK {
     }
   }
 
-  getTotalUnreadCount() {
+  /** TEMPORARY Phase 2 parity reference — see comment above `_legacyGetUsers`. */
+  _legacyGetTotalUnreadCount() {
     return this.roomAdapter.getTotalUnreadCount().then(
       (response) => {
         return Promise.resolve(response)
@@ -2088,8 +2163,36 @@ class QiscusSDK {
       }
     )
   }
-  getRoomUnreadCount() {
+
+  /**
+   * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
+   * §9 Phase 2) — same `api/v2/sdk/total_unread_count` GET. The old adapter
+   * resolved the bare number `res.body.results.total_unread_count` with no
+   * envelope-status check; `getUnreadCount()` returns the raw envelope, so
+   * `.then((body) => body.results.total_unread_count)` reproduces it exactly.
+   */
+  getTotalUnreadCount() {
+    return this.deps.roomAdapter
+      .getUnreadCount()
+      .then((body) => body.results.total_unread_count)
+  }
+
+  /** TEMPORARY Phase 2 parity reference — see comment above `_legacyGetUsers`. */
+  _legacyGetRoomUnreadCount() {
     return this.roomAdapter.getRoomUnreadCount()
+  }
+
+  /**
+   * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
+   * §9 Phase 2) — same `api/v2/sdk/get_room_unread_count` GET. The old adapter
+   * resolved the bare number `res.body.results.total_unread_count`; the raw
+   * `getRoomUnreadCount()` returns the raw envelope, so
+   * `.then((body) => body.results.total_unread_count)` reproduces it exactly.
+   */
+  getRoomUnreadCount() {
+    return this.deps.roomAdapter
+      .getRoomUnreadCount()
+      .then((body) => body.results.total_unread_count)
   }
 
   publishEvent(...args) {

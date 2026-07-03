@@ -48,6 +48,26 @@
       (2) envelope-status (HTTP-200-but-`body.status≠200`) rejects with reconstructed
       `{status, body}` vs old whole-`res` — common HTTP-error path is byte-identical.
       Both documented in `compat/requester.js`.
+  - **Phase 2a** (this commit): re-platformed the room **isolated-transform** methods onto
+    core-v3's raw ROOM adapter via `this.deps.roomAdapter` (`updateRoom`,
+    `addParticipantsToGroup`, `removeParticipantsFromGroup`, `getTotalUnreadCount`,
+    `getRoomUnreadCount`). Same `_legacy*` + parity-test pattern; `compat/phase2.parity.test.js`
+    5/5 (compat suite 25/25, `build:lib` green). All endpoints/methods verified identical;
+    `Api.updateRoom`'s encoder is byte-identical wire (`{id, room_name, avatar_url,
+    options: JSON.stringify}`).
+    - **`clearRoomMessages` DEFERRED (shim defect found):** `Api.clearRooms` carries
+      `room_channel_ids` as **query params** (`useParams`), but `makeV2Requester`'s
+      `delete` branch forwards only `api.body` (and appends `queryString` only for `get`) —
+      so the ids would be silently dropped. Fix `makeV2Requester` (append
+      `queryString(api.params)` for `delete`, or send params-as-body) before re-platforming
+      it. Same gap will bite other param-carrying DELETE/GET-ish endpoints (e.g.
+      `deleteComment`).
+    - **Phase 2b (room CONSTRUCTION) still open:** `chatTarget`/`getRoomById`/
+      `getOrCreateRoomByUniqueId`/`chatGroup`/`createGroupRoom` — these need `rawRoomToV2`
+      reconstruction (old room adapter massages: `avatar` alias, `comments.reverse()`,
+      rival/`room_name` naming) + preserving side effects (`setActiveRoom`/`readComment`/
+      `subscribeChannel`/`MESSAGE_BEFORE_RECEIVED` hooks/events). Anchor parity at the
+      `rawRoomToV2`-output level vs the old adapter's massaged output.
 - **Phase 0 findings to fold into the plan (from Phase 0b + Opus):**
   - **`mqttURL` liveness CONFIRMED (Issue #1.1):** core-v3 `mqtt.ts` `conneck()` reads
     `storage.getBrokerUrl()` **fresh** each connect (mqtt.ts:296), and LB-reconnect
@@ -58,11 +78,12 @@
     `setterHelper`/`mqttWssCheck` `api/v2/sdk/config` negotiation (contradicts plan §8's
     "likely keep-in-shell" guess for Issue #2) — CONFIRM before init() work.
   - **`getUserPresences`** has no core-v3 primitive → `keep-in-shell` (new).
-- **Next action:** **Phase 2** — Room/selected-room lifecycle (`v2-on-core-v3-plan.md` §9
-  Phase 2), same pattern: rewire onto `this.deps.roomAdapter` (raw) + `compat/to-v2.js`
-  `rawRoomToV2`, keep `_legacy*` copies, add `compat/phase2.parity.test.js`. Then Phase 3
-  (messages). Also still open: the deferred `getNonce`, and reviewing
-  `docs/v2-core-v3-gaps.md`.
+- **Next action:** **Phase 2b** — room CONSTRUCTION methods (`chatTarget`, `getRoomById`,
+  `getOrCreateRoomByUniqueId`, `chatGroup`, `createGroupRoom`) via `this.deps.roomAdapter` +
+  `compat/to-v2.js` `rawRoomToV2` (verify `rawRoomToV2` replicates the old room adapter's
+  massaging), keeping side effects intact; anchor parity at the `rawRoomToV2`-output level.
+  Then the `makeV2Requester` delete-params fix + `clearRoomMessages`, then Phase 3
+  (messages). Also still open: deferred `getNonce`, reviewing `docs/v2-core-v3-gaps.md`.
 
 ---
 
