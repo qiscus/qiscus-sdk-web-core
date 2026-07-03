@@ -68,6 +68,17 @@
       rival/`room_name` naming) + preserving side effects (`setActiveRoom`/`readComment`/
       `subscribeChannel`/`MESSAGE_BEFORE_RECEIVED` hooks/events). Anchor parity at the
       `rawRoomToV2`-output level vs the old adapter's massaged output.
+      - **`rawRoomToV2` naming divergence to FIX first (found during Phase 2a analysis):**
+        (a) no-rival fallback — old `getOrCreateRoom` uses the literal `'Room name'`, but
+        `rawRoomToV2` falls back to `room.room_name || 'Room name'`; (b) the uniqueId path —
+        old `getOrCreateRoomByUniqueId` ALWAYS sets `name = room_name` (no rival lookup), but
+        `rawRoomToV2` only sets `name` when `targetEmail` is given. Add a `useRoomName`/
+        per-path opt (or split helpers) + a `to-v2` unit test diffing `rawRoomToV2` output
+        against a replica of each old adapter path before wiring the shell methods.
+      - `getRoomById` is the easy one in 2b — old `roomAdapter.getRoomById` already returned
+        raw `res.body`, and the shell method already does its own `results.room`/
+        `comments.reverse()`/`new Room(...)`, so it's a near-clean data-source swap to
+        `deps.roomAdapter.getRoom(id)` (no `rawRoomToV2` needed there).
 - **Phase 0 findings to fold into the plan (from Phase 0b + Opus):**
   - **`mqttURL` liveness CONFIRMED (Issue #1.1):** core-v3 `mqtt.ts` `conneck()` reads
     `storage.getBrokerUrl()` **fresh** each connect (mqtt.ts:296), and LB-reconnect
