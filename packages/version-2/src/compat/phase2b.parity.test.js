@@ -1,6 +1,7 @@
 import { compareParity, makeStubHttpAdapter } from './parity'
 import RoomAdapter from '../lib/adapters/room'
 import { makeDeps } from './deps'
+import { rawRoomToV2 } from './to-v2'
 
 /**
  * Phase 2b adapter-level parity (docs/v2-on-core-v3-plan.md §9, §11).
@@ -63,6 +64,51 @@ describe('compat/phase2b parity (room getRoomById data-source swap)', () => {
           input: { response: { status, body: { error: { message: `err-${status}` } } } },
         })),
       ],
+    })
+
+    if (result.firstDivergence) {
+      throw new Error('parity divergence: ' + JSON.stringify(result.firstDivergence, null, 2))
+    }
+  })
+
+  // chatTarget's re-platform = data-source swap + rawRoomToV2 reconstruction.
+  // The old `roomAdapter.getOrCreateRoom` resolved a MASSAGED room; the new
+  // path is `chatUser(...)` (raw envelope) -> `rawRoomToV2(...targetEmail)`.
+  // The method's downstream (new Room / hooks / setActiveRoom / readComment /
+  // events) is unchanged, so parity is anchored on the object fed to it:
+  // old massaged room vs rawRoomToV2 output, over the same canned response.
+  it('chatTarget input: old getOrCreateRoom vs new chatUser+rawRoomToV2 match', async () => {
+    const email = 'rival@e.com'
+    const body = {
+      status: 200,
+      results: {
+        room: {
+          id: 55,
+          room_name: 'Group name',
+          avatar_url: 'http://a/x.png',
+          last_comment_id: 3,
+          participants: [
+            { id: 10, email, username: 'Rival' },
+            { id: 11, email: 'me@e.com', username: 'Me' },
+          ],
+        },
+        comments: [{ id: 3 }, { id: 2 }, { id: 1 }],
+      },
+    }
+
+    // Each side gets its OWN deep clone: the old adapter reverses
+    // `results.comments` IN PLACE, which would otherwise corrupt the shared
+    // fixture for whichever side runs second (a test artifact — in production
+    // old and new never share an array).
+    const clone = (r) => JSON.parse(JSON.stringify(r))
+    const result = await compareParity({
+      reference: ({ response }) =>
+        new RoomAdapter(makeStubHttpAdapter(clone(response))).getOrCreateRoom(email, { distinctId: 'd' }, 'd'),
+      candidate: ({ response }) =>
+        makeRawRoomAdapter(makeStubHttpAdapter(clone(response)))
+          .chatUser(email, { distinctId: 'd' })
+          .then((raw) => rawRoomToV2(raw.results.room, { comments: raw.results.comments, targetEmail: email })),
+      cases: [{ name: '200 massaged room matches', input: { response: { status: 200, body } } }],
     })
 
     if (result.firstDivergence) {

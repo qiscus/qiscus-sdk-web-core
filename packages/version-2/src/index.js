@@ -18,6 +18,7 @@ import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from '@qiscus/core-v3'
 import { ExpiredTokenAdapter } from './lib/adapters/expired-token'
 import { makeDeps } from './compat/deps'
+import { rawRoomToV2 } from './compat/to-v2'
 
 // helper for setup publishOnlinePresence status
 let setBackToOnline
@@ -1088,14 +1089,32 @@ class QiscusSDK {
     if (this.userData.length != null) return false
 
     const initialMessage = options ? options.message : null
-    const distinctId = options.distinctId
 
     this.isLoading = true
     this.isTypingStatus = ''
 
-    // Create room
-    return this.roomAdapter
-      .getOrCreateRoom(userId, options, distinctId)
+    // Create room — Phase 2b (docs/v2-on-core-v3-plan.md §9). Data-source swap
+    // to core-v3's raw room adapter: `chatUser` hits the same
+    // `get_or_create_room_with_target` POST (Api encoder emits the same
+    // `{emails, options: JSON.stringify(...)}` body), then `rawRoomToV2` in
+    // `targetEmail` mode reconstructs the exact object the old
+    // `roomAdapter.getOrCreateRoom` handed to `new Room(...)` (avatar alias,
+    // reversed comments, rival-username-or-'Room name' — pinned in
+    // compat/to-v2.test.js and compat/phase2b.parity.test.js). The old adapter's
+    // body-level envelope-status reject is reproduced here (reconstructed
+    // `{status, body}` — see compat/requester.js). Divergences vs old, both
+    // accepted: `emails` is sent as `[userId]` (array) not a bare string, and
+    // the old buggy `distinctId` param (`params[distinctId]=distinctId`) is
+    // dropped. The `.then(async (resp) => ...)` body below is UNCHANGED.
+    return this.deps.roomAdapter
+      .chatUser(userId, options)
+      .then((raw) => {
+        if (raw.status !== 200) return Promise.reject({ status: 200, body: raw })
+        return rawRoomToV2(raw.results.room, {
+          comments: raw.results.comments,
+          targetEmail: userId,
+        })
+      })
       .then(async (resp) => {
         const room = new Room(resp)
 
