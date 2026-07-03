@@ -79,11 +79,15 @@ export function rawCommentToV2(raw) {
  *   The API returns these newest-first; the old adapters reversed them
  *   before handing them to `Room` (which appends via `receiveComments` in
  *   array order) — replicated here.
- * @param {string} [opts.targetEmail] - for 1-to-1 chats, the other
- *   participant's email. When given, `room.name` is derived from that
- *   participant's `username` (replicating `getOrCreateRoom`'s rival-user
- *   lookup), falling back to `'Room name'` exactly like the old adapter did
- *   when no match is found.
+ * @param {string} [opts.targetEmail] - for 1-to-1 chats (the old
+ *   `getOrCreateRoom`), the other participant's email. When given, `room.name`
+ *   is that participant's `username`, falling back to the LITERAL `'Room name'`
+ *   when no match is found — byte-for-byte as `lib/adapters/room.js:27`
+ *   (NOT `room_name`).
+ * @param {boolean} [opts.useRoomName] - for the channel path (the old
+ *   `getOrCreateRoomByUniqueId`), which unconditionally set
+ *   `room.name = room.room_name` with no rival lookup (`lib/adapters/room.js:52`).
+ *   Ignored when `opts.targetEmail` is also given (targetEmail wins).
  * @returns {object} an object ready for `new Room(raw)`.
  */
 export function rawRoomToV2(raw, opts = {}) {
@@ -91,11 +95,10 @@ export function rawRoomToV2(raw, opts = {}) {
 
   const room = { ...raw }
 
-  // Old adapters always set `room.avatar = room.avatar_url` explicitly.
-  // Room.js's own fallback chain (`room_avatar || avatarURL || avatar_url`)
-  // already covers the common case; this keeps `raw.avatar` populated too,
-  // for parity with code that reads it off the normalized object directly.
-  if (room.avatar == null) room.avatar = room.avatar_url
+  // Old adapters ALWAYS set `room.avatar = room.avatar_url` (unconditional
+  // overwrite — `lib/adapters/room.js:24`/`:50`), so replicate exactly rather
+  // than only filling when absent.
+  room.avatar = room.avatar_url
 
   if (Array.isArray(opts.comments)) {
     room.comments = [...opts.comments].reverse()
@@ -103,7 +106,9 @@ export function rawRoomToV2(raw, opts = {}) {
 
   if (opts.targetEmail && Array.isArray(room.participants)) {
     const rival = room.participants.find((p) => p.email === opts.targetEmail)
-    room.name = rival ? rival.username : room.room_name || 'Room name'
+    room.name = rival ? rival.username : 'Room name'
+  } else if (opts.useRoomName) {
+    room.name = room.room_name
   }
 
   return room
