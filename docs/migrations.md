@@ -146,6 +146,19 @@
     `setterHelper`/`mqttWssCheck` `api/v2/sdk/config` negotiation (contradicts plan §8's
     "likely keep-in-shell" guess for Issue #2) — CONFIRM before init() work.
   - **`getUserPresences`** has no core-v3 primitive → `keep-in-shell` (new).
+- **Phase 3 (Messages) — STARTED (`23a15f7`):** `loadComments`/`loadMore` swapped to
+  `deps.messageAdapter.getMessages` (identical `load_comments` raw envelope; downstream
+  hooks/`receiveComments` unchanged). Comment-SEND path re-platformed via a
+  `_postCommentViaCore` transport helper (`deps.messageAdapter.sendMessage`, byte-identical
+  `post_comment` body) routed into all 3 send sites (`sendComment`/`_retrySendComment`/
+  `resendComment`) — the optimistic-send orchestration (`_pendingComments`/`markAsSent`/
+  events) is UNCHANGED. Anchored in `compat/phase3.parity.test.js` (2 cases). compat 39/39.
+  **Phase 3 remaining (needs Fable):** `readComment`/`receiveComment`/`_updateStatus` (old
+  adapter's `updateCommentStatus` is lodash-throttled 500ms — must preserve when splitting
+  into `markAsRead`/`markAsDelivered`); `deleteComment` (delete-shim + `unique_ids` array
+  query vs old body); `updateMessage` (IQMessage shape map); `searchMessages` (deprecated,
+  maps to different `searchMessagesV2` API — likely leave); `upload`/`sendFileMessage`
+  (multipart).
 - **Next action:** Phase 2 construction + transform methods are DONE. Remaining before
   Phase 3: (1) the `makeV2Requester` `delete`-branch fix (append `queryString(api.params)`)
   → then `clearRoomMessages`; (2) the Phase 2 read stragglers `getParticipants`/
