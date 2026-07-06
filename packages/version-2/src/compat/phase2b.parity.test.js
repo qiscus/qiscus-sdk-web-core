@@ -1,7 +1,7 @@
 import { compareParity, makeStubHttpAdapter } from './parity'
 import RoomAdapter from '../lib/adapters/room'
 import { makeDeps } from './deps'
-import { rawRoomToV2 } from './to-v2'
+import { rawRoomToV2, rawCreatedRoomToV2 } from './to-v2'
 
 /**
  * Phase 2b adapter-level parity (docs/v2-on-core-v3-plan.md §9, §11).
@@ -145,6 +145,47 @@ describe('compat/phase2b parity (room getRoomById data-source swap)', () => {
           .getChannel('uq-77', 'Channel name', 'http://a/c.png')
           .then((raw) => rawRoomToV2(raw.results.room, { comments: raw.results.comments, useRoomName: true })),
       cases: [{ name: '200 massaged room matches', input: { response: { status: 200, body } } }],
+    })
+
+    if (result.firstDivergence) {
+      throw new Error('parity divergence: ' + JSON.stringify(result.firstDivergence, null, 2))
+    }
+  })
+
+  // createGroupRoom's re-platform = data-source swap + rawCreatedRoomToV2 remap.
+  // The old `roomAdapter.createRoom` resolved a REMAPPED summary object (not a
+  // Room); the new path is `createGroup(...)` (raw envelope) ->
+  // `rawCreatedRoomToV2(...)`. Anchored on the resolved summary object.
+  it('createGroupRoom input: old createRoom vs new createGroup+rawCreatedRoomToV2 match', async () => {
+    const body = {
+      status: 200,
+      results: {
+        room: {
+          id: 88,
+          room_name: 'My group',
+          last_comment_id: 5,
+          last_comment_message: 'hey',
+          last_topic_id: 12,
+          avatar_url: 'http://a/g.png',
+          options: '{"k":1}',
+          participants: [
+            { id: 1, email: 'a@e.com', username: 'A', avatar_url: 'http://a/a.png' },
+            { id: 2, email: 'b@e.com', username: 'B', avatar_url: 'http://a/b.png' },
+          ],
+        },
+        comments: [],
+      },
+    }
+
+    const clone = (r) => JSON.parse(JSON.stringify(r))
+    const result = await compareParity({
+      reference: ({ response }) =>
+        new RoomAdapter(makeStubHttpAdapter(clone(response))).createRoom('My group', ['a@e.com', 'b@e.com'], { avatarURL: 'http://a/g.png' }, { k: 1 }),
+      candidate: ({ response }) =>
+        makeRawRoomAdapter(makeStubHttpAdapter(clone(response)))
+          .createGroup('My group', ['a@e.com', 'b@e.com'], 'http://a/g.png', { k: 1 })
+          .then((raw) => rawCreatedRoomToV2(raw)),
+      cases: [{ name: '200 remapped summary matches', input: { response: { status: 200, body } } }],
     })
 
     if (result.firstDivergence) {

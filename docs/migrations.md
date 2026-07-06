@@ -87,7 +87,21 @@
       `rawRoomToV2({useRoomName:true})`; `getOrCreateRoomByChannel` rides along (delegates).
       Anchored by a `compat/phase2b.parity.test.js` case (old vs new massaged room). compat
       36/36, v2 `test/**` 18/3 unchanged.
-    - **Phase 2b remaining (room CONSTRUCTION):** `createGroupRoom` — needs `rawRoomToV2`
+    - **Phase 2b — `createGroupRoom` DONE (this commit):** re-platformed off
+      `GroupChatBuilder`/`roomAdapter.createRoom` onto `deps.roomAdapter.createGroup` + new
+      `rawCreatedRoomToV2` remap (the old adapter resolved a summary object
+      `{id,name,lastCommentId,…,participants[]}`, not a `Room`). `GroupChatBuilder` import
+      dropped (now unused). Anchored by a `compat/phase2b.parity.test.js` case (old
+      `createRoom` == new `createGroup`+remap). compat 37/37, v2 `test/**` 18/3 unchanged.
+      → **Phase 2 room-construction methods are now COMPLETE** (chatTarget, chatGroup,
+      getRoomById, getOrCreateRoomByUniqueId/ByChannel, createGroupRoom) + the transform
+      methods (Phase 2a).
+    - **Phase 2 stragglers still open (room reads/local):** `getParticipants`,
+      `getRoomParticipants`, `getRoomsInfo` (read methods, not yet re-platformed);
+      `removeSelectedRoomParticipants` + `clearRoomsCache` are pure-local (no adapter → no
+      re-platform); `clearRoomMessages` still DEFERRED on the `makeV2Requester` delete-params
+      fix. Original scope note (for reference): `chatTarget`/`getOrCreateRoomByUniqueId`/
+      `createGroupRoom` needed `rawRoomToV2`
       reconstruction (old room adapter massages: `avatar` alias, `comments.reverse()`,
       rival/`room_name` naming) + preserving side effects (`setActiveRoom`/`readComment`/
       `subscribeChannel`/`MESSAGE_BEFORE_RECEIVED` hooks/events). Anchor parity at the
@@ -118,13 +132,15 @@
     `setterHelper`/`mqttWssCheck` `api/v2/sdk/config` negotiation (contradicts plan §8's
     "likely keep-in-shell" guess for Issue #2) — CONFIRM before init() work.
   - **`getUserPresences`** has no core-v3 primitive → `keep-in-shell` (new).
-- **Next action:** finish **Phase 2b** — `createGroupRoom` via `GroupChatBuilder` (which
-  wraps `roomAdapter.createRoom`; old REMAPS the response to
-  `{id,name,lastCommentId,lastCommentMessage,lastTopicId,avatarURL,options,participants[]}` —
-  check `deps.roomAdapter.createGroup` then remap, likely a new `to-v2` helper +
-  `createRoom`-shaped parity test; also emits `'group-room-created'`). Then the
-  `makeV2Requester` delete-params fix + `clearRoomMessages`, then Phase 3 (messages). Also
-  still open: deferred `getNonce`, reviewing `docs/v2-core-v3-gaps.md`.
+- **Next action:** Phase 2 construction + transform methods are DONE. Remaining before
+  Phase 3: (1) the `makeV2Requester` `delete`-branch fix (append `queryString(api.params)`)
+  → then `clearRoomMessages`; (2) the Phase 2 read stragglers `getParticipants`/
+  `getRoomParticipants`/`getRoomsInfo` (map old adapter shapes → `deps.roomAdapter`
+  `getParticipantList`/`getRoomInfo`). Then **Phase 3 — Messages** (`v2-on-core-v3-plan.md`
+  §9): `loadComments`/`loadMore`/send/resend/delete/status/upload/generators via
+  `deps.messageAdapter` + `rawCommentToV2`, preserving optimistic-send + `_pendingComments`
+  + `selected.comments` mutations. Also still open: deferred `getNonce`, reviewing
+  `docs/v2-core-v3-gaps.md`.
 
 ---
 

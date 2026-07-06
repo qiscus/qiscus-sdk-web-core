@@ -137,3 +137,33 @@ export function rawUserToV2(raw) {
     username: raw.username ?? raw.name,
   }
 }
+
+/**
+ * Remaps a raw `create_room` response envelope into the summary object the old
+ * `roomAdapter.createRoom` resolved with (`lib/adapters/room.js:73-88`) — NOT a
+ * `new Room(...)` input. `createGroupRoom` (via `GroupChatBuilder`) resolved and
+ * emitted exactly this shape, so it must be reproduced byte-for-byte.
+ *
+ * @param {object} raw - the raw `create_room` response envelope
+ *   (`{status, results: {room, comments}}`).
+ * @returns {{id, name, lastCommentId, lastCommentMessage, lastTopicId,
+ *   avatarURL, options, participants: Array<{id, email, username, avatarURL}>}}
+ */
+export function rawCreatedRoomToV2(raw) {
+  const room = raw.results.room
+  return {
+    id: room.id,
+    name: room.room_name,
+    lastCommentId: room.last_comment_id,
+    lastCommentMessage: room.last_comment_message,
+    lastTopicId: room.last_topic_id,
+    avatarURL: room.avatar_url,
+    options: room.options,
+    participants: room.participants.map((participant) => ({
+      id: participant.id,
+      email: participant.email,
+      username: participant.username,
+      avatarURL: participant.avatar_url,
+    })),
+  }
+}

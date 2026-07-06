@@ -12,13 +12,13 @@ import RoomAdapter from './lib/adapters/room'
 import MqttAdapter from './lib/adapters/mqtt'
 import CustomEventAdapter from './lib/adapters/custom-event'
 import SyncAdapter from './lib/adapters/sync'
-import { delayed, GroupChatBuilder } from './lib/utils'
+import { delayed } from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from '@qiscus/core-v3'
 import { ExpiredTokenAdapter } from './lib/adapters/expired-token'
 import { makeDeps } from './compat/deps'
-import { rawRoomToV2 } from './compat/to-v2'
+import { rawRoomToV2, rawCreatedRoomToV2 } from './compat/to-v2'
 
 // helper for setup publishOnlinePresence status
 let setBackToOnline
@@ -1801,15 +1801,24 @@ class QiscusSDK {
    * @param {string[]} emails - Participant to be invited
    * @returns {Promise.<Room, Error>} - Room detail
    */
-  createGroupRoom(name, emails, options) {
+  createGroupRoom(name, emails, options = {}) {
     const self = this
     if (!this.isLogin) throw new Error('Please initiate qiscus SDK first')
-    return new GroupChatBuilder(this.roomAdapter)
-      .withName(name)
-      .withOptions(options)
-      .addParticipants(emails)
-      .create()
-      .then((res) => {
+    // Phase 2b (docs/v2-on-core-v3-plan.md §9). Re-platformed off
+    // `GroupChatBuilder`/`roomAdapter.createRoom` onto core-v3's raw room
+    // adapter: `createGroup` hits the same `create_room` POST. The old
+    // adapter REMAPPED the response to a summary object (not a `Room`);
+    // `rawCreatedRoomToV2` reproduces that exact shape (pinned in
+    // compat/to-v2.test.js + compat/phase2b.parity.test.js). `GroupChatBuilder`
+    // only deduped participants and forwarded name/options — `createGroupRoom`
+    // already passes `emails` straight through, so it is inlined here. Old
+    // body-level envelope-status reject reproduced as `{status, body}`; the
+    // `'group-room-created'` emit + resolved value are unchanged.
+    return self.deps.roomAdapter
+      .createGroup(name, emails, options.avatarURL, options)
+      .then((raw) => {
+        if (raw.status !== 200) return Promise.reject({ status: 200, body: raw })
+        const res = rawCreatedRoomToV2(raw)
         self.events.emit('group-room-created', res)
         return Promise.resolve(res)
       })
