@@ -1,4 +1,5 @@
 import request from 'superagent'
+import throttle from 'lodash.throttle'
 import mitt from 'mitt'
 import is from './lib/is'
 import format from 'date-fns/format'
@@ -2430,10 +2431,33 @@ class QiscusSDK {
 
     if (!isAbleToRunCommand) return false
 
-    this.userAdapter
-      .updateCommentStatus(roomId, commentId1, commentId2)
-      .catch((err) => { })
+    this._updateCommentStatusViaCore(roomId, commentId1, commentId2)
+      ?.catch((err) => { })
   }
+
+  /**
+   * Phase 3 (docs/v2-on-core-v3-plan.md §9) transport for read/received
+   * receipts, replacing the old `userAdapter.updateCommentStatus`. That old
+   * method was a single `lodash.throttle(fn, 500)` at the adapter instance
+   * level, dispatching read-vs-received inside one throttled fn — so this is a
+   * single combined `throttle` over a dispatch to core-v3's `markAsRead`/
+   * `markAsDelivered` (Fable-reviewed: reproduces lodash leading+trailing
+   * coalescing across interleaved read/received calls; two separate throttles
+   * would NOT). The inner fn returns the adapter promise so the throttle's
+   * suppressed-call return + `_updateStatus`'s fire-and-forget `?.catch` behave
+   * as before. `Api.updateCommentStatus` emits the same
+   * `{room_id, last_comment_read_id?, last_comment_received_id?}` body (unset
+   * ids serialize away). Divergence vs old: this throttle lives for the
+   * `QiscusSDK` instance lifetime rather than being recreated per login with
+   * `userAdapter` — a ≤500ms window straddling a re-login, negligible.
+   */
+  _updateCommentStatusViaCore = throttle(
+    (roomId, readId, receivedId) => {
+      if (readId != null) return this.deps.messageAdapter.markAsRead(roomId, readId)
+      if (receivedId != null) return this.deps.messageAdapter.markAsDelivered(roomId, receivedId)
+    },
+    500
+  )
 
   _readComment = (roomId, commentId) => this._updateStatus(roomId, commentId)
   _readCommentT = this._throttle(
