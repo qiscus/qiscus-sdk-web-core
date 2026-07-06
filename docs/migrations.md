@@ -174,15 +174,19 @@
     hardcode = data-loss risk via the query-param builders; not a re-platform target).
   - **MUST-FIX still open — `loadComments` drops `options.timestamp`** (public API →
     different comments). Needs the gated `getComment` timestamp encoder fix below.
-- **Next action — GATED core-v3 encoder batch (awaiting user OK; Fable-endorsed, widen-only
-  + pin v3 wire per encoder):** (1) add `timestamp` to `Api.getComment` + `getMessages`
-  raw adapter → then un-drop `loadComments` timestamp; (2) add `page`/`limit` to
-  `Api.getRoomParticipants` → then wire `getParticipants`. Precedent: the approved
-  `getOrCreateRoomWithUniqueId` fix (`3f21795`). Then remaining Phase 3: `updateMessage`
-  (IQMessage shape map), `upload`/`sendFileMessage` (multipart), `getRoomsInfo` straggler
-  (default-value handling); `searchMessages` likely stays (deprecated → different
-  `searchMessagesV2` API). Then Phase 4 (realtime/`init()`), Phase 5 (cleanup). Also still
-  open: deferred `getNonce`, reviewing `docs/v2-core-v3-gaps.md`.
+- **Gated encoder batch DONE (`361f429`, approved):** `Api.getComment` emits `timestamp`
+  (v3-neutral) → `loadComments` timestamp must-fix resolved; `Api.getRoomParticipants` emits
+  `page`/`limit` → `getParticipants` wired. **v3 side effect flagged:** the latter also fixes
+  v3's previously-broken `getParticipants` pagination (v3 forwards page/limit) — a strict
+  bugfix, no test breaks. compat 42/42, core-v3 74, both builds green.
+- **Next action — remaining Phase 3 (lower priority):** `updateMessage` (map v2 message →
+  `deps.messageAdapter.updateMessage`/IQMessage shape), `upload`/`sendFileMessage` (multipart
+  — check core-v3 `getFileList`/upload support), `getRoomsInfo` straggler (default-value
+  handling). BY DESIGN staying on legacy: `deleteComment`/`clearRoomMessages` (Fable: JSON
+  body + hardcoded flags), `getRoomParticipants` (deprecated), `searchMessages` (deprecated →
+  `searchMessagesV2`). Then **Phase 4** (realtime/`init()`, riskiest — 4a core-v3 raw-stream
+  split + 4b v2 bridge), **Phase 5** (cleanup: delete dead `lib/adapters/*` + v2 SyncAdapter).
+  Also still open: deferred `getNonce`, reviewing `docs/v2-core-v3-gaps.md`.
 
 ---
 
