@@ -1105,7 +1105,11 @@ class QiscusSDK {
     // `{status, body}` — see compat/requester.js). Divergences vs old, both
     // accepted: `emails` is sent as `[userId]` (array) not a bare string, and
     // the old buggy `distinctId` param (`params[distinctId]=distinctId`) is
-    // dropped. The `.then(async (resp) => ...)` body below is UNCHANGED.
+    // dropped (strictly safer — the old key could collide with `emails`). Edge:
+    // an explicit `chatTarget(userId, null)` sends `options: 'null'`
+    // (`JSON.stringify(null)`) where old sent no `options` key (`if (options)`);
+    // the default `{}` covers the normal call. The `.then(async (resp) => ...)`
+    // body below is UNCHANGED.
     return this.deps.roomAdapter
       .chatUser(userId, options)
       .then((raw) => {
@@ -1701,6 +1705,12 @@ class QiscusSDK {
    * send orchestration around each call site (`_pendingComments` retry,
    * `markAsSent`, `comment-sent`/callbacks, `selected.comments` mutation) is
    * UNCHANGED — only the transport swaps. Anchored in compat/phase3.parity.test.js.
+   *
+   * MUST be called with a non-nullish `uniqueId`: core-v3's `sendMessage`
+   * substitutes `javascript-<nanoid>` for a nullish one, whereas old
+   * `postComment` sent `unique_temp_id: null` through. All call sites here pass
+   * `prepareCommentToBeSubmitted`'s `'bq'+Date.now()` id, so this stays
+   * unreachable — do not introduce a nullish-id caller.
    */
   _postCommentViaCore(topicId, message, uniqueId, type, payload, extras) {
     return this.deps.messageAdapter
@@ -1831,7 +1841,7 @@ class QiscusSDK {
    * @param {string[]} emails - Participant to be invited
    * @returns {Promise.<Room, Error>} - Room detail
    */
-  createGroupRoom(name, emails, options = {}) {
+  createGroupRoom(name, emails, options) {
     const self = this
     if (!this.isLogin) throw new Error('Please initiate qiscus SDK first')
     // Phase 2b (docs/v2-on-core-v3-plan.md §9). Re-platformed off
@@ -1844,6 +1854,19 @@ class QiscusSDK {
     // already passes `emails` straight through, so it is inlined here. Old
     // body-level envelope-status reject reproduced as `{status, body}`; the
     // `'group-room-created'` emit + resolved value are unchanged.
+    //
+    // NB `options` intentionally has NO default: the old path read
+    // `options.avatarURL` unconditionally (via `GroupChatBuilder.create` ->
+    // `roomAdapter.createRoom(name, emails, {avatarURL: options.avatarURL}, options)`),
+    // so a call with no `options` threw `TypeError` synchronously and fired no
+    // request — reproduced here by leaving `options` undefined.
+    //
+    // Accepted wire divergences (Fable-reviewed; not observable in the
+    // resolved value, which comes from the response): the `create_room` body
+    // sends `participants` (JSON array) instead of old urlencoded
+    // `participants[]`, and `options: JSON.stringify(options)` — so an empty
+    // `{}` serializes to `"{}"` where the old adapter sent `null` for an empty
+    // options object. Both are backend-proven by version-3 in prod.
     return self.deps.roomAdapter
       .createGroup(name, emails, options.avatarURL, options)
       .then((raw) => {

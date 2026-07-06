@@ -114,10 +114,15 @@ async function settle(fn, input) {
     const value = await fn(input)
     return { type: 'resolved', value }
   } catch (err) {
+    // Prefer the superagent-shaped `err.response.{status,body}` (real
+    // HttpAdapter errors + makeStubHttpAdapter rejections). Fall back to
+    // `err.{status,body}` so reconstructed `{status, body}` rejects (the
+    // re-platformed envelope-status path) and old whole-`res` rejects are
+    // compared on their real fields instead of both collapsing to `undefined`.
     return {
       type: 'rejected',
-      status: err?.response?.status,
-      body: err?.response?.body,
+      status: err?.response?.status ?? err?.status,
+      body: err?.response?.body ?? err?.body,
       message: err?.message,
     }
   }
