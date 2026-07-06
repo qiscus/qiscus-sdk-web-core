@@ -190,8 +190,19 @@
   `searchMessagesV2` API); `getRoomParticipants` (deprecated + `offset`); `getUserPresences`
   (no primitive); `getNonce` (pre-auth headers). Message generators
   (`generateMessage`/etc.) are pure-local (build `Comment`, no adapter → no re-platform).
-- **Phase 4 (realtime) — Fable review (2026-07-06): RECOMMEND NOT re-platforming realtime;
-  keep v2 MqttAdapter/SyncAdapter/CustomEventAdapter as the PERMANENT v2-native layer.**
+- **PRIMARY GOAL CLARIFIED (2026-07-06, user):** the objective is **single source of truth**
+  — rework ALL of v2 so v2 and v3 share ONE implementation in core-v3, so a NEW feature is
+  written ONCE and both shells get it (never twice). This OVERRIDES cost/risk-minimization
+  framing. Implications: (a) realtime must ALSO be unified (Fable's "keep v2-native" below
+  optimized the wrong objective — it leaves realtime logic in two places); (b) the
+  "keep-in-shell PERMANENTLY" items (`upload`/`getUserPresences`/`deleteComment` etc.) should
+  be revisited — permanent shell-only duplication conflicts with single-source; the right
+  long-term move is adding the missing primitives to core-v3 (gated). Byte-for-byte v2 public
+  behavior stays binding, reconciled via THIN per-shell adapters over a shared core.
+  A reframed Fable consult (architecture for realtime-as-single-source via a shared
+  parser + thin per-shell adapters) is in flight.
+- **Phase 4 (realtime) — Fable review #1 (2026-07-06): recommended NOT re-platforming realtime
+  (SUPERSEDED by the goal clarification above — kept for the concrete parity findings).**
   Rationale (grounded in code): realtime has no server-contract duplication worth extracting
   (unlike HTTP); v2's raw emit shapes ARE the contract and core-v3's DECODED events lose data
   v2 needs — `room::cleared` emits only `roomId` not the full room w/ `unique_id`
