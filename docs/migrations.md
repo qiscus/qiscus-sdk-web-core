@@ -203,11 +203,27 @@
   SyncAdapter); no test harness protects v2 emit shapes. Bidirectional-parity argument runs
   BACKWARDS: v2 has realtime features v3 lacks → correct work is porting `r/+/typing` UP into
   core-v3, not v2 down.
-  - **Recommended Phase 4 (pending user decision):** (1) declare v2 realtime permanent
-    v2-native; (2) limit `init()` changes to core-v3 storage/auth coherence (token refresh,
-    broker-URL sync) WITHOUT touching emit paths; (3) optionally port `r/{roomId}/typing` into
-    core-v3 as a v3 feature (separate commit, gated by 74 tests); (4) if consolidation is ever
-    revisited, first write characterization tests pinning v2's mitt payloads.
+  - **USER DECISION (2026-07-06): proceed with the FULL realtime re-platform anyway** (over
+    Fable's recommendation). Following Fable's guidance for this path (characterization tests
+    first; firehose option b):
+    - **Characterization tests DONE** (`17427ec`): `compat/phase4.mqtt-characterization.test.js`
+      pins every v2 MqttAdapter mitt emit shape (20 cases) — the parity anchor.
+    - **Phase 4a DONE** (`7cceec5`): core-v3 `mqtt.ts` raw firehose — `mqtt::message` event +
+      `onMessage(topic, payload)`, emitted for EVERY message before decode. Purely additive;
+      74 core-v3 tests + version-3 build green.
+    - **Phase 4b parse-core DONE** (`b2646c1`): `compat/realtime-bridge.js`
+      `makeRealtimeParser(core)` reuses v2's exact matcher+handlers (Object.create, no
+      connect) driven by the firehose → byte-identical emits (`realtime-bridge.test.js`, 9
+      cases; compat 73/73).
+    - **Phase 4b REMAINING (the big/risky integration):** (a) connection + subscribe/publish
+      facade — the ~20 `realtimeAdapter.*` methods `index.js` calls (`subscribeChannel`,
+      `subscribeRoom`, `publishTyping`, `subscribeUserChannel`, `disconnect`, buffered
+      `subscribe`/`publish`, ...) delegating to core-v3's `getMqttAdapter`; (b) the 3.5s
+      presence-heartbeat difference (core-v3 has it, v2 doesn't — decide: disable when v2
+      drives, or accept); (c) `custom-event.js` reaches into `mqttAdapter.mqtt.on('message')`
+      directly — needs a seam; (d) swap `init()` (~L328) to build the bridge instead of
+      `new MqttAdapter(...)`, keeping `mqttURL` getter/setter + all `options.*Callback`; (e)
+      keep v2 SyncAdapter (sync path stays v2-native — core-v3 sync emits decoded-only).
   - **Phase 5 revision:** do NOT delete v2 SyncAdapter/MqttAdapter/CustomEventAdapter — they
     stay. Cleanup is limited to any HTTP-path `lib/adapters/*` that became truly dead after
     Phases 1-3 (user/room/http where all methods migrated) — audit refs first.
