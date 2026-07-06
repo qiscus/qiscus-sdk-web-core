@@ -15,6 +15,8 @@ export { getMessageAdapter } from './adapters/message'
 export { default as getUserAdapterRaw } from './adapters/user.raw'
 export { getRoomAdapterRaw } from './adapters/room.raw'
 export { getMessageAdapterRaw } from './adapters/message.raw'
+export { parseRealtimeEvent } from './adapters/realtime-parser'
+export type { CanonicalEvent, DeletedMessage } from './adapters/realtime-parser'
 
 // Model types
 export type { IQUser, IQAccount, IQParticipant, IQMessage, IQChatRoom } from './v3/model'
