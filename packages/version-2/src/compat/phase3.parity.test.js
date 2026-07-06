@@ -114,6 +114,48 @@ describe('compat/phase3 parity (message read path)', () => {
     }
   })
 
+  it('updateMessage: old userAdapter.updateMessage vs new resolve/reject identically', async () => {
+    const msg = { message: 'edited', unique_id: 'u1', extras: { e: 1 }, payload: { p: 2 } }
+    const happy = { status: 200, results: { comment: { id: 5, message: 'edited', unique_temp_id: 'u1' } } }
+
+    const result = await compareParity({
+      reference: ({ response }) => new User(makeStubHttpAdapter(response)).updateMessage(msg),
+      candidate: ({ response }) => QiscusSDK.prototype.updateMessage.call(makeFakeSelf(makeStubHttpAdapter(response)), msg),
+      cases: [
+        { name: '200 resolves results.comment', input: { response: { status: 200, body: happy } } },
+        ...[400, 403, 500].map((status) => ({
+          name: `HTTP ${status} rejects identically`,
+          input: { response: { status, body: { error: { message: `err-${status}` } } } },
+        })),
+      ],
+    })
+
+    if (result.firstDivergence) {
+      throw new Error('parity divergence: ' + JSON.stringify(result.firstDivergence, null, 2))
+    }
+  })
+
+  it('getRoomsInfo: old userAdapter.getRoomsInfo vs new getRoomInfo resolve/reject identically', async () => {
+    const params = { room_ids: [1, 2], room_unique_ids: ['uq-a'], show_participants: true, show_removed: false }
+    const happy = { status: 200, results: { rooms_info: [{ id: 1 }, { id: 2 }] } }
+
+    const result = await compareParity({
+      reference: ({ response }) => new User(makeStubHttpAdapter(response)).getRoomsInfo(params),
+      candidate: ({ response }) => QiscusSDK.prototype.getRoomsInfo.call(makeFakeSelf(makeStubHttpAdapter(response)), params),
+      cases: [
+        { name: '200 resolves the raw body', input: { response: { status: 200, body: happy } } },
+        ...[400, 403, 500].map((status) => ({
+          name: `HTTP ${status} rejects identically`,
+          input: { response: { status, body: { error: { message: `err-${status}` } } } },
+        })),
+      ],
+    })
+
+    if (result.firstDivergence) {
+      throw new Error('parity divergence: ' + JSON.stringify(result.firstDivergence, null, 2))
+    }
+  })
+
   it('getParticipants: old get_request().query() vs new getParticipantList resolve/reject identically', async () => {
     const happy = { status: 200, results: { participants: [{ id: 1, email: 'a' }], meta: { total: 1 } } }
 

@@ -2202,8 +2202,30 @@ class QiscusSDK {
    * @returns
    * @memberof QiscusSDK
    */
-  getRoomsInfo(params) {
+  /** TEMPORARY Phase 3 parity reference — see comment above `_legacyGetUsers`. */
+  _legacyGetRoomsInfo(params) {
     return this.userAdapter.getRoomsInfo(params)
+  }
+
+  /**
+   * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
+   * §9) — same `api/v2/sdk/rooms_info` POST, resolves the raw `res.body`
+   * envelope exactly like the old `userAdapter.getRoomsInfo`. Reproduces the
+   * old adapter's default/quirk: `show_participants` defaults `true` (the old
+   * `if (opts.show_participants)` guard could never set it `false`, so
+   * `params.show_participants || true` matches), `show_removed` defaults
+   * `false`. Accepted wire divergence: `Api.getRoomInfo` stringifies
+   * `room_id` entries (`.map(String)`) where old sent them as-is; version-3
+   * already sends them stringified in prod.
+   */
+  getRoomsInfo(params) {
+    return this.deps.roomAdapter.getRoomInfo(
+      params.room_ids,
+      params.room_unique_ids,
+      undefined,
+      params.show_removed || false,
+      params.show_participants || true
+    )
   }
 
   deleteComment(roomId, commentUniqueIds, isForEveryone, isHard) {
@@ -2737,8 +2759,31 @@ class QiscusSDK {
     return comment
   }
 
-  async updateMessage(message) {
+  /** TEMPORARY Phase 3 parity reference — see comment above `_legacyGetUsers`. */
+  async _legacyUpdateMessage(message) {
     return this.userAdapter.updateMessage(message)
+  }
+
+  /**
+   * Re-platformed on core-v3's raw message adapter (docs/v2-on-core-v3-plan.md
+   * §9 Phase 3) — same `api/v2/sdk/update_message` POST. `Api.updateMessage`'s
+   * encoder emits the byte-identical body (`{token, comment, unique_id,
+   * extras?, payload?}`), so mapping v2's message shape (`message.message` ->
+   * `text`, `message.unique_id || message.unique_temp_id` -> `uniqueId`) onto
+   * `deps.messageAdapter.updateMessage` reproduces the old request. The raw
+   * adapter reads `token` from storage (seeded from `HTTPAdapter.token`, same
+   * value the old adapter used). Resolved value (`results.comment`) is
+   * unchanged; the old method had no envelope-status check either.
+   */
+  async updateMessage(message) {
+    return this.deps.messageAdapter
+      .updateMessage({
+        text: message.message,
+        uniqueId: message.unique_id || message.unique_temp_id,
+        extras: message.extras,
+        payload: message.payload,
+      })
+      .then((body) => body.results.comment)
   }
   onMessageUpdated(handler) {
     this.realtimeAdapter.on('message:updated', handler)
