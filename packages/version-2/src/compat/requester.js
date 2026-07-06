@@ -53,12 +53,24 @@ function stripOrigin(url) {
  */
 export function queryString(params) {
   if (params == null) return ''
-  const keys = Object.keys(params).filter((key) => params[key] != null)
-  if (keys.length === 0) return ''
-  const qs = keys
-    .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
-    .join('&')
-  return `?${qs}`
+  const parts = []
+  for (const key of Object.keys(params)) {
+    const value = params[key]
+    if (value == null) continue
+    if (Array.isArray(value)) {
+      // Repeated `key[]=v` — axios's default array serialization, i.e. what
+      // core-v3's own axios requester sends, so an array query param is
+      // wire-identical to what version-3 already exercises in prod.
+      for (const item of value) {
+        if (item == null) continue
+        parts.push(`${encodeURIComponent(key)}[]=${encodeURIComponent(item)}`)
+      }
+    } else {
+      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    }
+  }
+  if (parts.length === 0) return ''
+  return `?${parts.join('&')}`
 }
 
 /**
@@ -134,7 +146,16 @@ export function makeV2Requester(httpAdapter) {
           return res.body
         }
         case 'delete': {
-          const res = await httpAdapter.del(path, api.body, {})
+          // Forward `api.params` as a query string too (not just `api.body`).
+          // core-v3 delete builders can carry their args as params (e.g.
+          // `Api.deleteMessages`/`Api.clearRooms` put arrays in `useParams`);
+          // dropping them here would fire a DELETE with no args. NOTE: v2's
+          // own `deleteComment`/`clearRoomMessages` deliberately stay on the
+          // legacy `userAdapter` (they send a JSON body, and their flags/wire
+          // aren't safely reproducible via these query-param builders — see
+          // docs/migrations.md, Fable review) — this branch is defensive
+          // correctness for any core-v3 delete that IS routed through the shim.
+          const res = await httpAdapter.del(path + queryString(api.params), api.body, {})
           return res.body
         }
         default:

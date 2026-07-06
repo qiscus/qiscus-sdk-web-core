@@ -81,6 +81,38 @@ describe('compat/requester', () => {
       ])
     })
 
+    it('forwards api.params as a query string on DELETE (not just api.body)', async () => {
+      const http = makeFakeHttpAdapter({ del: { ok: true } })
+      const requester = makeV2Requester(http)
+
+      await requester.request({
+        method: 'delete',
+        url: '/clear_room_messages',
+        params: { room_channel_ids: ['a', 'b'] },
+        baseUrl: 'https://x/api/v2/sdk',
+      })
+
+      expect(http.calls[0].method).to.equal('del')
+      // arrays serialize as repeated `key[]=v` (axios default)
+      expect(http.calls[0].path).to.equal(
+        'api/v2/sdk/clear_room_messages?room_channel_ids[]=a&room_channel_ids[]=b'
+      )
+    })
+
+    it('serializes array query params as repeated key[]=v on GET', async () => {
+      const http = makeFakeHttpAdapter({ get: {} })
+      const requester = makeV2Requester(http)
+
+      await requester.request({
+        method: 'get',
+        url: '/x',
+        params: { ids: [1, 2], q: 'hi', skip: null },
+        baseUrl: 'https://x/api/v2/sdk',
+      })
+
+      expect(http.calls[0].path).to.equal('api/v2/sdk/x?ids[]=1&ids[]=2&q=hi')
+    })
+
     it('falls back to the plain path when no baseUrl is provided', async () => {
       const http = makeFakeHttpAdapter({ get: { ok: true } })
       const requester = makeV2Requester(http)
