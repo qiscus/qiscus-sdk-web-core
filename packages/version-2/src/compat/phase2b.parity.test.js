@@ -115,4 +115,40 @@ describe('compat/phase2b parity (room getRoomById data-source swap)', () => {
       throw new Error('parity divergence: ' + JSON.stringify(result.firstDivergence, null, 2))
     }
   })
+
+  // getOrCreateRoomByUniqueId's re-platform = data-source swap + rawRoomToV2 in
+  // useRoomName mode. Old `roomAdapter.getOrCreateRoomByUniqueId` resolved a
+  // MASSAGED room (avatar / reversed comments / name = room_name); the new path
+  // is `getChannel(...)` (raw envelope) -> `rawRoomToV2(..., {useRoomName})`.
+  // Anchored on the object fed to the unchanged downstream body.
+  it('getOrCreateRoomByUniqueId input: old vs new getChannel+rawRoomToV2 match', async () => {
+    const body = {
+      status: 200,
+      results: {
+        room: {
+          id: 77,
+          room_name: 'Channel name',
+          avatar_url: 'http://a/c.png',
+          last_comment_id: 3,
+          unique_id: 'uq-77',
+        },
+        comments: [{ id: 3 }, { id: 2 }, { id: 1 }],
+      },
+    }
+
+    const clone = (r) => JSON.parse(JSON.stringify(r))
+    const result = await compareParity({
+      reference: ({ response }) =>
+        new RoomAdapter(makeStubHttpAdapter(clone(response))).getOrCreateRoomByUniqueId('uq-77', 'Channel name', 'http://a/c.png'),
+      candidate: ({ response }) =>
+        makeRawRoomAdapter(makeStubHttpAdapter(clone(response)))
+          .getChannel('uq-77', 'Channel name', 'http://a/c.png')
+          .then((raw) => rawRoomToV2(raw.results.room, { comments: raw.results.comments, useRoomName: true })),
+      cases: [{ name: '200 massaged room matches', input: { response: { status: 200, body } } }],
+    })
+
+    if (result.firstDivergence) {
+      throw new Error('parity divergence: ' + JSON.stringify(result.firstDivergence, null, 2))
+    }
+  })
 })

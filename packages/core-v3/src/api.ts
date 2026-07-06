@@ -224,6 +224,14 @@ export const getOrCreateRoomWithUniqueId: ApiRequest<
   useCredentials(),
   useBody((o) => ({
     unique_id: o.uniqueId,
+    // `name`/`avatar_url` were declared on this request's params but never
+    // emitted in the body — a latent miss. The v3 shell's `getChannel` only
+    // ever passes `uniqueId` (so for v3 these stay `undefined` and are dropped,
+    // leaving its wire request unchanged), but v2's `getOrCreateRoomByUniqueId`
+    // sets a channel name/avatar on create and needs them sent — matching the
+    // old `lib/adapters/room.js` body `{unique_id, name, avatar_url}`.
+    name: o.name,
+    avatar_url: o.avatarUrl,
   }))
 )
 

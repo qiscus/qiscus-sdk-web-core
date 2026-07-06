@@ -1245,8 +1245,26 @@ class QiscusSDK {
     self.isLoading = true
     self.isTypingStatus = ''
 
-    return self.roomAdapter
-      .getOrCreateRoomByUniqueId(id, roomName, avatarURL)
+    // Phase 2b (docs/v2-on-core-v3-plan.md §9). Data-source swap to core-v3's
+    // raw room adapter: `getChannel` hits the same
+    // `get_or_create_room_with_unique_id` POST — its `Api` encoder now emits
+    // `{unique_id, name, avatar_url}` to match old v2 (the gated core-v3 fix,
+    // approved; v3's own `getChannel(uniqueId)` still sends only `unique_id`).
+    // `rawRoomToV2` in `useRoomName` mode reconstructs the object the old
+    // `roomAdapter.getOrCreateRoomByUniqueId` handed to `new Room(...)`
+    // (avatar alias, reversed comments, `name = room_name`) — pinned in
+    // compat/to-v2.test.js + compat/phase2b.parity.test.js. Old adapter's
+    // body-level envelope-status reject reproduced as `{status, body}`. The
+    // `.then(async (response) => ...)` body below is UNCHANGED.
+    return self.deps.roomAdapter
+      .getChannel(id, roomName, avatarURL)
+      .then((raw) => {
+        if (raw.status !== 200) return Promise.reject({ status: 200, body: raw })
+        return rawRoomToV2(raw.results.room, {
+          comments: raw.results.comments,
+          useRoomName: true,
+        })
+      })
       .then(async (response) => {
         // make sure the room hasn't been pushed yet
         let room = new Room(response)

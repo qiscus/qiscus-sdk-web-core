@@ -79,8 +79,15 @@
       `chatUser`+`rawRoomToV2` output). Accepted divergences: `emails` sent as `[userId]`
       array, old buggy `distinctId` param dropped. compat 35/35, build green, v2 `test/**`
       still 18/3 (unchanged).
-    - **Phase 2b remaining (room CONSTRUCTION):** `getOrCreateRoomByUniqueId`/
-      `createGroupRoom` — these need `rawRoomToV2`
+    - **Phase 2b — `getOrCreateRoomByUniqueId` DONE (this commit, incl. approved gated
+      core-v3 fix):** added `name`/`avatar_url` to `Api.getOrCreateRoomWithUniqueId`'s body
+      encoder (was `{unique_id}`-only) — v3 unchanged (its `getChannel(uniqueId)` passes
+      neither, so they stay `undefined`/dropped; core-v3 74 tests + version-3 build green).
+      Re-platformed `getOrCreateRoomByUniqueId` onto `deps.roomAdapter.getChannel` +
+      `rawRoomToV2({useRoomName:true})`; `getOrCreateRoomByChannel` rides along (delegates).
+      Anchored by a `compat/phase2b.parity.test.js` case (old vs new massaged room). compat
+      36/36, v2 `test/**` 18/3 unchanged.
+    - **Phase 2b remaining (room CONSTRUCTION):** `createGroupRoom` — needs `rawRoomToV2`
       reconstruction (old room adapter massages: `avatar` alias, `comments.reverse()`,
       rival/`room_name` naming) + preserving side effects (`setActiveRoom`/`readComment`/
       `subscribeChannel`/`MESSAGE_BEFORE_RECEIVED` hooks/events). Anchor parity at the
@@ -111,15 +118,13 @@
     `setterHelper`/`mqttWssCheck` `api/v2/sdk/config` negotiation (contradicts plan §8's
     "likely keep-in-shell" guess for Issue #2) — CONFIRM before init() work.
   - **`getUserPresences`** has no core-v3 primitive → `keep-in-shell` (new).
-- **Next action:** finish **Phase 2b** — (1) PROPOSE the core-v3
-  `getOrCreateRoomWithUniqueId` encoder fix (gated: add `name`/`avatar_url`/`options` to the
-  body) then wire `getOrCreateRoomByUniqueId`/`getOrCreateRoomByChannel` (via
-  `deps.roomAdapter.getChannel` + `rawRoomToV2({useRoomName:true})`); (2) `createGroupRoom`
-  via `GroupChatBuilder` (which wraps `roomAdapter.createRoom` — old REMAPS the response to
-  `{id,name,lastCommentId,…,participants[]}`; check `deps.roomAdapter.createGroup` +
-  remap/`rawRoomToV2`). Then the `makeV2Requester` delete-params fix + `clearRoomMessages`,
-  then Phase 3 (messages). Also still open: deferred `getNonce`, reviewing
-  `docs/v2-core-v3-gaps.md`.
+- **Next action:** finish **Phase 2b** — `createGroupRoom` via `GroupChatBuilder` (which
+  wraps `roomAdapter.createRoom`; old REMAPS the response to
+  `{id,name,lastCommentId,lastCommentMessage,lastTopicId,avatarURL,options,participants[]}` —
+  check `deps.roomAdapter.createGroup` then remap, likely a new `to-v2` helper +
+  `createRoom`-shaped parity test; also emits `'group-room-created'`). Then the
+  `makeV2Requester` delete-params fix + `clearRoomMessages`, then Phase 3 (messages). Also
+  still open: deferred `getNonce`, reviewing `docs/v2-core-v3-gaps.md`.
 
 ---
 
