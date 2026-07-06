@@ -96,11 +96,25 @@
       → **Phase 2 room-construction methods are now COMPLETE** (chatTarget, chatGroup,
       getRoomById, getOrCreateRoomByUniqueId/ByChannel, createGroupRoom) + the transform
       methods (Phase 2a).
-    - **Phase 2 stragglers still open (room reads/local):** `getParticipants`,
-      `getRoomParticipants`, `getRoomsInfo` (read methods, not yet re-platformed);
-      `removeSelectedRoomParticipants` + `clearRoomsCache` are pure-local (no adapter → no
-      re-platform); `clearRoomMessages` still DEFERRED on the `makeV2Requester` delete-params
-      fix. Original scope note (for reference): `chatTarget`/`getOrCreateRoomByUniqueId`/
+    - **Phase 2 stragglers DEFERRED as a batch (need gated core-v3 encoder fixes / wire
+      review — raise with Fable):**
+      - `getParticipants` — `Api.getRoomParticipants` encoder emits only
+        `{room_unique_id, sorting}`, DROPS the `page`/`limit` old v2 sent (same latent-miss
+        class as the approved `getOrCreateRoomWithUniqueId` fix). Needs a gated core-v3 fix
+        (add `page`/`limit` to that encoder) before wiring.
+      - `getRoomParticipants` — DEPRECATED and uses an `offset` param the new adapter's
+        `getParticipantList(uniqueId, page, limit, sorting)` doesn't support. Leave on old
+        path (deprecated) or add `offset` to core-v3 (probably not worth it).
+      - `getRoomsInfo` — resolve-value parity holds (`deps.roomAdapter.getRoomInfo` →
+        raw `res.body`, like old `userAdapter.getRoomsInfo`), but old defaulted
+        `show_participants:true`/`show_removed:false` in the body; the new path must pass
+        those defaults explicitly. Doable, low-risk — can wire after the batch review.
+      - `removeSelectedRoomParticipants` + `clearRoomsCache` are pure-local (no adapter → no
+        re-platform).
+      - `clearRoomMessages` — DEFERRED on the `makeV2Requester` delete-params fix AND a wire
+        question: `Api.clearRooms` sends `room_channel_ids` as an ARRAY query param, old v2
+        sent it as a JSON body — array-in-query serialization + backend acceptance unverified.
+      Original scope note (for reference): `chatTarget`/`getOrCreateRoomByUniqueId`/
       `createGroupRoom` needed `rawRoomToV2`
       reconstruction (old room adapter massages: `avatar` alias, `comments.reverse()`,
       rival/`room_name` naming) + preserving side effects (`setActiveRoom`/`readComment`/
