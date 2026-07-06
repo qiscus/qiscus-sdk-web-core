@@ -226,6 +226,48 @@
       `makeRealtimeParser(core)` reuses v2's exact matcher+handlers (Object.create, no
       connect) driven by the firehose → byte-identical emits (`realtime-bridge.test.js`, 9
       cases; compat 73/73).
+  - **Fable review #2 (2026-07-06, under the single-source goal) — ARCHITECTURE for
+    realtime-as-single-source:** the seam is a SHARED `parseRealtimeEvent(topic, payload)
+    -> CanonicalEvent | null` in core-v3. Decisive finding: v2 and v3 agree on parse steps
+    1-3 (topic classification, payload deserialization, topic-field capture) and diverge ONLY
+    on step 4 (output shaping) — so the canonical layer stops right before the first byte
+    they disagree on. `CanonicalEvent` = discriminated union carrying the DESERIALIZED payload
+    + topic captures as RAW STRINGS (no coercion) + the raw payload string retained for lossy
+    cases (presence `"1:ts"`). Then THIN per-shell adapters: v2 canonical->mitt raw shapes
+    (byte-parity, pinned by `phase4.mqtt-characterization.test.js`); v3 canonical->`Decoder`
+    ->IQ (74 tests). A new realtime feature = one matcher clause + one parse branch in
+    `parseRealtimeEvent` + expose in each shell's adapter → lands once.
+    - **Shared vs per-shell line:** SHARED = union matcher (segment-count classifier, NOT a
+      copy of either shell's regexes) + deserialization (`JSON.parse` for c/n/update/e;
+      `split(':')` for d/r/s; raw string for t) + raw-string field capture + notification
+      `deleted_messages[]`/`deleted_rooms[]` intact. PER-SHELL = numeric coercion (v2 string
+      vs v3 parseInt), fan-out granularity (v2 per-msg-array + full room; v3 per-uniqueId),
+      final decode, side-effects (v2 `isTypingStatus`, self-typing filter), emit
+      name/mechanism, presence raw-string reconstruction.
+    - **Transport policy stays per-shell behind core-v3 capability flags** (NOT in the parser):
+      3.5s heartbeat (v3-only, cross-client-observable → default OFF for v2), LB/reconnect
+      cadence, subscribe/publish buffering, sync-vs-mqtt merge strategy. Rule: union of
+      PARSING features -> core-v3 once; transport/connection POLICY -> thin per-shell.
+    - **`r/{roomId}/typing` (v2-only route) MOVES INTO the shared matcher/parser now** (v2
+      adapter surfaces it; v3 can add `onRoomTyping` later w/o reimplementing).
+    - **Highest-care item — the matcher:** do NOT copy either regex set. v2's `/^(.+)\/c$/` is
+      greedy (swallows `a/b/c`, making `channelMessageHandler` dead code); v3's `/^([\w]+)\/c/`
+      won't match a slash. Shared matcher classifies by SEGMENT COUNT (`x/c`=direct,
+      `x/y/c`=channel); each adapter decides the emit (v2 maps BOTH -> `new-message` raw; v3
+      maps direct->`message::received`, channel->`channel-message::new`).
+    - **SEQUENCING (drive under both test oracles):** (1) build `parseRealtimeEvent` in
+      core-v3 (+ `r/{id}/typing`), unit-test standalone, no shell changes; (2) re-express
+      core-v3's decoded `getMqttHandler` as a v3 adapter OVER canonical, gated by 74 tests
+      (cheapest proof the model is sound); (3) write v2's output adapter canonical->mitt,
+      gated by characterization tests (replace the bridge's guts — stop reusing
+      `MqttAdapter.prototype` handlers); (4) swap v2's bridge to canonical + v2 adapter,
+      gut v2 `MqttAdapter` parse bodies (leave transport facade), re-point `custom-event.js`
+      off `mqtt.mqtt.on('message')`; (5) converge sync parsing onto canonical (keep per-shell
+      fallback policy).
+    - **Bridge verdict:** firehose (4a) = KEEPER (correct transport boundary).
+      `compat/realtime-bridge.js` FILE = keeper as the location of v2's adapter, but its
+      current GUTS (reusing v2 handlers) get replaced in steps 3-4. Characterization tests =
+      permanent keeper.
     - **Phase 4b REMAINING (the big/risky integration):** (a) connection + subscribe/publish
       facade — the ~20 `realtimeAdapter.*` methods `index.js` calls (`subscribeChannel`,
       `subscribeRoom`, `publishTyping`, `subscribeUserChannel`, `disconnect`, buffered
