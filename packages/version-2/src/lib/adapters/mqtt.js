@@ -1,4 +1,6 @@
 import { match, when } from '../match'
+import { parseRealtimeEvent } from '@qiscus/core-v3'
+import { adaptCanonicalToV2 } from '../../compat/realtime-bridge'
 import mitt from 'mitt'
 import connect from 'mqtt/lib/connect'
 import request from 'superagent'
@@ -90,9 +92,16 @@ export default class MqttAdapter {
   }
   __mqtt_message_handler = (t, m) => {
     const message = m.toString()
-    const func = this.matcher(t)
     this.logger('message', t, m)
-    if (func != null) func(message)
+    // Phase 4 single-source (docs/v2-on-core-v3-plan.md §7): classify + parse
+    // via core-v3's shared `parseRealtimeEvent`, then adapt to v2's mitt shapes
+    // (`compat/realtime-bridge.js` `adaptCanonicalToV2`). This supersedes this
+    // adapter's own per-topic handlers/matcher below (now dead — removed in a
+    // follow-up); the emit shapes are pinned by
+    // `compat/realtime-bridge.test.js`. Connection + subscribe/publish facade
+    // stay here (per-shell transport policy).
+    const event = parseRealtimeEvent(t, message)
+    if (event != null) adaptCanonicalToV2(event, (...args) => this.emit(...args), this.core)
   }
   __mqtt_error_handler = (err) => {
     if (err && err.message === 'client disconnecting') return
