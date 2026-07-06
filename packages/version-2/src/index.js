@@ -1312,8 +1312,19 @@ class QiscusSDK {
   }
 
   loadComments(roomId, options = {}) {
-    return this.userAdapter
-      .loadComments(roomId, options)
+    // Phase 3 (docs/v2-on-core-v3-plan.md §9). Data-source swap to core-v3's
+    // raw message adapter: `getMessages` hits the same `load_comments` GET and
+    // resolves the identical raw `{status, results: {comments}}` envelope the
+    // old `userAdapter.loadComments` did — so `.then((raw) => raw.results.comments)`
+    // reproduces its resolved value (the raw comments array), and the
+    // hooks/`receiveComments`/`sortComments` body below is UNCHANGED. Anchored
+    // adapter-level in compat/phase3.parity.test.js. Accepted divergences: the
+    // rarely-used `options.timestamp` param is dropped (core-v3's `getComment`
+    // has no such param), and unset `last_comment_id`/`limit` go as core-v3's
+    // defaults (0 / 20) rather than being omitted from the query.
+    return this.deps.messageAdapter
+      .getMessages(roomId, options.last_comment_id, options.limit, options.after)
+      .then((raw) => raw.results.comments)
       .then(async (comments_) => {
         const comments = []
         for (const comment of comments_) {
@@ -1500,15 +1511,14 @@ class QiscusSDK {
 
     if (self.selected) self.selected.comments.push(messageData)
 
-    const sendComment = () => this.userAdapter
-      .postComment(
-        '' + topicId,
-        messageData.message,
-        messageData.unique_id,
-        messageData.type,
-        messageData.payload,
-        messageData.extras
-      )
+    const sendComment = () => this._postCommentViaCore(
+      '' + topicId,
+      messageData.message,
+      messageData.unique_id,
+      messageData.type,
+      messageData.payload,
+      messageData.extras
+    )
 
     try {
       let res = await sendComment()
@@ -1579,7 +1589,7 @@ class QiscusSDK {
       return Promise.reject(new Error('Exceeding maximum retry count'))
     }
 
-    return this.userAdapter.postComment(
+    return this._postCommentViaCore(
       '' + comment.room_id,
       comment.message,
       comment.unique_id,
@@ -1680,6 +1690,27 @@ class QiscusSDK {
       })
   }
 
+  /**
+   * Phase 3 (docs/v2-on-core-v3-plan.md §9) transport for posting a comment,
+   * replacing `userAdapter.postComment` at every send call site. Routes through
+   * core-v3's raw message adapter (`deps.messageAdapter.sendMessage`), whose
+   * `Api.postComment` encoder emits the byte-identical body (`{topic_id,
+   * comment, unique_temp_id, type, payload, extras}`). Reproduces the old
+   * adapter's body-level envelope-status reject (reconstructed `{status, body}`)
+   * and its resolved value (`results.comment`, the raw comment). The optimistic-
+   * send orchestration around each call site (`_pendingComments` retry,
+   * `markAsSent`, `comment-sent`/callbacks, `selected.comments` mutation) is
+   * UNCHANGED — only the transport swaps. Anchored in compat/phase3.parity.test.js.
+   */
+  _postCommentViaCore(topicId, message, uniqueId, type, payload, extras) {
+    return this.deps.messageAdapter
+      .sendMessage('' + topicId, { text: message, uniqueId, type, payload, extras })
+      .then((body) => {
+        if (body.status !== 200) return Promise.reject({ status: 200, body })
+        return body.results.comment
+      })
+  }
+
   resendComment(comment) {
     if (this.selected == null) return
     var self = this
@@ -1689,15 +1720,14 @@ class QiscusSDK {
     )
 
     const extrasToBeSubmitted = self.extras
-    return this.userAdapter
-      .postComment(
-        '' + room.id,
-        pendingComment.message,
-        pendingComment.unique_id,
-        comment.type,
-        comment.payload,
-        extrasToBeSubmitted
-      )
+    return this._postCommentViaCore(
+      '' + room.id,
+      pendingComment.message,
+      pendingComment.unique_id,
+      comment.type,
+      comment.payload,
+      extrasToBeSubmitted
+    )
       .then(
         (res) => {
           // When the posting succeeded, we mark the Comment as sent,
