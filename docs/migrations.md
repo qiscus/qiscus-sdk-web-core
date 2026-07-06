@@ -179,14 +179,24 @@
   `page`/`limit` → `getParticipants` wired. **v3 side effect flagged:** the latter also fixes
   v3's previously-broken `getParticipants` pagination (v3 forwards page/limit) — a strict
   bugfix, no test breaks. compat 42/42, core-v3 74, both builds green.
-- **Next action — remaining Phase 3 (lower priority):** `updateMessage` (map v2 message →
-  `deps.messageAdapter.updateMessage`/IQMessage shape), `upload`/`sendFileMessage` (multipart
-  — check core-v3 `getFileList`/upload support), `getRoomsInfo` straggler (default-value
-  handling). BY DESIGN staying on legacy: `deleteComment`/`clearRoomMessages` (Fable: JSON
-  body + hardcoded flags), `getRoomParticipants` (deprecated), `searchMessages` (deprecated →
-  `searchMessagesV2`). Then **Phase 4** (realtime/`init()`, riskiest — 4a core-v3 raw-stream
-  split + 4b v2 bridge), **Phase 5** (cleanup: delete dead `lib/adapters/*` + v2 SyncAdapter).
-  Also still open: deferred `getNonce`, reviewing `docs/v2-core-v3-gaps.md`.
+- **Phase 3 (Messages) — COMPLETE for all re-platformable methods** (`fe38c6b`):
+  `updateMessage` (byte-identical `update_message` body) + `getRoomsInfo` (raw `res.body`,
+  reproduces old show_participants/show_removed defaults) done, each `_legacy` + parity-tested
+  (`phase3.parity.test.js` 5 cases). **Intentionally KEPT ON LEGACY (with reasons):**
+  `deleteComment`/`clearRoomMessages` (Fable: JSON body + hardcoded `is_hard_delete:true` =
+  data-loss via query builders); `upload`/`uploadFile`/`sendFileMessage` (**core-v3 has NO
+  upload primitive** — superagent `.attach()`/`.on('progress')` multipart; candidate core-v3
+  PROPOSAL for bidirectional parity); `searchMessages` (deprecated → different
+  `searchMessagesV2` API); `getRoomParticipants` (deprecated + `offset`); `getUserPresences`
+  (no primitive); `getNonce` (pre-auth headers). Message generators
+  (`generateMessage`/etc.) are pure-local (build `Comment`, no adapter → no re-platform).
+- **Next action — Phase 4 (realtime & `init()`, riskiest):** 4a = core-v3 realtime
+  raw-stream split (`mqtt.ts`/`sync.ts` expose a raw payload stream alongside the decoded
+  one; gated by the 74 core-v3 tests), then 4b = v2 `compat/realtime-bridge.js` +
+  `init()` rewire (MqttAdapter/CustomEventAdapter → `getRealtimeAdapter`, `isTypingStatus`
+  mutation, `mqttURL` getter/setter). Then **Phase 5** (cleanup: delete dead
+  `lib/adapters/*` + v2 SyncAdapter after sync-cadence parity). Also open: review
+  `docs/v2-core-v3-gaps.md`; propose a core-v3 upload primitive.
 
 ---
 
