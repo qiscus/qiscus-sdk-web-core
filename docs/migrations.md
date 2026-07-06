@@ -269,15 +269,25 @@
         shapes). Same public interface; `realtime-bridge.test.js` (9) +
         `phase4.mqtt-characterization.test.js` (20) green (compat 73/73). **Parsing now lives
         ONCE in core-v3; both shells adapt it.**
-      - **Step 4 TODO (the big/risky live-path integration):** swap `init()` (~L328) to build
-        the bridge (`makeRealtimeParser` + core-v3 `getMqttAdapter` connection, firehose ->
-        `route`) instead of `new MqttAdapter(...)`; provide the ~20 `realtimeAdapter.*` facade
-        methods (subscribe/publish/etc.) delegating to core-v3's mqtt adapter; heartbeat flag
-        OFF for v2; re-point `custom-event.js` off `mqtt.mqtt.on('message')` onto canonical
-        `custom-event`; keep `mqttURL` getter/setter + `options.*Callback`; then gut v2
-        `MqttAdapter`'s parse bodies (leave transport facade or replace with core-v3 conn).
-      - **Step 5 TODO:** converge sync parsing (v2 SyncAdapter + core-v3 `sync.ts`) onto
-        canonical events; keep each shell's fallback POLICY.
+      - **Step 4 DONE — MQTT parsing fully single-source (`29a16b7`, `bb16400`, `2e18da7`).**
+        DECISION: kept v2's OWN connection (per Fable, transport policy is per-shell), so
+        `init()` was NOT rewired to core-v3's connection — instead v2 `MqttAdapter`'s internals
+        changed: (4a) `__mqtt_message_handler` now routes via `parseRealtimeEvent` +
+        `adaptCanonicalToV2`; (4b) its 9 regexes + matcher + 9 parse handlers deleted (now
+        pure transport + subscribe/publish facade); (4c) `custom-event.js` re-pointed off the
+        raw `mqtt.on('message')` tap onto the canonical `custom-event` (also fixed a
+        reconnect bug where the tap died on `removeAllListeners`). The ~20 `realtimeAdapter.*`
+        facade methods + `mqttURL` getter/setter + `options.*Callback` are all UNCHANGED.
+        Deleted the redundant `phase4.mqtt-characterization.test.js` (oracle preserved in
+        `realtime-bridge.test.js` + `realtime-parser.test.js`). v2 `test/**` IMPROVED 18/3 ->
+        20/1 (2 custom-event failures fixed; remaining failure = unrelated HTML-escape).
+        compat 53/53, core-v3 86, both builds green. **All MQTT realtime parsing now lives
+        ONCE in core-v3's `parseRealtimeEvent`.**
+      - **Step 5 TODO (remaining realtime single-source):** converge SYNC parsing (v2
+        SyncAdapter + core-v3 `sync.ts`) — the other 2 of the "4 parsers" — onto canonical
+        events. Note: sync is HTTP-poll (event list w/ action types), NOT topic-based, so it
+        needs a sync-event->CanonicalEvent mapping distinct from `parseRealtimeEvent`; keep
+        each shell's fallback POLICY (v2 "sync when mqtt down", v3 `xs.merge`).
     - **Bridge verdict:** firehose (4a) = KEEPER (correct transport boundary).
       `compat/realtime-bridge.js` FILE = keeper as the location of v2's adapter, but its
       current GUTS (reusing v2 handlers) get replaced in steps 3-4. Characterization tests =
