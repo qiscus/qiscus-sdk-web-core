@@ -255,15 +255,29 @@
       won't match a slash. Shared matcher classifies by SEGMENT COUNT (`x/c`=direct,
       `x/y/c`=channel); each adapter decides the emit (v2 maps BOTH -> `new-message` raw; v3
       maps direct->`message::received`, channel->`channel-message::new`).
-    - **SEQUENCING (drive under both test oracles):** (1) build `parseRealtimeEvent` in
-      core-v3 (+ `r/{id}/typing`), unit-test standalone, no shell changes; (2) re-express
-      core-v3's decoded `getMqttHandler` as a v3 adapter OVER canonical, gated by 74 tests
-      (cheapest proof the model is sound); (3) write v2's output adapter canonical->mitt,
-      gated by characterization tests (replace the bridge's guts — stop reusing
-      `MqttAdapter.prototype` handlers); (4) swap v2's bridge to canonical + v2 adapter,
-      gut v2 `MqttAdapter` parse bodies (leave transport facade), re-point `custom-event.js`
-      off `mqtt.mqtt.on('message')`; (5) converge sync parsing onto canonical (keep per-shell
-      fallback policy).
+    - **SEQUENCING (drive under both test oracles):**
+      - **Step 1 DONE (`39f7ba9`):** `parseRealtimeEvent`/`CanonicalEvent` in
+        `core-v3/src/adapters/realtime-parser.ts` (+ `r/{id}/typing`; `/c` by segment count),
+        exported from barrel, 12 unit tests (core-v3 86 passed). No shell changes.
+      - **Step 2 DONE (`5dd0f6f`):** core-v3 `mqtt.ts` re-expressed over canonical — removed
+        its 9 regexes + `getMqttHandler` + `match()` matcher; `__mqtt_message_handler` now does
+        `parseRealtimeEvent` + `adaptCanonicalToV3` (same decoded emits). core-v3 86 +
+        version-3 tsc + v2 build green. CAVEAT: no mqtt integration test exists — gate is
+        tsc + parser units + 1:1 emit reproduction.
+      - **Step 3 DONE (`884ef22`):** `compat/realtime-bridge.js` gutted — no longer reuses
+        v2's handlers; now `parseRealtimeEvent` + `adaptCanonicalToV2` (v2's exact mitt
+        shapes). Same public interface; `realtime-bridge.test.js` (9) +
+        `phase4.mqtt-characterization.test.js` (20) green (compat 73/73). **Parsing now lives
+        ONCE in core-v3; both shells adapt it.**
+      - **Step 4 TODO (the big/risky live-path integration):** swap `init()` (~L328) to build
+        the bridge (`makeRealtimeParser` + core-v3 `getMqttAdapter` connection, firehose ->
+        `route`) instead of `new MqttAdapter(...)`; provide the ~20 `realtimeAdapter.*` facade
+        methods (subscribe/publish/etc.) delegating to core-v3's mqtt adapter; heartbeat flag
+        OFF for v2; re-point `custom-event.js` off `mqtt.mqtt.on('message')` onto canonical
+        `custom-event`; keep `mqttURL` getter/setter + `options.*Callback`; then gut v2
+        `MqttAdapter`'s parse bodies (leave transport facade or replace with core-v3 conn).
+      - **Step 5 TODO:** converge sync parsing (v2 SyncAdapter + core-v3 `sync.ts`) onto
+        canonical events; keep each shell's fallback POLICY.
     - **Bridge verdict:** firehose (4a) = KEEPER (correct transport boundary).
       `compat/realtime-bridge.js` FILE = keeper as the location of v2's adapter, but its
       current GUTS (reusing v2 handlers) get replaced in steps 3-4. Characterization tests =
