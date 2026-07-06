@@ -190,13 +190,29 @@
   `searchMessagesV2` API); `getRoomParticipants` (deprecated + `offset`); `getUserPresences`
   (no primitive); `getNonce` (pre-auth headers). Message generators
   (`generateMessage`/etc.) are pure-local (build `Comment`, no adapter → no re-platform).
-- **Next action — Phase 4 (realtime & `init()`, riskiest):** 4a = core-v3 realtime
-  raw-stream split (`mqtt.ts`/`sync.ts` expose a raw payload stream alongside the decoded
-  one; gated by the 74 core-v3 tests), then 4b = v2 `compat/realtime-bridge.js` +
-  `init()` rewire (MqttAdapter/CustomEventAdapter → `getRealtimeAdapter`, `isTypingStatus`
-  mutation, `mqttURL` getter/setter). Then **Phase 5** (cleanup: delete dead
-  `lib/adapters/*` + v2 SyncAdapter after sync-cadence parity). Also open: review
-  `docs/v2-core-v3-gaps.md`; propose a core-v3 upload primitive.
+- **Phase 4 (realtime) — Fable review (2026-07-06): RECOMMEND NOT re-platforming realtime;
+  keep v2 MqttAdapter/SyncAdapter/CustomEventAdapter as the PERMANENT v2-native layer.**
+  Rationale (grounded in code): realtime has no server-contract duplication worth extracting
+  (unlike HTTP); v2's raw emit shapes ARE the contract and core-v3's DECODED events lose data
+  v2 needs — `room::cleared` emits only `roomId` not the full room w/ `unique_id`
+  (index.js ~L710), presence emits decoded not v2's raw `"1:ts"` string (L816-826), typing
+  `parseInt`s roomId + doesn't self-filter (v2 keeps string + filters current user),
+  `comment-deleted` fires per-uniqueId not once-with-array; core-v3 has NO `r/{roomId}/typing`
+  route; core-v3 adds a 3.5s presence heartbeat v2 lacks (mqtt.ts L206-210, observable to
+  other clients); core-v3 `realtime.ts` hard-couples mqtt+sync (can't adopt while keeping v2
+  SyncAdapter); no test harness protects v2 emit shapes. Bidirectional-parity argument runs
+  BACKWARDS: v2 has realtime features v3 lacks → correct work is porting `r/+/typing` UP into
+  core-v3, not v2 down.
+  - **Recommended Phase 4 (pending user decision):** (1) declare v2 realtime permanent
+    v2-native; (2) limit `init()` changes to core-v3 storage/auth coherence (token refresh,
+    broker-URL sync) WITHOUT touching emit paths; (3) optionally port `r/{roomId}/typing` into
+    core-v3 as a v3 feature (separate commit, gated by 74 tests); (4) if consolidation is ever
+    revisited, first write characterization tests pinning v2's mitt payloads.
+  - **Phase 5 revision:** do NOT delete v2 SyncAdapter/MqttAdapter/CustomEventAdapter — they
+    stay. Cleanup is limited to any HTTP-path `lib/adapters/*` that became truly dead after
+    Phases 1-3 (user/room/http where all methods migrated) — audit refs first.
+- **Also open:** review `docs/v2-core-v3-gaps.md`; propose a core-v3 upload primitive (v2
+  `upload` has no core-v3 equivalent); deferred `getNonce`.
 
 ---
 
