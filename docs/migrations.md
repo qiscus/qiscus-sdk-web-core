@@ -159,15 +159,30 @@
   query vs old body); `updateMessage` (IQMessage shape map); `searchMessages` (deprecated,
   maps to different `searchMessagesV2` API — likely leave); `upload`/`sendFileMessage`
   (multipart).
-- **Next action:** Phase 2 construction + transform methods are DONE. Remaining before
-  Phase 3: (1) the `makeV2Requester` `delete`-branch fix (append `queryString(api.params)`)
-  → then `clearRoomMessages`; (2) the Phase 2 read stragglers `getParticipants`/
-  `getRoomParticipants`/`getRoomsInfo` (map old adapter shapes → `deps.roomAdapter`
-  `getParticipantList`/`getRoomInfo`). Then **Phase 3 — Messages** (`v2-on-core-v3-plan.md`
-  §9): `loadComments`/`loadMore`/send/resend/delete/status/upload/generators via
-  `deps.messageAdapter` + `rawCommentToV2`, preserving optimistic-send + `_pendingComments`
-  + `selected.comments` mutations. Also still open: deferred `getNonce`, reviewing
-  `docs/v2-core-v3-gaps.md`.
+- **Fable review #2 (2026-07-06) — Phase 2b + Phase 3, findings ADDRESSED:**
+  - Send path verified verbatim vs `1ef478a^`; catch logic bit-identical across all reject
+    shapes. `createGroupRoom` no-options throw restored; disclosures added
+    (`chatTarget` null-options, `createGroupRoom` empty-options/participants[]);
+    `_postCommentViaCore` nullish-uniqueId guard note; parity harness `settle()` now falls
+    back to `err.{status,body}` (strengthens envelope-error cases). (`0ea39bf`)
+  - **Status path DONE** (`2168d09`): `_updateCommentStatusViaCore` — a single
+    `lodash.throttle(500)` dispatching read/received to `markAsRead`/`markAsDelivered`
+    (Fable: one combined throttle reproduces old coalescing; two separate ones would not).
+  - **delete-shim DONE** (`06f8437`): `makeV2Requester` delete now forwards `api.params`
+    with axios-style `key[]=v` array encoding. Per Fable, **`deleteComment`/`clearRoomMessages`
+    stay on the legacy `userAdapter` PERMANENTLY** (JSON body + `is_hard_delete:true`
+    hardcode = data-loss risk via the query-param builders; not a re-platform target).
+  - **MUST-FIX still open — `loadComments` drops `options.timestamp`** (public API →
+    different comments). Needs the gated `getComment` timestamp encoder fix below.
+- **Next action — GATED core-v3 encoder batch (awaiting user OK; Fable-endorsed, widen-only
+  + pin v3 wire per encoder):** (1) add `timestamp` to `Api.getComment` + `getMessages`
+  raw adapter → then un-drop `loadComments` timestamp; (2) add `page`/`limit` to
+  `Api.getRoomParticipants` → then wire `getParticipants`. Precedent: the approved
+  `getOrCreateRoomWithUniqueId` fix (`3f21795`). Then remaining Phase 3: `updateMessage`
+  (IQMessage shape map), `upload`/`sendFileMessage` (multipart), `getRoomsInfo` straggler
+  (default-value handling); `searchMessages` likely stays (deprecated → different
+  `searchMessagesV2` API). Then Phase 4 (realtime/`init()`), Phase 5 (cleanup). Also still
+  open: deferred `getNonce`, reviewing `docs/v2-core-v3-gaps.md`.
 
 ---
 
