@@ -161,6 +161,8 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
   const __mqtt_closed_handler = () => emitter.emit('mqtt::close')
   const __mqtt_message_handler = (t: string, m: string) => {
     const message = m.toString()
+    // Raw firehose first, for every topic (see `mqtt::message` in `Events`).
+    emitter.emit('mqtt::message', { topic: t, payload: message })
     const func = matcher(t)
     logger.log('message', t, message)
     if (func != null) func(message)
@@ -298,6 +300,14 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
     onMqttConnected(callback: () => void): () => void {
       emitter.on('mqtt::connected', callback)
       return () => emitter.off('mqtt::connected', callback)
+    },
+    // Raw firehose subscription (see `mqtt::message`). Fires for every inbound
+    // MQTT message with the topic + raw payload string, before decoding — the
+    // seam v2's realtime bridge uses to run its own matcher/parsers.
+    onMessage(callback: (topic: string, payload: string) => void): () => void {
+      const handler = (data: { topic: string; payload: string }) => callback(data.topic, data.payload)
+      emitter.on('mqtt::message', handler)
+      return () => emitter.off('mqtt::message', handler)
     },
     onMqttReconnecting(callback: () => void): Subscription {
       emitter.on('mqtt::reconnecting', callback)
@@ -544,6 +554,12 @@ interface Events {
   'mqtt::reconnecting': () => void
   'mqtt::error': (err: string) => void
   'mqtt::close': () => void
+  // Raw firehose: every inbound MQTT message (topic + raw payload string),
+  // emitted BEFORE core-v3's own decode/matcher runs. Additive — the decoded
+  // events above are unchanged. Consumers that need the raw payload (e.g. v2's
+  // realtime bridge, which does its own topic-matching + parsing) subscribe via
+  // `onMessage`, so topics core-v3's matcher doesn't handle still reach them.
+  'mqtt::message': (data: { topic: string; payload: string }) => void
 }
 
 interface MQTTHandler {
