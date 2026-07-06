@@ -8,27 +8,20 @@ describe('CustomEvent', function () {
   let customEvent = null
   let mqttAdapter = null
   beforeEach(() => {
-    const mockedEvents = {}
+    const handlers = {}
     mqttAdapter = {
-      mqtt: {
-        _resubscribeTopics: [],
-        on (type, callback) {
-          mockedEvents[type] = callback
-        },
-        sendEvent (roomId, payload) {
-          mockedEvents['message'](`r/${roomId}/${roomId}/e`, payload)
-        },
-        publish (topic, payload) {
-          if (mockedEvents['message'] && mockedEvents[topic]) {
-            mockedEvents['message'](topic, payload)
-          }
-        },
-        subscribe (topic) {
-          mockedEvents[topic] = true
-        },
-        unsubscribe (topic) {
-          mockedEvents[topic] = null
-          delete mockedEvents[topic]
+      on (type, callback) {
+        handlers[type] = callback
+      },
+      subscribe (topic) {},
+      unsubscribe (topic) {},
+      publish (topic, payload) {},
+      // Simulate a canonical custom-event arriving on the adapter emitter
+      // (core-v3 parseRealtimeEvent -> adaptCanonicalToV2 emits
+      // { roomId, payload } with payload already JSON-parsed).
+      sendEvent (roomId, rawPayload) {
+        if (handlers['custom-event']) {
+          handlers['custom-event']({ roomId, payload: JSON.parse(rawPayload) })
         }
       }
     }
@@ -81,7 +74,7 @@ describe('CustomEvent', function () {
       const cb = chai.spy(() => {})
 
       customEvent.subscribeEvent(roomId, cb)
-      mqttAdapter.mqtt.sendEvent(roomId, JSON.stringify({
+      mqttAdapter.sendEvent(roomId, JSON.stringify({
         sender: userId,
         data: realPayload
       }))
@@ -105,7 +98,7 @@ describe('CustomEvent', function () {
       const callback = chai.spy(() => {})
       customEvent.subscribeEvent(roomId, callback)
       customEvent.unsubscribeEvent(roomId)
-      mqttAdapter.mqtt.sendEvent(roomId, { s: 'something' })
+      mqttAdapter.sendEvent(roomId, JSON.stringify({ s: 'something' }))
       expect(callback).to.not.be.called()
     })
   })

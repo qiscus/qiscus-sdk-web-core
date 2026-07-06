@@ -91,9 +91,11 @@ export function adaptCanonicalToV2(event, emit, core) {
       return
 
     case 'custom-event':
-      // v2's MqttAdapter never routed custom events (custom-event.js taps the
-      // mqtt client directly). Re-pointing custom-event.js onto the canonical
-      // `custom-event` is the next 4b step; for MqttAdapter parity, emit nothing.
+      // Custom events flow through the single source too: emit on the adapter's
+      // emitter so `custom-event.js` subscribes here (`mqttAdapter.on`) instead
+      // of tapping the raw mqtt client directly (which also lost its listener on
+      // reconnect via `removeAllListeners`). `payload` is already parsed.
+      emit('custom-event', { roomId: event.roomId, payload: event.payload })
       return
 
     default:
