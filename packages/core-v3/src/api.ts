@@ -316,6 +316,11 @@ export const getRoomParticipants: ApiRequest<
   useCredentials(),
   useParams((o) => ({
     room_unique_id: o.uniqueId,
+    // `page`/`limit` were declared-but-unemitted (a latent miss). v2's
+    // getParticipants paginates with them; the v3 shell's getParticipants
+    // passes neither, so they stay undefined and drop out — v3 wire unchanged.
+    page: o.page,
+    limit: o.limit,
     sorting: o.sorting ?? 'asc',
   }))
 )
@@ -375,6 +380,7 @@ export const getComment: ApiRequest<
     lastMessageId: IQMessage['id']
     after?: boolean
     limit?: number
+    timestamp?: string
   } & withCredentials
 > = compose(
   useGetUrl('/load_comments'),
@@ -384,6 +390,10 @@ export const getComment: ApiRequest<
     last_comment_id: o.lastMessageId,
     after: o.after,
     limit: o.limit,
+    // `timestamp` was declared-but-unemitted (a latent miss). v2's
+    // loadComments sends it; the v3 shell's getMessages never passes it, so it
+    // stays undefined and drops out of the query — v3 wire unchanged.
+    timestamp: o.timestamp,
   }))
 )
 export const updateCommentStatus: ApiRequest<

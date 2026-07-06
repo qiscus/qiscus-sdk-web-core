@@ -33,6 +33,28 @@ function makeRawMessageAdapter(stub) {
   return makeDeps(self).messageAdapter
 }
 
+// Stub whose `get_request(path).query(params)` resolves like a superagent GET
+// (used by `_legacyGetParticipants`), alongside the standard `.get` (used by
+// the candidate via `getParticipantList` -> makeV2Requester), keyed off the
+// same canned response.
+function participantsStub(response) {
+  const stub = makeStubHttpAdapter(response)
+  stub.get_request = (...args) => {
+    stub.calls.push({ method: 'get_request', args })
+    return {
+      query(params) {
+        stub.calls.push({ method: 'query', args: [params] })
+        const { status, body } = response
+        if (status >= 200 && status < 300) return Promise.resolve({ status, body })
+        const err = new Error(`stub get_request failed with status ${status}`)
+        err.response = { status, body }
+        return Promise.reject(err)
+      },
+    }
+  }
+  return stub
+}
+
 describe('compat/phase3 parity (message read path)', () => {
   it('loadComments: old userAdapter.loadComments vs new getMessages resolve/reject identically', async () => {
     // load_comments returns comments; the old User adapter resolves
@@ -80,6 +102,26 @@ describe('compat/phase3 parity (message read path)', () => {
       cases: [
         { name: '200 resolves results.comment', input: { response: { status: 200, body: happy } } },
         { name: 'HTTP 200 but envelope status 400 rejects on both', input: { response: { status: 200, body: { status: 400, error: { message: 'envelope' } } } } },
+        ...[400, 403, 500].map((status) => ({
+          name: `HTTP ${status} rejects identically`,
+          input: { response: { status, body: { error: { message: `err-${status}` } } } },
+        })),
+      ],
+    })
+
+    if (result.firstDivergence) {
+      throw new Error('parity divergence: ' + JSON.stringify(result.firstDivergence, null, 2))
+    }
+  })
+
+  it('getParticipants: old get_request().query() vs new getParticipantList resolve/reject identically', async () => {
+    const happy = { status: 200, results: { participants: [{ id: 1, email: 'a' }], meta: { total: 1 } } }
+
+    const result = await compareParity({
+      reference: ({ response }) => QiscusSDK.prototype._legacyGetParticipants.call(makeFakeSelf(participantsStub(response)), 'uq-1', 1, 20),
+      candidate: ({ response }) => QiscusSDK.prototype.getParticipants.call(makeFakeSelf(participantsStub(response)), 'uq-1', 1, 20),
+      cases: [
+        { name: '200 resolves results', input: { response: { status: 200, body: happy } } },
         ...[400, 403, 500].map((status) => ({
           name: `HTTP ${status} rejects identically`,
           input: { response: { status, body: { error: { message: `err-${status}` } } } },

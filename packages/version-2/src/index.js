@@ -1323,12 +1323,12 @@ class QiscusSDK {
     // old `userAdapter.loadComments` did — so `.then((raw) => raw.results.comments)`
     // reproduces its resolved value (the raw comments array), and the
     // hooks/`receiveComments`/`sortComments` body below is UNCHANGED. Anchored
-    // adapter-level in compat/phase3.parity.test.js. Accepted divergences: the
-    // rarely-used `options.timestamp` param is dropped (core-v3's `getComment`
-    // has no such param), and unset `last_comment_id`/`limit` go as core-v3's
-    // defaults (0 / 20) rather than being omitted from the query.
+    // adapter-level in compat/phase3.parity.test.js. `options.timestamp` is
+    // forwarded (core-v3's `getComment` encoder now emits it — the approved
+    // gated fix). Accepted divergence: unset `last_comment_id`/`limit` go as
+    // core-v3's defaults (0 / 20) rather than being omitted from the query.
     return this.deps.messageAdapter
-      .getMessages(roomId, options.last_comment_id, options.limit, options.after)
+      .getMessages(roomId, options.last_comment_id, options.limit, options.after, options.timestamp)
       .then((raw) => raw.results.comments)
       .then(async (comments_) => {
         const comments = []
@@ -1672,7 +1672,8 @@ class QiscusSDK {
     })
   }
 
-  getParticipants(roomUniqueId, page = 1, limit = 20) {
+  /** TEMPORARY Phase 2/3 parity reference — see comment above `_legacyGetUsers`. */
+  _legacyGetParticipants(roomUniqueId, page = 1, limit = 20) {
     return this.HTTPAdapter.get_request('api/v2/sdk/room_participants')
       .query({
         room_unique_id: roomUniqueId,
@@ -1680,6 +1681,22 @@ class QiscusSDK {
         limit,
       })
       .then((resp) => resp.body.results)
+  }
+
+  /**
+   * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
+   * §9) — same `api/v2/sdk/room_participants` GET. `Api.getRoomParticipants`'s
+   * encoder now emits `page`/`limit` (the approved gated fix), so the query
+   * matches old v2. `getParticipantList` returns the raw envelope, so
+   * `.then((raw) => raw.results)` reproduces the old resolved value
+   * (`resp.body.results`). Accepted divergence: the new query also carries
+   * `sorting=asc` (core-v3's default), which old v2 omitted — backend default
+   * is asc, and version-3 already sends it in prod.
+   */
+  getParticipants(roomUniqueId, page = 1, limit = 20) {
+    return this.deps.roomAdapter
+      .getParticipantList(roomUniqueId, page, limit)
+      .then((raw) => raw.results)
   }
   getRoomParticipants(roomUniqueId, offset = 0) {
     console.warn(

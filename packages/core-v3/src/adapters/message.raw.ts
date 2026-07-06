@@ -23,7 +23,8 @@ export const getMessageAdapterRaw = (s: Storage, api: Api.ApiRequester) => ({
     roomId: number,
     lastMessageId: number = 0,
     limit: number = 20,
-    after: boolean = false
+    after: boolean = false,
+    timestamp?: string
   ): Promise<GetCommentsResponse.RootObject> {
     return api.request<GetCommentsResponse.RootObject>(
       Api.getComment({
@@ -33,6 +34,7 @@ export const getMessageAdapterRaw = (s: Storage, api: Api.ApiRequester) => ({
         roomId,
         after,
         limit,
+        timestamp,
       })
     )
   },
