@@ -1,70 +1,128 @@
 import mitt from 'mitt'
-import { match, when } from '../lib/match'
-import MqttAdapter from '../lib/adapters/mqtt'
+import { parseRealtimeEvent } from '@qiscus/core-v3'
 
 /**
  * compat/realtime-bridge.js — Phase 4b (docs/v2-on-core-v3-plan.md §7; Fable
- * review 2026-07-06).
+ * review 2026-07-06, single-source architecture).
  *
- * The parity-critical parse/emit core of v2's realtime bridge. It REUSES v2's
- * own `MqttAdapter` matcher + parse/emit handlers verbatim (their exact mitt
- * emit shapes are pinned by `phase4.mqtt-characterization.test.js`), but is
- * driven by core-v3's raw `onMessage(topic, payload)` firehose (Phase 4a)
- * instead of v2's own `mqtt` client. Because the handler code is v2's own, the
- * emitted events (`new-message`, `comment-deleted`, `room-cleared`,
- * `room-typing`, `typing` + `isTypingStatus` side effect, `message-delivered`,
- * `message-read`, `presence`, `message:updated`) are byte-for-byte identical to
- * what today's `MqttAdapter` produces.
+ * v2's per-shell realtime adapter. The topic-matching + payload deserialization
+ * now live ONCE in core-v3's `parseRealtimeEvent` (shared source); this module
+ * is the thin v2 half that maps a `CanonicalEvent` onto v2's exact raw mitt
+ * emit shapes (pinned by `phase4.mqtt-characterization.test.js`). It replaces
+ * the earlier stepping-stone that reused v2's own `MqttAdapter` handlers — that
+ * kept parsing in v2 (two places); this keeps only the v2-specific OUTPUT
+ * shaping here, so a new realtime feature is added once in the shared parser and
+ * surfaced via this adapter.
  *
- * This module is the parse/emit layer ONLY. Wiring the connection +
- * subscribe/publish facade to core-v3's mqtt adapter, and swapping `init()` to
- * construct the bridge instead of `new MqttAdapter(...)`, is the next 4b step.
+ * Driven by core-v3's raw `onMessage(topic, payload)` firehose. Connection +
+ * subscribe/publish facade + `init()` wiring are the next 4b step.
  */
 
 /**
- * Builds the firehose->v2-parse->emit router.
+ * Maps one `CanonicalEvent` to v2's mitt emit(s), reproducing `MqttAdapter`'s
+ * handlers byte-for-byte (incl. the `typing` self-filter + `isTypingStatus`
+ * side effect). `core` is the live `QiscusSDK` instance.
+ */
+export function adaptCanonicalToV2(event, emit, core) {
+  switch (event.kind) {
+    // v2 emits `new-message` (raw) for BOTH direct and channel messages.
+    case 'message':
+    case 'channel-message':
+      emit('new-message', event.rawComment)
+      return
+
+    // v2 branches on key presence (NOT action_topic): one emit per deleted
+    // message (array uniqueIds, string room_id) and one per deleted room
+    // (full room object).
+    case 'notification':
+      event.deletedMessages.forEach((m) =>
+        emit('comment-deleted', {
+          roomId: m.room_id,
+          commentUniqueIds: m.message_unique_ids,
+          isForEveryone: true,
+          isHard: true,
+        })
+      )
+      event.deletedRooms.forEach((room) => emit('room-cleared', room))
+      return
+
+    case 'typing': {
+      // self-typing is filtered out
+      if (event.userId === core.user_id) return
+      emit('typing', { message: event.payload, userId: event.userId, roomId: event.roomId })
+      // isTypingStatus side effect (unchanged from MqttAdapter.typingHandler)
+      if (core.selected == null) return
+      if (event.payload === '1' && event.roomId === core.selected.id) {
+        const actor = core.selected.participants.find((it) => it.email === event.userId)
+        if (actor == null) return
+        core.isTypingStatus = `${actor.username} is typing ...`
+      } else {
+        core.isTypingStatus = null
+      }
+      return
+    }
+
+    case 'room-typing':
+      emit('room-typing', { ...event.parsed, room_id: event.roomId })
+      return
+
+    case 'delivered':
+      emit('message-delivered', {
+        commentId: Number(event.messageId),
+        commentUniqueId: event.messageUniqueId,
+        userId: event.userId,
+      })
+      return
+
+    case 'read':
+      emit('message-read', {
+        commentId: Number(event.messageId),
+        commentUniqueId: event.messageUniqueId,
+        userId: event.userId,
+      })
+      return
+
+    case 'presence':
+      emit('presence', { message: event.payload, userId: event.userId })
+      return
+
+    case 'message-updated':
+      emit('message:updated', event.rawComment)
+      return
+
+    case 'custom-event':
+      // v2's MqttAdapter never routed custom events (custom-event.js taps the
+      // mqtt client directly). Re-pointing custom-event.js onto the canonical
+      // `custom-event` is the next 4b step; for MqttAdapter parity, emit nothing.
+      return
+
+    default:
+      return
+  }
+}
+
+/**
+ * Builds the firehose->shared-parse->v2-adapt router.
  *
- * @param {import('../index').default} core - the live `QiscusSDK` instance
- *   (handlers read `core.user_id`/`core.selected` and set `core.isTypingStatus`,
- *   exactly as `MqttAdapter` does).
+ * @param {import('../index').default} core - the live `QiscusSDK` instance.
  * @returns {{ route(topic: string, payload: string): void, on: Function, off: Function, emitter: import('mitt').Emitter }}
  */
 export function makeRealtimeParser(core) {
-  // `Object.create` gives the prototype's handler methods + `reXxx` regex
-  // getters WITHOUT running `MqttAdapter`'s constructor (which opens a real mqtt
-  // connection). We set only the instance fields the handlers touch.
-  const shell = Object.create(MqttAdapter.prototype)
-  shell.emitter = mitt()
-  shell.core = core
-
-  // Same matcher wiring (and thus same first-match precedence) as
-  // `MqttAdapter`'s constructor, reusing v2's handler methods unchanged.
-  shell.matcher = match({
-    [when(shell.reNewMessage)]: (topic) => shell.newMessageHandler.bind(shell, topic),
-    [when(shell.reNotification)]: (topic) => shell.notificationHandler.bind(shell, topic),
-    [when(shell.reTyping)]: (topic) => shell.typingHandler.bind(shell, topic),
-    [when(shell.reRoomTyping)]: (topic) => shell.roomTypingHandler.bind(shell, topic),
-    [when(shell.reDelivery)]: (topic) => shell.deliveryReceiptHandler.bind(shell, topic),
-    [when(shell.reRead)]: (topic) => shell.readReceiptHandler.bind(shell, topic),
-    [when(shell.reOnlineStatus)]: (topic) => shell.onlinePresenceHandler.bind(shell, topic),
-    [when(shell.reChannelMessage)]: (topic) => shell.channelMessageHandler.bind(shell, topic),
-    [when(shell.reMessageUpdated)]: (topic) => shell.messageUpdatedHandler.bind(shell, topic),
-    // Catch-all — same as MqttAdapter's `logger('topic not handled', ...)`,
-    // which is a no-op unless debug MQTT logging is on.
-    [when()]: () => () => {},
-  })
-
+  const emitter = mitt()
+  const emit = (...args) => emitter.emit(...args)
   return {
     /**
-     * Route one raw firehose message (from core-v3's `onMessage`) through v2's
-     * matcher + handlers, emitting the identical v2 mitt event(s).
+     * Route one raw firehose message (from core-v3's `onMessage`) through the
+     * shared parser + v2 adapter, emitting the identical v2 mitt event(s).
+     * A malformed JSON payload throws out of `parseRealtimeEvent`, same as v2's
+     * un-try/caught `JSON.parse` in `MqttAdapter` today.
      */
     route(topic, payload) {
-      const func = shell.matcher(topic)
-      if (func != null) func(payload)
+      const event = parseRealtimeEvent(topic, payload)
+      if (event != null) adaptCanonicalToV2(event, emit, core)
     },
-    on: (...args) => shell.emitter.on(...args),
-    off: (...args) => shell.emitter.off(...args),
-    emitter: shell.emitter,
+    on: (...args) => emitter.on(...args),
+    off: (...args) => emitter.off(...args),
+    emitter,
   }
 }
