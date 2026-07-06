@@ -1,4 +1,4 @@
-import { match, when } from '../utils/match'
+import { parseRealtimeEvent, type CanonicalEvent } from './realtime-parser'
 import { EventEmitter } from 'pietile-eventemitter'
 
 // import { connect } from '../lib/mqtt'
@@ -11,107 +11,89 @@ import * as m from '../v3/model'
 import * as Decoder from '../v3/decoder'
 import { getLogger } from './logger'
 import { Storage } from '../storage'
-import { tryCatch, wrapP, getOrThrow } from '../utils/try-catch'
+import { tryCatch, wrapP } from '../utils/try-catch'
 import * as Api from '../api'
 import { Provider } from '../provider'
 
-const reNewMessage = /^([\w]+)\/c/i
-const reNotification = /^([\w]+)\/n/i
-const reTyping = /^r\/([\d]+)\/([\d]+)\/([\S]+)\/t$/i
-const reDelivery = /^r\/([\d]+)\/([\d]+)\/([\S]+)\/d$/i
-const reRead = /^r\/([\d]+)\/([\d]+)\/([\S]+)\/r$/i
-const reOnlineStatus = /^u\/([\S]+)\/s$/i
-const reChannelMessage = /^([\S]+)\/([\S]+)\/c/i
-const reCustomEvent = /^r\/[\w]+\/[\w]+\/e$/i
-const reMessageUpdated = /^([\w]+)\/update/i
-
-function getMqttHandler(emitter: EventEmitter<Events>): IQMqttHandler {
-  return {
-    channelMessageHandler: (_) => (data) => {
+/**
+ * v3's per-shell adapter: maps a shared `CanonicalEvent` (from
+ * `parseRealtimeEvent`) onto v3's decoded emitter events — the SAME emissions
+ * `getMqttHandler` used to produce, but now the topic-matching + deserialization
+ * live once in the shared parser. This is the v3 half of the single-source
+ * realtime seam; its byte-parity is gated by the 74 core-v3 tests.
+ */
+function adaptCanonicalToV3(event: CanonicalEvent, emitter: EventEmitter<Events>): void {
+  switch (event.kind) {
+    case 'message':
+    case 'channel-message': {
       const message = tryCatch(
-        () => Decoder.message(JSON.parse(data)),
-        data,
+        () => Decoder.message(event.rawComment),
+        event.rawComment as m.IQMessage,
         (error) => console.log('error when parsing data', error)
       )
       emitter.emit('message::received', message)
-    },
-    customEventHandler: (topic) => (data) => {
-      const topicData = reCustomEvent.exec(topic)
-      const roomId = parseInt(getOrThrow<string>(topicData?.[1], '`roomId` are null on customEventHandler'))
-      const payload = JSON.parse(data)
-      emitter.emit('custom-event', { roomId, payload })
-    },
-    notificationHandler: (_) => (data: string) => {
-      const payload = JSON.parse(data) as MqttNotification
-
-      if (payload.action_topic === 'delete_message') {
-        const deletedMessagesData = payload.payload.data.deleted_messages
-        deletedMessagesData.forEach((data) => {
-          const roomId = parseInt(data.room_id, 10)
-          data.message_unique_ids.forEach((uniqueId) => {
-            emitter.emit('message::deleted', { roomId, uniqueId })
-          })
+      return
+    }
+    case 'notification': {
+      if (event.actionTopic === 'delete_message') {
+        event.deletedMessages.forEach((d) => {
+          const roomId = parseInt(d.room_id, 10)
+          d.message_unique_ids.forEach((uniqueId) => emitter.emit('message::deleted', { roomId, uniqueId }))
         })
       }
-      if (payload.action_topic === 'clear_room') {
-        const clearedRooms = payload.payload.data.deleted_rooms
-        clearedRooms.forEach((room) => {
-          const roomId = room.id
-          emitter.emit('room::cleared', roomId)
-        })
+      if (event.actionTopic === 'clear_room') {
+        event.deletedRooms.forEach((room) => emitter.emit('room::cleared', room.id))
       }
-    },
-    onlineHandler: (topic) => (data) => {
-      const topicData = reOnlineStatus.exec(topic)
-      const payload = data.split(':')
-      const userId = getOrThrow<string>(topicData?.[1], '`userId` are null on onlineHandler')
-      const isOnline = Number(payload[0]) === 1
-      const lastSeen = new Date(Number(payload[1]))
-      emitter.emit('user::presence', { userId, isOnline, lastSeen })
-    },
-    deliveredHandler: (topic) => (data) => {
-      const topicData = reDelivery.exec(topic)
-      const payload = data.split(':')
-      const roomId = parseInt(getOrThrow<string>(topicData?.[1], '`roomId` are null on deliveredHandler'), 10)
-      const userId = getOrThrow<string>(topicData?.[3], '`userId` are null on deliveredHandler')
-      const messageId = payload[0]
-      const messageUniqueId = payload[1]
+      return
+    }
+    case 'typing': {
+      emitter.emit('user::typing', {
+        roomId: parseInt(event.roomId, 10),
+        userId: event.userId,
+        isTyping: Number(event.payload) === 1,
+      })
+      return
+    }
+    case 'delivered': {
       emitter.emit('message::delivered', {
-        roomId,
-        userId,
-        messageId,
-        messageUniqueId,
+        roomId: parseInt(event.roomId, 10),
+        userId: event.userId,
+        messageId: event.messageId,
+        messageUniqueId: event.messageUniqueId,
       })
-    },
-    newMessage: (_) => (data) => {
-      const message: m.IQMessage = tryCatch(() => Decoder.message(JSON.parse(data)), data)
-      emitter.emit('message::received', message)
-    },
-    readHandler: (topic) => (data) => {
-      const topicData = reRead.exec(topic)
-      const roomId = parseInt(getOrThrow<string>(topicData?.[1], '`roomId` are null on readHandler'), 10)
-      const userId = getOrThrow<string>(topicData?.[3], '`userId` are null on readHandler')
-      const payload = data.split(':')
-      const messageId = payload[0]
-      const messageUniqueId = payload[1]
+      return
+    }
+    case 'read': {
       emitter.emit('message::read', {
-        roomId,
-        userId,
-        messageId,
-        messageUniqueId,
+        roomId: parseInt(event.roomId, 10),
+        userId: event.userId,
+        messageId: event.messageId,
+        messageUniqueId: event.messageUniqueId,
       })
-    },
-    typingHandler: (topic) => (data) => {
-      const topicData = reTyping.exec(topic)
-      const roomId = parseInt(getOrThrow<string>(topicData?.[1], '`roomId` are null on typingHandler'), 10)
-      const userId = getOrThrow<string>(topicData?.[3], '`userId` are null on typingHandler')
-      const isTyping = Number(data) === 1
-      emitter.emit('user::typing', { roomId, userId, isTyping })
-    },
-    messageUpdatedHandler: (_) => (data) => {
-      const message: m.IQMessage = tryCatch(() => Decoder.message(JSON.parse(data)), data)
+      return
+    }
+    case 'presence': {
+      const parts = event.payload.split(':')
+      emitter.emit('user::presence', {
+        userId: event.userId,
+        isOnline: Number(parts[0]) === 1,
+        lastSeen: new Date(Number(parts[1])),
+      })
+      return
+    }
+    case 'message-updated': {
+      const message = tryCatch(() => Decoder.message(event.rawComment), event.rawComment as m.IQMessage)
       emitter.emit('message::updated', message)
-    },
+      return
+    }
+    case 'custom-event': {
+      emitter.emit('custom-event', { roomId: parseInt(event.roomId, 10), payload: event.payload })
+      return
+    }
+    case 'room-typing':
+      // v3 has no consumer for the r/{roomId}/typing route yet (v2-only today);
+      // the route lives in the shared parser so v3 can add `onRoomTyping` later.
+      return
   }
 }
 
@@ -125,22 +107,9 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
   let reconnectTimerId: ReturnType<typeof setTimeout> | undefined = undefined
 
   const emitter = new EventEmitter<Events>()
-  const handler = getMqttHandler(emitter)
   const subscribedCustomEventTopics = new Map<number, any>()
   const getTopicForCustomEvent = (roomId: number) => `r/${roomId}/${roomId}/e`
   const logger = getLogger(s)
-  const matcher = match({
-    [when(reNewMessage)]: handler.newMessage,
-    [when(reNotification)]: handler.notificationHandler,
-    [when(reTyping)]: handler.typingHandler,
-    [when(reDelivery)]: handler.deliveredHandler,
-    [when(reRead)]: handler.readHandler,
-    [when(reOnlineStatus)]: handler.onlineHandler,
-    [when(reChannelMessage)]: handler.channelMessageHandler,
-    [when(reCustomEvent)]: handler.customEventHandler,
-    [when(reMessageUpdated)]: handler.messageUpdatedHandler,
-    [when()]: (topic: string) => (message: any) => logger.log('topic not handled', topic, message),
-  })
 
   const api = Api.getMqttNode(s)(Provider(s).withCredentials)
   const getMqttNode = () =>
@@ -163,9 +132,10 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
     const message = m.toString()
     // Raw firehose first, for every topic (see `mqtt::message` in `Events`).
     emitter.emit('mqtt::message', { topic: t, payload: message })
-    const func = matcher(t)
     logger.log('message', t, message)
-    if (func != null) func(message)
+    // Shared parse -> v3 adapter (single source; see realtime-parser.ts).
+    const event = parseRealtimeEvent(t, message)
+    if (event != null) adaptCanonicalToV3(event, emitter)
   }
   const __mqtt_error_handler = (err: Error) => {
     if (err && err.message === 'client disconnecting') return
@@ -560,22 +530,6 @@ interface Events {
   // realtime bridge, which does its own topic-matching + parsing) subscribe via
   // `onMessage`, so topics core-v3's matcher doesn't handle still reach them.
   'mqtt::message': (data: { topic: string; payload: string }) => void
-}
-
-interface MQTTHandler {
-  (topic: string): (data: any) => void
-}
-
-interface IQMqttHandler {
-  newMessage: MQTTHandler
-  notificationHandler: MQTTHandler
-  typingHandler: MQTTHandler
-  deliveredHandler: MQTTHandler
-  readHandler: MQTTHandler
-  onlineHandler: MQTTHandler
-  channelMessageHandler: MQTTHandler
-  customEventHandler: MQTTHandler
-  messageUpdatedHandler: MQTTHandler
 }
 
 type _MqttClient = MqttClient & {
