@@ -136,6 +136,31 @@ describe('compat/phase3 parity (message read path)', () => {
     }
   })
 
+  it('registerDeviceToken/removeDeviceToken: old vs new resolve/reject identically', async () => {
+    const happy = { status: 200, results: { changed: true, pn_android_configured: true } }
+    const P = QiscusSDK.prototype
+
+    for (const [legacy, next] of [
+      ['_legacyRegisterDeviceToken', 'registerDeviceToken'],
+      ['_legacyRemoveDeviceToken', 'removeDeviceToken'],
+    ]) {
+      const result = await compareParity({
+        reference: ({ response }) => P[legacy].call(makeFakeSelf(makeStubHttpAdapter(response)), 'dev-tok', false),
+        candidate: ({ response }) => P[next].call(makeFakeSelf(makeStubHttpAdapter(response)), 'dev-tok', false),
+        cases: [
+          { name: `${next} 200 resolves results`, input: { response: { status: 200, body: happy } } },
+          ...[400, 403, 500].map((status) => ({
+            name: `${next} HTTP ${status} rejects identically`,
+            input: { response: { status, body: { error: { message: `err-${status}` } } } },
+          })),
+        ],
+      })
+      if (result.firstDivergence) {
+        throw new Error(`${next} parity divergence: ` + JSON.stringify(result.firstDivergence, null, 2))
+      }
+    }
+  })
+
   it('getNonce/verifyIdentityToken resolve raw.results (candidate-only; old used direct superagent)', async () => {
     const nonceRaw = await makeFakeSelf(
       makeStubHttpAdapter({ status: 200, body: { status: 200, results: { nonce: 'n1', expired_at: 999 } } })

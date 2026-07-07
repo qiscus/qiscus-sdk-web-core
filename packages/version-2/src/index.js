@@ -1406,7 +1406,8 @@ class QiscusSDK {
     return this.loadComments(this.selected.id, options)
   }
 
-  async registerDeviceToken(token, isDevelopment = false) {
+  /** TEMPORARY parity reference — see comment above `_legacyGetUsers`. */
+  async _legacyRegisterDeviceToken(token, isDevelopment = false) {
     const res = await this.HTTPAdapter.post(
       'api/v2/sdk/set_user_device_token',
       {
@@ -1417,7 +1418,20 @@ class QiscusSDK {
     )
     return res.body.results
   }
-  async removeDeviceToken(token, isDevelopment = false) {
+
+  /**
+   * Re-platformed on core-v3's raw user adapter (docs/v2-full-shell-plan.md P2)
+   * — same `set_user_device_token` POST; `Api.setDeviceToken`'s encoder is
+   * byte-identical (`{device_token, device_platform: 'rn', is_development}`).
+   * Resolves `results` like the old `res.body.results`.
+   */
+  async registerDeviceToken(token, isDevelopment = false) {
+    const body = await this.deps.userAdapter.registerDeviceToken(token, isDevelopment)
+    return body.results
+  }
+
+  /** TEMPORARY parity reference — see comment above `_legacyGetUsers`. */
+  async _legacyRemoveDeviceToken(token, isDevelopment = false) {
     const res = await this.HTTPAdapter.post(
       'api/v2/sdk/remove_user_device_token',
       {
@@ -1427,6 +1441,16 @@ class QiscusSDK {
       }
     )
     return res.body.results
+  }
+
+  /**
+   * Re-platformed on core-v3's raw user adapter (docs/v2-full-shell-plan.md P2)
+   * — same `remove_user_device_token` POST (byte-identical encoder). Resolves
+   * `results`.
+   */
+  async removeDeviceToken(token, isDevelopment = false) {
+    const body = await this.deps.userAdapter.unregisterDeviceToken(token, isDevelopment)
+    return body.results
   }
 
   /**
