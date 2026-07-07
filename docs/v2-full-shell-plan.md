@@ -108,9 +108,20 @@ live once.
     PRODUCTION axios path end-to-end. compat 69/69. **HttpAdapter NOT yet deleted** — it stays
     as the token store + is used by the keep-in-shell methods; delete after P2 + token
     migration.
-- **P2 — Keep-in-shell HTTP methods → core-v3** (needs the §5 confirmations): add missing
-  primitives to core-v3, then re-platform `deleteComment`/`clearRoomMessages`/`upload`/
-  `getUserPresences`/`searchMessages`/`getNonce`/`verifyIdentityToken` onto them.
+- **P2 — Keep-in-shell HTTP methods → core-v3 — DONE (for the approved scope).**
+  - Added the 3 approved primitives: `getUserPresences` (`81b0d87`), `deleteMessages` flags
+    (`1ba4213`), `upload` (`4edc5c0`, core-v3 `getUploadAdapter` = axios+FormData+progress;
+    `deps.uploadAdapter`).
+  - Re-platformed: `getUserPresences`, `deleteComment` (+ flags), `clearRoomMessages`
+    (`2c3e76e`), `getNonce`/`verifyIdentityToken` (`d93774a`), `upload`/`uploadFile`. Each
+    with parity/adaptation tests (compat 76). `request` (superagent) import dropped from
+    index.js.
+  - **EXCEPTION — `searchMessages` stays on legacy:** it's deprecated AND core-v3's
+    `Api.searchMessages` (v1) uses `page` where old v2 sent `last_comment_id` — matching it
+    needs a gated fix for a deprecated method (not worth it). Documented.
+  - **Upload caveat:** the real multipart transfer is browser-runtime (axios+FormData+
+    onUploadProgress), unit-tested only at the v2 adaptation level (progress/callback/resolve)
+    with an injected stub — verify in a real browser before shipping.
 - **P3 — Realtime connection → core-v3**: v2 facade delegates to `getMqttAdapter` (+ heartbeat
   flag OFF); replace `SyncAdapter` polling with core-v3 sync (keep v2's fallback policy);
   delete v2 `MqttAdapter`/`SyncAdapter` connection code.
