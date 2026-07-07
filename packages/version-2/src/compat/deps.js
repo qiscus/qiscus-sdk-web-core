@@ -20,12 +20,12 @@ import { makeV2AxiosRequester } from './axios-requester'
  * bundle.)
  *
  * @param {import('../index').default} self
- * @param {{ apiAdapter?: { request(api: object): Promise<unknown> } }} [opts]
- *   `apiAdapter` overrides the transport (tests inject a stub/legacy requester);
- *   production uses the default axios-backed `makeV2AxiosRequester`.
+ * @param {{ apiAdapter?: { request(api: object): Promise<unknown> }, uploadAdapter?: { upload(file: any, opts?: object): Promise<unknown> } }} [opts]
+ *   `apiAdapter`/`uploadAdapter` override the transport/upload (tests inject
+ *   stubs); production uses the axios-backed defaults.
  * @returns {Core.QiscusDeps}
  */
-export function makeDeps(self, { apiAdapter } = {}) {
+export function makeDeps(self, { apiAdapter, uploadAdapter } = {}) {
   const storage = Core.storageFactory()
 
   storage.setBaseUrl(self.baseURL)
@@ -63,10 +63,14 @@ export function makeDeps(self, { apiAdapter } = {}) {
   const roomAdapter = Core.getRoomAdapterRaw(storage, resolvedApiAdapter)
   const messageAdapter = Core.getMessageAdapterRaw(storage, resolvedApiAdapter)
   const loggerAdapter = Core.getLogger(storage)
+  // Upload is multipart (axios + FormData + progress), not a plain Api request,
+  // so it is its own adapter (browser-runtime); tests inject a stub.
+  const resolvedUploadAdapter = uploadAdapter ?? Core.getUploadAdapter(storage)
 
   return {
     storage,
     apiAdapter: resolvedApiAdapter,
+    uploadAdapter: resolvedUploadAdapter,
     hookAdapter: self._hookAdapter,
     userAdapter,
     // TODO Phase 4b: realtime is out of scope for this Phase 0 spike (the

@@ -1,4 +1,3 @@
-import request from 'superagent'
 import throttle from 'lodash.throttle'
 import mitt from 'mitt'
 import is from './lib/is'
@@ -2233,24 +2232,41 @@ class QiscusSDK {
       (err) => Promise.reject(err)
     )
   }
+  /**
+   * Re-platformed on core-v3's upload primitive (docs/v2-full-shell-plan.md P2,
+   * approved) — same `upload` multipart POST, now via axios + FormData +
+   * `onUploadProgress` instead of superagent's `.attach()`/`.on('progress')`.
+   * Honors the customizable `this.uploadURL`. The axios progress event is
+   * re-shaped to v2's superagent-style `{direction:'upload', loaded, total,
+   * percent, lengthComputable}` so `callback(null, event)` consumers are
+   * unchanged; resolves `results.file.url` and calls
+   * `callback(null, null, url)` / `callback(error)` as before. NB the actual
+   * multipart transfer is browser-runtime and unit-tested only at the
+   * adaptation level (progress/callback/resolve) with an injected stub.
+   */
   upload(file, callback) {
-    let req = request.post(this.uploadURL);
-
-    req = this.HTTPAdapter.setupHeaders(req)
-    return req.attach('file', file)
-      .on('progress', (event) => {
-        if (event.direction === 'upload') callback(null, event)
+    return this.deps.uploadAdapter
+      .upload(file, {
+        url: this.uploadURL,
+        onProgress: (progress) => {
+          callback(null, {
+            direction: 'upload',
+            loaded: progress.loaded,
+            total: progress.total,
+            percent: progress.total ? (progress.loaded / progress.total) * 100 : 0,
+            lengthComputable: progress.total > 0,
+          })
+        },
       })
-      .then((resp) => {
-        const url = resp.body.results.file.url
-        callback(null, null, resp.body.results.file.url)
+      .then((body) => {
+        const url = body.results.file.url
+        callback(null, null, url)
         return Promise.resolve(url)
       })
       .catch((error) => {
         callback(error)
         return Promise.reject(error)
       })
-
   }
 
   /**
@@ -2261,27 +2277,26 @@ class QiscusSDK {
    * @returns Promise
    * @memberof QiscusSDK
    */
+  /**
+   * Re-platformed on core-v3's upload primitive (docs/v2-full-shell-plan.md P2)
+   * — replaces the raw `XMLHttpRequest` multipart POST. Uploads the file, emits
+   * `'fileupload'` with the resulting URL, then posts a `[file]...[/file]`
+   * comment via `sendComment` — the same observable behavior as the old XHR
+   * `onload`. Now returns a promise (the old XHR path returned `undefined`),
+   * which is a superset. Header style unifies to core-v3's `qiscus-sdk-*`
+   * (the old XHR used `qiscus_sdk_*`; the upload endpoint accepts both — v2's
+   * own `upload` already used the `QISCUS-SDK-*` style).
+   */
   uploadFile(roomId, file) {
     const self = this
-    var formData = new FormData()
-    formData.append('file', file)
-    var xhr = new XMLHttpRequest()
-    xhr.open('POST', `${self.baseURL}/api/v2/sdk/upload`, true)
-    xhr.setRequestHeader('qiscus_sdk_app_id', `${self.AppId}`)
-    xhr.setRequestHeader('qiscus_sdk_user_id', `${self.user_id}`)
-    xhr.setRequestHeader('qiscus_sdk_token', `${self.userData.token}`)
-    xhr.onload = function () {
-      if (xhr.status === 200) {
-        // file(s) uploaded), let's post to comment
-        var url = JSON.parse(xhr.response).results.file.url
+    return self.deps.uploadAdapter.upload(file).then(
+      (body) => {
+        const url = body.results.file.url
         self.events.emit('fileupload', url)
-        // send
         return self.sendComment(roomId, `[file] ${url} [/file]`)
-      } else {
-        return Promise.reject(xhr)
-      }
-    }
-    xhr.send(formData)
+      },
+      (err) => Promise.reject(err)
+    )
   }
 
   addUploadedFile(name, roomId) {
