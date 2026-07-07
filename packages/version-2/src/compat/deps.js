@@ -12,9 +12,12 @@ import { makeV2Requester } from './requester'
  * (Phase 0) — it is NOT wired into `QiscusSDK`'s behavior yet.
  *
  * `storage` getters/setters are seeded once here from `self`'s config
- * fields. Per §4/§11, storage liveness after `init()` (e.g. a customer later
- * setting `qiscus.mqttURL`) needs getter-backed storage or periodic reseed —
- * left as a TODO for the phase that actually wires this in (Phase 1+).
+ * fields. The MUTABLE ones that a few methods read as VALUES (not just headers)
+ * — `token` (updateMessage body) and `currentUser` (updateUser id) — are
+ * re-synced live on every access by the `deps` getter in `../index.js`, so a
+ * post-init token refresh or re-login is reflected without rebuilding `deps`.
+ * (mqttURL liveness is moot: v2 realtime uses its own `MqttAdapter`, not this
+ * bundle.)
  *
  * @param {import('../index').default} self
  * @returns {Core.QiscusDeps}

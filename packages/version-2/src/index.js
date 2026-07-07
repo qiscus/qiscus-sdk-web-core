@@ -139,6 +139,21 @@ class QiscusSDK {
     if (this._deps == null) {
       this._deps = makeDeps(this)
     }
+    // Keep the core-v3 storage's MUTABLE fields live: `makeDeps` seeds them
+    // once, but the memoized `deps` is reused across the instance's lifetime,
+    // so a later token refresh (HttpAdapter 403-retry) or re-login (new
+    // `userData`) would otherwise leave `storage` stale. Request headers are
+    // always live (they come from `HTTPAdapter.setupHeaders`, not `storage`),
+    // but a few methods read `storage` VALUES directly — e.g. `updateMessage`'s
+    // body `token = s.getToken()` and `updateUser`'s `s.getCurrentUser().id` —
+    // so re-sync those two here on every access (cheap; two setters).
+    const storage = this._deps.storage
+    if (this.HTTPAdapter && this.HTTPAdapter.token != null) {
+      storage.setToken(this.HTTPAdapter.token)
+    }
+    if (this.user_id != null && typeof storage.setCurrentUser === 'function') {
+      storage.setCurrentUser(this.userData)
+    }
     return this._deps
   }
 
