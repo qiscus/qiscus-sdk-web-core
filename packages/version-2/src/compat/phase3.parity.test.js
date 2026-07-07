@@ -135,6 +135,30 @@ describe('compat/phase3 parity (message read path)', () => {
     }
   })
 
+  it('updateProfile transport: old userAdapter.updateProfile vs new updateUser resolve/reject identically', async () => {
+    const user = { name: 'Alice', avatar_url: 'http://a/x.png', extras: { role: 'admin' } }
+    const happy = { status: 200, results: { user: { id: 'user-1', username: 'Alice', avatar_url: 'http://a/x.png' } } }
+
+    const result = await compareParity({
+      reference: ({ response }) => new User(makeStubHttpAdapter(response)).updateProfile(user),
+      candidate: ({ response }) =>
+        makeFakeSelf(makeStubHttpAdapter(response)).deps.userAdapter
+          .updateUser(user.name, user.avatar_url, user.extras)
+          .then((raw) => raw.results.user),
+      cases: [
+        { name: '200 resolves results.user', input: { response: { status: 200, body: happy } } },
+        ...[400, 403, 500].map((status) => ({
+          name: `HTTP ${status} rejects identically`,
+          input: { response: { status, body: { error: { message: `err-${status}` } } } },
+        })),
+      ],
+    })
+
+    if (result.firstDivergence) {
+      throw new Error('parity divergence: ' + JSON.stringify(result.firstDivergence, null, 2))
+    }
+  })
+
   it('getRoomsInfo: old userAdapter.getRoomsInfo vs new getRoomInfo resolve/reject identically', async () => {
     const params = { room_ids: [1, 2], room_unique_ids: ['uq-a'], show_participants: true, show_removed: false }
     const happy = { status: 200, results: { rooms_info: [{ id: 1 }, { id: 2 }] } }

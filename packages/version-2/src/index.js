@@ -1409,7 +1409,8 @@ class QiscusSDK {
     })
   }
 
-  updateProfile(user) {
+  /** TEMPORARY Phase 1 parity reference — see comment above `_legacyGetUsers`. */
+  _legacyUpdateProfile(user) {
     return this.userAdapter.updateProfile(user).then(
       (res) => {
         this.events.emit('profile-updated', user)
@@ -1418,6 +1419,30 @@ class QiscusSDK {
       },
       (err) => this.logger(err)
     )
+  }
+
+  /**
+   * Re-platformed on core-v3's raw user adapter (docs/v2-on-core-v3-plan.md
+   * §9) — same `api/v2/sdk/my_profile` PATCH. `deps.userAdapter.updateUser`
+   * maps `user.name`/`user.avatar_url`/`user.extras` onto `Api.patchProfile`;
+   * the resolved value (`results.user`) and the `profile-updated` emit /
+   * `this.userData = res` / error-swallowing `logger` behavior are unchanged.
+   * Accepted wire divergences (v3-proven): `extras` is sent as a raw object
+   * rather than old v2's `JSON.stringify`, and the body carries the current
+   * user `id`; neither affects the resolved value.
+   */
+  updateProfile(user) {
+    return this.deps.userAdapter
+      .updateUser(user.name, user.avatar_url, user.extras)
+      .then((raw) => raw.results.user)
+      .then(
+        (res) => {
+          this.events.emit('profile-updated', user)
+          this.userData = res
+          return Promise.resolve(res)
+        },
+        (err) => this.logger(err)
+      )
   }
 
   getNonce() {
