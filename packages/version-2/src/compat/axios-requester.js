@@ -35,10 +35,13 @@ export function makeV2AxiosRequester(storage, { refreshToken } = {}) {
     body.error.message.toLowerCase() === 'unauthorized. token is expired'
 
   const call = async (api, isRetry) => {
-    const withPlatform = {
-      ...api,
-      headers: { 'QISCUS-SDK-PLATFORM': 'javascript', ...(api.headers || {}) },
-    }
+    const headers = { 'QISCUS-SDK-PLATFORM': 'javascript', ...(api.headers || {}) }
+    // Use the freshest token from storage on every call, including the retry
+    // after a 403 refresh (the descriptor's `qiscus-sdk-token` was captured at
+    // build time and would otherwise be stale on the retry).
+    const token = storage.getToken()
+    if (token != null) headers['qiscus-sdk-token'] = token
+    const withPlatform = { ...api, headers }
     try {
       return await coreRequest(withPlatform)
     } catch (axiosErr) {

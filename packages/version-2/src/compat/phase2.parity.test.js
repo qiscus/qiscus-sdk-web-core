@@ -3,6 +3,7 @@ import { makeStubHttpAdapter, compareParity } from './parity'
 import QiscusSDK from '../index'
 import RoomAdapter from '../lib/adapters/room'
 import { makeDeps } from './deps'
+import { makeV2Requester } from './requester'
 
 /**
  * Phase 2a failure-path parity (docs/v2-on-core-v3-plan.md §8.0.2, §9, §11).
@@ -52,7 +53,7 @@ function makeFakeSelf(stub) {
   }
   Object.defineProperty(self, 'deps', {
     get() {
-      if (this._deps == null) this._deps = makeDeps(this)
+      if (this._deps == null) this._deps = makeDeps(this, { apiAdapter: makeV2Requester(this.HTTPAdapter) })
       return this._deps
     },
   })

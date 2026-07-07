@@ -1,6 +1,7 @@
 import { compareParity, makeStubHttpAdapter } from './parity'
 import RoomAdapter from '../lib/adapters/room'
 import { makeDeps } from './deps'
+import { makeV2Requester } from './requester'
 import { rawRoomToV2, rawCreatedRoomToV2 } from './to-v2'
 
 /**
@@ -38,7 +39,7 @@ function makeRawRoomAdapter(stub) {
     _hookAdapter: undefined,
     HTTPAdapter: stub,
   }
-  return makeDeps(self).roomAdapter
+  return makeDeps(self, { apiAdapter: makeV2Requester(self.HTTPAdapter) }).roomAdapter
 }
 
 describe('compat/phase2b parity (room getRoomById data-source swap)', () => {

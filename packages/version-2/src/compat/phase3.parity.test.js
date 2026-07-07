@@ -2,6 +2,7 @@ import { compareParity, makeStubHttpAdapter } from './parity'
 import QiscusSDK from '../index'
 import User from '../lib/adapters/user'
 import { makeDeps } from './deps'
+import { makeV2Requester } from './requester'
 
 /**
  * Phase 3 adapter-level parity (docs/v2-on-core-v3-plan.md §9, §11).
@@ -30,7 +31,7 @@ function makeRawMessageAdapter(stub) {
     _hookAdapter: undefined,
     HTTPAdapter: stub,
   }
-  return makeDeps(self).messageAdapter
+  return makeDeps(self, { apiAdapter: makeV2Requester(self.HTTPAdapter) }).messageAdapter
 }
 
 // Stub whose `get_request(path).query(params)` resolves like a superagent GET
@@ -244,7 +245,7 @@ function makeFakeSelf(stub) {
   }
   Object.defineProperty(self, 'deps', {
     get() {
-      if (this._deps == null) this._deps = makeDeps(this)
+      if (this._deps == null) this._deps = makeDeps(this, { apiAdapter: makeV2Requester(this.HTTPAdapter) })
       return this._deps
     },
   })

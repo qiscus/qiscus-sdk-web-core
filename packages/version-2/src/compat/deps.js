@@ -1,5 +1,5 @@
 import * as Core from '@qiscus/core-v3'
-import { makeV2Requester } from './requester'
+import { makeV2AxiosRequester } from './axios-requester'
 
 /**
  * compat/deps.js
@@ -20,14 +20,20 @@ import { makeV2Requester } from './requester'
  * bundle.)
  *
  * @param {import('../index').default} self
+ * @param {{ apiAdapter?: { request(api: object): Promise<unknown> } }} [opts]
+ *   `apiAdapter` overrides the transport (tests inject a stub/legacy requester);
+ *   production uses the default axios-backed `makeV2AxiosRequester`.
  * @returns {Core.QiscusDeps}
  */
-export function makeDeps(self) {
+export function makeDeps(self, { apiAdapter } = {}) {
   const storage = Core.storageFactory()
 
   storage.setBaseUrl(self.baseURL)
   storage.setAppId(self.AppId)
   storage.setBrokerUrl(self.mqttURL)
+  if (typeof storage.setVersion === 'function') {
+    storage.setVersion(self.version)
+  }
   if (typeof storage.setCustomHeaders === 'function') {
     storage.setCustomHeaders(self._customHeader || {})
   }
@@ -38,16 +44,29 @@ export function makeDeps(self) {
     storage.setToken(self.HTTPAdapter.token)
   }
 
-  const apiAdapter = makeV2Requester(self.HTTPAdapter)
+  // Default transport: core-v3's SHARED axios (single source), wrapped to
+  // reproduce v2's superagent error shape + 403 refresh-retry (P1b). On refresh
+  // we reuse v2's ExpiredTokenAdapter (via `self.refreshAuthToken`) and push the
+  // new token into `storage` so the retry picks it up.
+  const resolvedApiAdapter =
+    apiAdapter ??
+    makeV2AxiosRequester(storage, {
+      refreshToken: async () => {
+        await self.refreshAuthToken()
+        if (self.HTTPAdapter && self.HTTPAdapter.token != null) {
+          storage.setToken(self.HTTPAdapter.token)
+        }
+      },
+    })
 
-  const userAdapter = Core.getUserAdapterRaw(storage, apiAdapter)
-  const roomAdapter = Core.getRoomAdapterRaw(storage, apiAdapter)
-  const messageAdapter = Core.getMessageAdapterRaw(storage, apiAdapter)
+  const userAdapter = Core.getUserAdapterRaw(storage, resolvedApiAdapter)
+  const roomAdapter = Core.getRoomAdapterRaw(storage, resolvedApiAdapter)
+  const messageAdapter = Core.getMessageAdapterRaw(storage, resolvedApiAdapter)
   const loggerAdapter = Core.getLogger(storage)
 
   return {
     storage,
-    apiAdapter,
+    apiAdapter: resolvedApiAdapter,
     hookAdapter: self._hookAdapter,
     userAdapter,
     // TODO Phase 4b: realtime is out of scope for this Phase 0 spike (the
