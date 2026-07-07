@@ -8,6 +8,23 @@
 
 ## 0. TL;DR — where we are & the next action
 
+> **STATUS 2026-07-07:** (1) **HTTP re-platform COMPLETE** — every re-platformable v2 HTTP
+> method now runs on core-v3 raw adapters via `this.deps` (last ones: `updateProfile`
+> `e891d2f`, `loadRoomList` `df69c95` w/ guarded `getRoomList` roomType fix). (2) **Realtime
+> single-source COMPLETE for MQTT + sync_event** — parsing lives once in core-v3
+> (`parseRealtimeEvent`, `classifySyncEvents`); v2/v3 each adapt via thin adapters. (3) **deps
+> storage liveness fixed** (`133c852`) — token/currentUser re-synced per access.
+> **By design on legacy** (NOT re-platform targets): `upload`/`uploadFile`/`sendFileMessage`
+> (no core-v3 upload primitive — candidate PROPOSAL), `deleteComment`/`clearRoomMessages`
+> (Fable: data-loss risk via query builders), `getNonce`/`verifyIdentityToken` (pre-auth
+> special headers), `searchMessages` (deprecated→different API), `getUserPresences` (no
+> primitive). **Remaining:** propose core-v3 upload primitive; Phase 5 cleanup (remove
+> `_legacy*` + their parity tests once parity no longer needs verifying — currently KEPT as
+> regression guards; do NOT delete v2 realtime adapters); trivial sync-`message` path; review
+> `docs/v2-core-v3-gaps.md`. Tests: core-v3 90, v2 compat 56, v2 `test/**` 20/1 (lone failure
+> = unrelated HTML-escape), all builds green. Nothing pushed.
+
+
 - We are converting `sdk-js` into a **pnpm monorepo** where **v2** (`packages/version-2`,
   `qiscus-sdk-javascript` / `QiscusSDK`) and **v3** (`packages/version-3` + the extracted
   logic package `packages/core-v3` = `@qiscus/core-v3`) live side-by-side and are
