@@ -1319,8 +1319,44 @@ class QiscusSDK {
       })
   }
 
-  async loadRoomList(params = {}) {
+  /** TEMPORARY Phase 2 parity reference — see comment above `_legacyGetUsers`. */
+  async _legacyLoadRoomList(params = {}) {
     const rooms = await this.userAdapter.loadRoomList(params)
+    return rooms.map((room) => {
+      room.last_comment_id = room.last_comment.id
+      room.last_comment_message = room.last_comment.message
+      room.last_comment_message_created_at = room.last_comment.timestamp
+      room.room_type = room.chat_type
+      room.comments = []
+      return new Room(room)
+    })
+  }
+
+  /**
+   * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
+   * §9) — same `api/v2/sdk/user_rooms` GET. `getRoomList` now forwards
+   * `roomType` (the approved gated core-v3 fix), so v2 sends
+   * `room_type: params.room_type ?? 'default'` exactly like old v2 (v3 passes
+   * no roomType, so its `room_type: 'all'` default is unchanged). Reproduces
+   * the old adapter's body-level envelope-status reject (reconstructed
+   * `{status, body}`) and resolved value (`results.rooms_info`); the
+   * `new Room(...)` mapping below is UNCHANGED. Accepted divergence:
+   * `show_removed: false` is now sent explicitly (old omitted it).
+   */
+  async loadRoomList(params = {}) {
+    const rooms = await this.deps.roomAdapter
+      .getRoomList(
+        params.show_participants || true,
+        undefined,
+        params.show_empty,
+        params.page,
+        params.limit,
+        params.room_type ?? 'default'
+      )
+      .then((raw) => {
+        if (raw.status !== 200) return Promise.reject({ status: 200, body: raw })
+        return raw.results.rooms_info
+      })
     return rooms.map((room) => {
       room.last_comment_id = room.last_comment.id
       room.last_comment_message = room.last_comment.message

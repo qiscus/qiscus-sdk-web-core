@@ -129,7 +129,11 @@ export const getRoomAdapterRaw = (s: Storage, api: Api.ApiRequester) => ({
     showRemoved?: boolean,
     showEmpty?: boolean,
     page?: number,
-    limit?: number
+    limit?: number,
+    // Optional (guarded): v3 callers pass none, so `Api.getUserRooms` keeps its
+    // `room_type: 'all'` default (v3 wire unchanged); v2's loadRoomList passes
+    // 'default' to match old v2 (which sent `room_type: 'default'`).
+    roomType?: model.IQChatRoom['type']
   ): Promise<GetRoomListResponse.RootObject> {
     const apiConfig = Api.getUserRooms({
       ...Provider.withBaseUrl(s),
@@ -139,6 +143,7 @@ export const getRoomAdapterRaw = (s: Storage, api: Api.ApiRequester) => ({
       showParticipants,
       page,
       limit,
+      type: roomType,
     })
     return api.request<GetRoomListResponse.RootObject>(apiConfig)
   },

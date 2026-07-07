@@ -180,6 +180,33 @@ describe('compat/phase3 parity (message read path)', () => {
     }
   })
 
+  it('loadRoomList transport: old userAdapter.loadRoomList vs new getRoomList resolve/reject identically', async () => {
+    const happy = { status: 200, results: { rooms_info: [{ id: 1, last_comment: { id: 9 } }, { id: 2, last_comment: { id: 8 } }] } }
+
+    const result = await compareParity({
+      reference: ({ response }) => new User(makeStubHttpAdapter(response)).loadRoomList({ page: 1, limit: 20 }),
+      candidate: ({ response }) =>
+        makeFakeSelf(makeStubHttpAdapter(response)).deps.roomAdapter
+          .getRoomList(true, undefined, undefined, 1, 20, 'default')
+          .then((raw) => {
+            if (raw.status !== 200) return Promise.reject({ status: 200, body: raw })
+            return raw.results.rooms_info
+          }),
+      cases: [
+        { name: '200 resolves results.rooms_info', input: { response: { status: 200, body: happy } } },
+        { name: 'HTTP 200 but envelope status 400 rejects on both', input: { response: { status: 200, body: { status: 400, error: { message: 'envelope' } } } } },
+        ...[400, 403, 500].map((status) => ({
+          name: `HTTP ${status} rejects identically`,
+          input: { response: { status, body: { error: { message: `err-${status}` } } } },
+        })),
+      ],
+    })
+
+    if (result.firstDivergence) {
+      throw new Error('parity divergence: ' + JSON.stringify(result.firstDivergence, null, 2))
+    }
+  })
+
   it('getParticipants: old get_request().query() vs new getParticipantList resolve/reject identically', async () => {
     const happy = { status: 200, results: { participants: [{ id: 1, email: 'a' }], meta: { total: 1 } } }
 
