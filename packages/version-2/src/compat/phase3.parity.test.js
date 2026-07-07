@@ -136,6 +136,22 @@ describe('compat/phase3 parity (message read path)', () => {
     }
   })
 
+  it('getNonce/verifyIdentityToken resolve raw.results (candidate-only; old used direct superagent)', async () => {
+    const nonceRaw = await makeFakeSelf(
+      makeStubHttpAdapter({ status: 200, body: { status: 200, results: { nonce: 'n1', expired_at: 999 } } })
+    ).deps.userAdapter.getNonce()
+    if (JSON.stringify(nonceRaw.results) !== JSON.stringify({ nonce: 'n1', expired_at: 999 })) {
+      throw new Error('getNonce results mismatch: ' + JSON.stringify(nonceRaw.results))
+    }
+
+    const verifyRaw = await makeFakeSelf(
+      makeStubHttpAdapter({ status: 200, body: { status: 200, results: { user: { id: 'u1', token: 't' } } } })
+    ).deps.userAdapter.setUserFromIdentityToken('id-tok')
+    if (JSON.stringify(verifyRaw.results) !== JSON.stringify({ user: { id: 'u1', token: 't' } })) {
+      throw new Error('verifyIdentityToken results mismatch: ' + JSON.stringify(verifyRaw.results))
+    }
+  })
+
   it('clearRoomMessages transport: old userAdapter.clearRoomMessages vs new clearRoom resolve/reject identically', async () => {
     const happy = { status: 200, results: { rooms: [] } }
 

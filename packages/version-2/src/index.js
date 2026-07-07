@@ -1481,30 +1481,35 @@ class QiscusSDK {
       )
   }
 
+  /**
+   * Re-platformed on core-v3's raw user adapter (docs/v2-full-shell-plan.md P2)
+   * — same `api/v2/sdk/auth/nonce` POST via `Api.getNonce`. Old v2 used
+   * superagent directly (so no `_legacy` parity ref is possible); it resolved
+   * `res.body.results`, which `deps.userAdapter.getNonce()` (returns the raw
+   * body) reproduces via `.results`. Accepted divergence: core-v3 sends the
+   * pre-auth headers as `qiscus-sdk-app-id`/`version` (hyphen) where old v2 sent
+   * `qiscus_sdk_app_id`/`version` (underscore) — v3 uses these hyphen headers on
+   * the nonce endpoint in prod.
+   */
   getNonce() {
-    return request
-      .post(`${this.baseURL}/api/v2/sdk/auth/nonce`)
-      .send()
-      .set('qiscus_sdk_app_id', `${this.AppId}`)
-      .set('qiscus_sdk_version', `${this.version}`)
-      .then(
-        (res) => Promise.resolve(res.body.results),
-        (err) => Promise.reject(err)
-      )
+    return this.deps.userAdapter.getNonce().then(
+      (raw) => Promise.resolve(raw.results),
+      (err) => Promise.reject(err)
+    )
   }
 
+  /**
+   * Re-platformed on core-v3's raw user adapter (docs/v2-full-shell-plan.md P2)
+   * — same `api/v2/sdk/auth/verify_identity_token` POST via
+   * `Api.verifyIdentityToken` (`setUserFromIdentityToken`). Resolves the raw
+   * body's `.results` like the old direct-superagent call did. Same accepted
+   * hyphen-vs-underscore header divergence as `getNonce`.
+   */
   verifyIdentityToken(identityToken) {
-    return request
-      .post(`${this.baseURL}/api/v2/sdk/auth/verify_identity_token`)
-      .send({
-        identity_token: identityToken,
-      })
-      .set('qiscus_sdk_app_id', `${this.AppId}`)
-      .set('qiscus_sdk_version', `${this.version}`)
-      .then(
-        (res) => Promise.resolve(res.body.results),
-        (err) => Promise.reject(err)
-      )
+    return this.deps.userAdapter.setUserFromIdentityToken(identityToken).then(
+      (raw) => Promise.resolve(raw.results),
+      (err) => Promise.reject(err)
+    )
   }
 
   /**
