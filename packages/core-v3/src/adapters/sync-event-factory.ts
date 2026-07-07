@@ -1,4 +1,5 @@
 import flatten from 'lodash.flatten'
+import { classifySyncEvents } from './sync-parser'
 import { EventEmitter } from 'pietile-eventemitter'
 import xs from 'xstream'
 import * as Api from '../api'
@@ -37,60 +38,52 @@ export function synchronizeEventFactory(
         })
       )
       .then((resp) => {
-        const events = resp.events
-        const lastId: string =
-          events
-            .map((it) => it.id)
-            .sort((a, b) => a - b)
-            .pop() ?? '0'
+        // Single source (Phase 4 step 5): classify the sync_event batch via the
+        // shared classifySyncEvents (which accepts both 'delete_message' and
+        // 'deleted_message' — this factory previously matched only the latter,
+        // so it missed deletes when the backend sent the former). This factory
+        // then applies v3's own Decoder + fan-out to the raw payload.data
+        // buckets.
+        const c = classifySyncEvents<string>(resp.events as any)
+        const lastId: string = c.lastId ?? '0'
 
         //region Delivered
-        const messageDelivered = events
-          .filter((it) => it.action_topic === 'delivered')
-          .map((it) => it.payload.data as SyncEventResponse.DataMessageDelivered)
-          .map((it) =>
-            Decoder.message({
-              id: it.comment_id,
-              unique_temp_id: it.comment_unique_id,
-              email: it.email,
-              room_id: it.room_id,
-            } as any)
-          )
+        const messageDelivered = (c.messageDelivered as SyncEventResponse.DataMessageDelivered[]).map((it) =>
+          Decoder.message({
+            id: it.comment_id,
+            unique_temp_id: it.comment_unique_id,
+            email: it.email,
+            room_id: it.room_id,
+          } as any)
+        )
         //endregion
         //region Read
-        const messageRead = events
-          .filter((it) => it.action_topic === 'read')
-          .map((it) => it.payload.data as SyncEventResponse.DataMessageDelivered)
-          .map((it) =>
-            Decoder.message({
-              id: it.comment_id,
-              unique_temp_id: it.comment_unique_id,
-              email: it.email,
-              room_id: it.room_id,
-            } as any)
-          )
+        const messageRead = (c.messageRead as SyncEventResponse.DataMessageDelivered[]).map((it) =>
+          Decoder.message({
+            id: it.comment_id,
+            unique_temp_id: it.comment_unique_id,
+            email: it.email,
+            room_id: it.room_id,
+          } as any)
+        )
         //endregion
         //region Deleted
-        const messageDeleted = events
-          .filter((it) => it.action_topic === 'deleted_message')
-          .map((it) => it.payload.data as SyncEventResponse.DataMessageDeleted)
-          .map((p1) => {
-            const msgs = p1.deleted_messages.map((it) =>
-              it.message_unique_ids.map((id) =>
-                Decoder.message({
-                  unique_temp_id: id,
-                  room_id: parseInt(it.room_id),
-                } as any)
-              )
+        const messageDeleted = (c.messageDeleted as SyncEventResponse.DataMessageDeleted[]).map((p1) => {
+          const msgs = p1.deleted_messages.map((it) =>
+            it.message_unique_ids.map((id) =>
+              Decoder.message({
+                unique_temp_id: id,
+                room_id: parseInt(it.room_id),
+              } as any)
             )
-            return flatten(msgs)
-          })
+          )
+          return flatten(msgs)
+        })
         //endregion
         //region Room Cleared
-        const roomCleared = events
-          .filter((it) => it.action_topic === 'clear_room')
-          .map((it) => it.payload.data as SyncEventResponse.DataRoomCleared)
-          .map((p1) => p1.deleted_rooms.map((r: any) => Decoder.room(r)))
+        const roomCleared = (c.roomCleared as SyncEventResponse.DataRoomCleared[]).map((p1) =>
+          p1.deleted_rooms.map((r: any) => Decoder.room(r))
+        )
         //endregion
         return {
           lastId,

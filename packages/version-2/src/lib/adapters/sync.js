@@ -1,4 +1,5 @@
 import mitt from 'mitt'
+import { classifySyncEvents } from '@qiscus/core-v3'
 import UrlBuilder from '../url-builder'
 
 const noop = () => {}
@@ -81,23 +82,13 @@ function synchronizeEventFactory(getHttp, getInterval, getSync, getId, logger) {
     return getHttp()
       .get(url)
       .then((resp) => {
-        const events = resp.body.events
-        const lastId = events
-          .map((it) => it.id)
-          .sort((a, b) => a - b)
-          .pop()
-        const messageDelivered = events
-          .filter((it) => it.action_topic === 'delivered')
-          .map((it) => it.payload.data)
-        const messageRead = events
-          .filter((it) => it.action_topic === 'read')
-          .map((it) => it.payload.data)
-        const messageDeleted = events
-          .filter((it) => it.action_topic === 'delete_message')
-          .map((it) => it.payload.data)
-        const roomCleared = events
-          .filter((it) => it.action_topic === 'clear_room')
-          .map((it) => it.payload.data)
+        // Single source (Phase 4 step 5): classify the sync_event batch via
+        // core-v3's shared classifySyncEvents (also fixes the old divergence
+        // where v2 matched 'delete_message' but core-v3 matched
+        // 'deleted_message' — now both are accepted). Each shell still shapes
+        // the raw payload.data buckets its own way (v2 emits them raw below).
+        const { lastId, messageDelivered, messageRead, messageDeleted, roomCleared } =
+          classifySyncEvents(resp.body.events)
         return Promise.resolve({
           lastId,
           messageDelivered,
