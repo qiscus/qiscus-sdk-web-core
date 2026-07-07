@@ -95,13 +95,19 @@ live once.
 
 ## 4. Phasing (each phase: green build + parity tests + nothing pushed)
 
-- **P1 — Transport unification (highest risk, do first behind tests).**
-  - P1a: **error-shape characterization tests** — pin `HttpAdapter`'s exact resolve/reject
-    shapes across GET/POST/PUT/PATCH/DELETE + 403-retry + headers (test-only, safe).
-  - P1b: a v2 transport adapter over core-v3 `makeApiRequest` (axios) that reproduces those
-    shapes; move 403-retry + QISCUS-SDK-* headers into core-v3 transport config.
-  - P1c: point `makeV2Requester` (or replace it) at the new transport; run the whole compat
-    parity suite (already covers per-method resolve/reject). Delete `HttpAdapter`.
+- **P1 — Transport unification — DONE (`50ad9b4` P1a, `beaad9f` P1b, `aca5413` P1c).**
+  - P1a ✅: `http-adapter.characterization.test.js` pins HttpAdapter's superagent contract
+    (resolve `res.body`/`.status`, reject `err.status`/`err.response.{status,body}`, headers,
+    403-retry) against a real local server (6 tests).
+  - P1b ✅: `compat/axios-requester.js` `makeV2AxiosRequester` over core-v3's shared
+    `makeApiRequest` (axios) reproduces that contract (adds QISCUS-SDK-PLATFORM, 403
+    refresh-retry, axios→superagent error re-shape); proven by `axios-requester.test.js`.
+  - P1c ✅: `makeDeps` defaults to the axios requester (seeds `storage.version`, wires
+    `refreshToken`→`self.refreshAuthToken`+storage); parity tests inject the legacy
+    `makeV2Requester(stub)` to stay network-free; `deps-axios-integration.test.js` proves the
+    PRODUCTION axios path end-to-end. compat 69/69. **HttpAdapter NOT yet deleted** — it stays
+    as the token store + is used by the keep-in-shell methods; delete after P2 + token
+    migration.
 - **P2 — Keep-in-shell HTTP methods → core-v3** (needs the §5 confirmations): add missing
   primitives to core-v3, then re-platform `deleteComment`/`clearRoomMessages`/`upload`/
   `getUserPresences`/`searchMessages`/`getNonce`/`verifyIdentityToken` onto them.
