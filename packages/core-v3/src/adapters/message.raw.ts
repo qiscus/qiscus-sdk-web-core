@@ -38,12 +38,18 @@ export const getMessageAdapterRaw = (s: Storage, api: Api.ApiRequester) => ({
       })
     )
   },
-  deleteMessage(uniqueIds: string[]): Promise<DeleteCommentsResponse.RootObject> {
+  deleteMessage(
+    uniqueIds: string[],
+    isForEveryone?: boolean,
+    isHard?: boolean
+  ): Promise<DeleteCommentsResponse.RootObject> {
     return api.request<DeleteCommentsResponse.RootObject>(
       Api.deleteMessages({
         ...Provider.withBaseUrl(s),
         ...Provider.withCredentials(s),
         uniqueIds,
+        isForEveryone,
+        isHard,
       })
     )
   },

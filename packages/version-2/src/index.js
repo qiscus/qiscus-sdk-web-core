@@ -2329,7 +2329,8 @@ class QiscusSDK {
     )
   }
 
-  deleteComment(roomId, commentUniqueIds, isForEveryone, isHard) {
+  /** TEMPORARY parity reference — see comment above `_legacyGetUsers`. */
+  _legacyDeleteComment(roomId, commentUniqueIds, isForEveryone, isHard) {
     if (!Array.isArray(commentUniqueIds)) {
       throw new Error(`unique ids' must be type of Array`)
     }
@@ -2344,6 +2345,46 @@ class QiscusSDK {
             isHard,
           })
           return Promise.resolve(res)
+        },
+        (err) => Promise.reject(err)
+      )
+  }
+
+  /**
+   * Re-platformed on core-v3's raw message adapter (docs/v2-full-shell-plan.md
+   * P2) — same `api/v2/sdk/delete_messages` DELETE. `Api.deleteMessages` now
+   * takes the `isForEveryone`/`isHard` flags (default true — the approved
+   * primitive change), reproducing the old behavior + the deprecation warnings
+   * (moved here from the old `userAdapter.deleteComment`). Old adapter resolved
+   * the raw `res.body` envelope with no status check, so
+   * `deps.messageAdapter.deleteMessage` (returns the raw body) reproduces the
+   * resolved value; the `'comment-deleted'` emit is unchanged. Accepted wire
+   * divergence: core-v3 sends ids/flags as query params (v3-proven) where old
+   * v2 sent a JSON body — resolved value unaffected.
+   */
+  deleteComment(roomId, commentUniqueIds, isForEveryone, isHard) {
+    if (!Array.isArray(commentUniqueIds)) {
+      throw new Error(`unique ids' must be type of Array`)
+    }
+    if (isForEveryone === false) {
+      console.warn(
+        'Deprecated: delete comment for me will be removed on next release'
+      )
+    }
+    if (isHard === false) {
+      console.warn('Deprecated: soft delete will be removed on next release')
+    }
+    return this.deps.messageAdapter
+      .deleteMessage(commentUniqueIds, isForEveryone, isHard)
+      .then(
+        (body) => {
+          this.events.emit('comment-deleted', {
+            roomId,
+            commentUniqueIds,
+            isForEveryone,
+            isHard,
+          })
+          return Promise.resolve(body)
         },
         (err) => Promise.reject(err)
       )

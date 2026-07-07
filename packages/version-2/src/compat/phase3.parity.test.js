@@ -136,6 +136,27 @@ describe('compat/phase3 parity (message read path)', () => {
     }
   })
 
+  it('deleteComment transport: old userAdapter.deleteComment vs new deleteMessage resolve/reject identically', async () => {
+    const happy = { status: 200, results: { comments: [] } }
+
+    const result = await compareParity({
+      reference: ({ response }) => new User(makeStubHttpAdapter(response)).deleteComment(1, ['u1', 'u2'], true, true),
+      candidate: ({ response }) =>
+        makeFakeSelf(makeStubHttpAdapter(response)).deps.messageAdapter.deleteMessage(['u1', 'u2'], true, true),
+      cases: [
+        { name: '200 resolves the raw body', input: { response: { status: 200, body: happy } } },
+        ...[400, 403, 500].map((status) => ({
+          name: `HTTP ${status} rejects identically`,
+          input: { response: { status, body: { error: { message: `err-${status}` } } } },
+        })),
+      ],
+    })
+
+    if (result.firstDivergence) {
+      throw new Error('parity divergence: ' + JSON.stringify(result.firstDivergence, null, 2))
+    }
+  })
+
   it('getUserPresences: old userAdapter.getUserPresences vs new resolve/reject identically', async () => {
     const happy = { status: 200, results: { user_status: [{ email: 'a@e.com', status: 1, timestamp: 123 }] } }
 

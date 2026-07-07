@@ -442,14 +442,19 @@ export const searchMessages: ApiRequest<
 export const deleteMessages: ApiRequest<
   {
     uniqueIds: IQMessage['uniqueId'][]
+    isForEveryone?: boolean
+    isHard?: boolean
   } & withCredentials
 > = compose(
   useDeleteUrl('/delete_messages'),
   useCredentials(),
   useParams((o) => ({
     unique_ids: o.uniqueIds,
-    is_delete_for_everyone: true,
-    is_hard_delete: true,
+    // Parameterized (default true) so v2's deleteComment(isForEveryone, isHard)
+    // can pass its flags; v3 callers pass neither, so the defaults keep v3's
+    // wire (is_delete_for_everyone/is_hard_delete = true) unchanged.
+    is_delete_for_everyone: o.isForEveryone ?? true,
+    is_hard_delete: o.isHard ?? true,
   }))
 )
 
