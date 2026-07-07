@@ -2431,11 +2431,27 @@ class QiscusSDK {
     this.selected = null
   }
 
-  clearRoomMessages(roomIds) {
+  /** TEMPORARY parity reference — see comment above `_legacyGetUsers`. */
+  _legacyClearRoomMessages(roomIds) {
     if (!Array.isArray(roomIds)) {
       throw new Error('room_ids must be type of array')
     }
     return this.userAdapter.clearRoomMessages(roomIds)
+  }
+
+  /**
+   * Re-platformed on core-v3's raw room adapter (docs/v2-full-shell-plan.md P2)
+   * — same `api/v2/sdk/clear_room_messages` DELETE via `deps.roomAdapter.clearRoom`.
+   * Old `userAdapter.clearRoomMessages` resolved the raw `res.body` (no status
+   * check); `clearRoom` returns the raw body, so the resolved value matches.
+   * Accepted wire divergence: core-v3 sends `room_channel_ids` as an array query
+   * param (v3-proven) where old v2 sent a JSON body.
+   */
+  clearRoomMessages(roomIds) {
+    if (!Array.isArray(roomIds)) {
+      throw new Error('room_ids must be type of array')
+    }
+    return this.deps.roomAdapter.clearRoom(roomIds)
   }
 
   logging(message, params = {}) {

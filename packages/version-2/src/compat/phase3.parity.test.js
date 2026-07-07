@@ -136,6 +136,27 @@ describe('compat/phase3 parity (message read path)', () => {
     }
   })
 
+  it('clearRoomMessages transport: old userAdapter.clearRoomMessages vs new clearRoom resolve/reject identically', async () => {
+    const happy = { status: 200, results: { rooms: [] } }
+
+    const result = await compareParity({
+      reference: ({ response }) => new User(makeStubHttpAdapter(response)).clearRoomMessages(['uq-1', 'uq-2']),
+      candidate: ({ response }) =>
+        makeFakeSelf(makeStubHttpAdapter(response)).deps.roomAdapter.clearRoom(['uq-1', 'uq-2']),
+      cases: [
+        { name: '200 resolves the raw body', input: { response: { status: 200, body: happy } } },
+        ...[400, 403, 500].map((status) => ({
+          name: `HTTP ${status} rejects identically`,
+          input: { response: { status, body: { error: { message: `err-${status}` } } } },
+        })),
+      ],
+    })
+
+    if (result.firstDivergence) {
+      throw new Error('parity divergence: ' + JSON.stringify(result.firstDivergence, null, 2))
+    }
+  })
+
   it('deleteComment transport: old userAdapter.deleteComment vs new deleteMessage resolve/reject identically', async () => {
     const happy = { status: 200, results: { comments: [] } }
 
