@@ -2762,6 +2762,15 @@ class QiscusSDK {
    * @param {SearchMessageParams} param0
    * @returns {Array.<Object>}
    */
+  /**
+   * Re-platformed on core-v3's raw message adapter (docs/v2-full-shell-plan.md
+   * P2) — same `api/v2/sdk/search` POST via `Api.searchMessagesV2`, whose
+   * encoder carries the identical `roomType -> {room_type, is_public}` mapping
+   * and `room_ids` stringify that used to live here. The `roomType` validation
+   * stays in the shell; resolves the raw `res.body` like before. Accepted
+   * divergence: old v2 also put `token` in the body (redundant — the token is
+   * in the headers); core-v3 omits it.
+   */
   async searchMessage({
     query,
     roomIds = [],
@@ -2771,8 +2780,6 @@ class QiscusSDK {
     page,
     limit,
   } = {}) {
-    const url = 'api/v2/sdk/search'
-
     const isValidRoomType = ['group', 'single', 'channel'].some(
       (it) => it === roomType
     )
@@ -2782,33 +2789,15 @@ class QiscusSDK {
       )
     }
 
-    const room = ((roomType) => {
-      const rType =
-        roomType == null
-          ? undefined
-          : roomType === 'single'
-            ? 'single'
-            : 'group'
-      const isPublic =
-        roomType == null ? undefined : roomType === 'channel' ? true : false
-
-      return {
-        type: rType,
-        isPublic: isPublic,
-      }
-    })(roomType)
-
-    return this.HTTPAdapter.post_json(url, {
-      token: this.token,
-      query: query,
-      sender: userId,
-      type: type,
-      room_ids: roomIds.map((it) => String(it)),
-      room_type: room.type || undefined,
-      is_public: room.isPublic || undefined,
-      page: page,
-      limit: limit,
-    }).then((res) => res.body)
+    return this.deps.messageAdapter.searchMessages({
+      query,
+      roomIds,
+      userId,
+      type,
+      roomType,
+      page,
+      limit,
+    })
   }
 
   /**
@@ -2834,8 +2823,6 @@ class QiscusSDK {
     includeExtensions,
     excludeExtensions,
   } = {}) {
-    const url = 'api/v2/sdk/file_list'
-
     if (!this.isLogin)
       return Promise.reject('You need to login to use this method')
 
@@ -2849,18 +2836,20 @@ class QiscusSDK {
       sender = userId = this.user_id
     }
 
-    let opts = {
-      room_ids: roomIds.map((it) => String(it)),
-      file_type: fileType,
-      page: page,
-      limit: limit,
-      include_extensions: includeExtensions,
-      exclude_extensions: excludeExtensions,
-    }
-
-    if (sender != null) opts['sender'] = sender
-
-    return this.HTTPAdapter.post_json(url, opts).then((res) => res.body)
+    // Re-platformed on core-v3's raw message adapter (docs/v2-full-shell-plan.md
+    // P2) — same `file_list` POST via `Api.getFileList` (byte-identical body);
+    // the `isLogin` guard + sender/userId defaulting stay in the shell.
+    // Resolves the raw `res.body` like before.
+    return this.deps.messageAdapter.getFileList({
+      roomIds,
+      fileType,
+      page,
+      limit,
+      sender,
+      userId,
+      includeExtensions,
+      excludeExtensions,
+    })
   }
 
   _generateUniqueId() {

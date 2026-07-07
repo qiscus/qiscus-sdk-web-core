@@ -136,6 +136,48 @@ describe('compat/phase3 parity (message read path)', () => {
     }
   })
 
+  it('searchMessage/getFileList: encode + resolve raw body (candidate-only; old used direct post_json)', async () => {
+    // capturing apiAdapter to assert the encoded request body
+    function selfWithCapture() {
+      const captured = []
+      const self = {
+        baseURL: 'https://api.example.com',
+        AppId: 'app-1',
+        version: '3.0.0',
+        mqttURL: 'wss://m',
+        _customHeader: {},
+        user_id: 'user-1',
+        userData: { id: 'user-1', token: 't' },
+        HTTPAdapter: { token: 't' },
+        refreshAuthToken: async () => {},
+        isLogin: true,
+        _deps: null,
+      }
+      self._deps = makeDeps(self, {
+        apiAdapter: { request: (api) => (captured.push(api), Promise.resolve({ status: 200, results: {} })) },
+      })
+      Object.defineProperty(self, 'deps', { get() { return self._deps } })
+      return { self, captured }
+    }
+
+    // searchMessage: roomType 'channel' -> room_type 'group' + is_public true; room_ids stringified
+    const s = selfWithCapture()
+    const searchBody = await QiscusSDK.prototype.searchMessage.call(s.self, {
+      query: 'hi', roomIds: [1, 2], userId: 'sender-1', type: 'text', roomType: 'channel', page: 1, limit: 10,
+    })
+    if (JSON.stringify(searchBody) !== JSON.stringify({ status: 200, results: {} })) throw new Error('searchMessage resolve mismatch')
+    const sb = s.captured[0].body
+    if (JSON.stringify(sb.room_ids) !== JSON.stringify(['1', '2'])) throw new Error('room_ids not stringified: ' + JSON.stringify(sb.room_ids))
+    if (sb.room_type !== 'group' || sb.is_public !== true) throw new Error('channel roomType encode wrong: ' + JSON.stringify({ rt: sb.room_type, ip: sb.is_public }))
+    if (sb.query !== 'hi' || sb.sender !== 'sender-1') throw new Error('query/sender mismatch')
+
+    // getFileList: resolves raw body, isLogin guard in shell
+    const g = selfWithCapture()
+    const fileBody = await QiscusSDK.prototype.getFileList.call(g.self, { roomIds: [3], fileType: 'image', page: 1, limit: 5 })
+    if (JSON.stringify(fileBody) !== JSON.stringify({ status: 200, results: {} })) throw new Error('getFileList resolve mismatch')
+    if (JSON.stringify(g.captured[0].body.room_ids) !== JSON.stringify(['3'])) throw new Error('getFileList room_ids not stringified')
+  })
+
   it('registerDeviceToken/removeDeviceToken: old vs new resolve/reject identically', async () => {
     const happy = { status: 200, results: { changed: true, pn_android_configured: true } }
     const P = QiscusSDK.prototype
