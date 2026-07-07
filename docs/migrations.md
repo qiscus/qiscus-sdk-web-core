@@ -283,11 +283,18 @@
         20/1 (2 custom-event failures fixed; remaining failure = unrelated HTML-escape).
         compat 53/53, core-v3 86, both builds green. **All MQTT realtime parsing now lives
         ONCE in core-v3's `parseRealtimeEvent`.**
-      - **Step 5 TODO (remaining realtime single-source):** converge SYNC parsing (v2
-        SyncAdapter + core-v3 `sync.ts`) — the other 2 of the "4 parsers" — onto canonical
-        events. Note: sync is HTTP-poll (event list w/ action types), NOT topic-based, so it
-        needs a sync-event->CanonicalEvent mapping distinct from `parseRealtimeEvent`; keep
-        each shell's fallback POLICY (v2 "sync when mqtt down", v3 `xs.merge`).
+      - **Step 5 DONE — sync_event classification single-source (`98122ad`).** Added core-v3
+        `classifySyncEvents` (`adapters/sync-parser.ts`, generic over id type: v2 numbers,
+        v3 strings) = the single source for the `sync_event` batch (filter by `action_topic`,
+        extract `payload.data` buckets, compute `lastId`). Wired into BOTH v2 `sync.js` and
+        core-v3 `sync-event-factory.ts`; each shell keeps its own shaping (v2 raw emit; v3
+        Decoder + fan-out) + fallback POLICY. FIXED a real divergence: v2 matched
+        `action_topic 'delete_message'`, core-v3 matched `'deleted_message'` — one shell
+        silently missed sync deletes; the classifier accepts BOTH. 4 unit tests (core-v3 90);
+        version-3 tsc + v2 build green.
+      - **Realtime single-source: COMPLETE for MQTT + sync_event.** Minor residual (low value):
+        the `sync` (messages) path — v2 emits `message.new` from `results.comments`, core-v3
+        `sync-factory` similar — is a trivial comments-extract, not yet unified.
     - **Bridge verdict:** firehose (4a) = KEEPER (correct transport boundary).
       `compat/realtime-bridge.js` FILE = keeper as the location of v2's adapter, but its
       current GUTS (reusing v2 handlers) get replaced in steps 3-4. Characterization tests =
