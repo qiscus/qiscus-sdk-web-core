@@ -2189,7 +2189,8 @@ class QiscusSDK {
     )
   }
 
-  getUserPresences(email = []) {
+  /** TEMPORARY parity reference — see comment above `_legacyGetUsers`. */
+  _legacyGetUserPresences(email = []) {
     if (is.not.array(email)) {
       return Promise.reject(new Error('`email` must have type of array'))
     }
@@ -2197,6 +2198,30 @@ class QiscusSDK {
     const self = this
     return self.userAdapter.getUserPresences(email).then(
       (res) => {
+        self.events.emit('user-status', res)
+        return Promise.resolve(res)
+      },
+      (err) => Promise.reject(err)
+    )
+  }
+
+  /**
+   * Re-platformed on core-v3's raw user adapter (docs/v2-full-shell-plan.md P2)
+   * — same `api/v2/sdk/users/status` POST (body `{user_ids}`) via the new
+   * `Api.getUserPresences` primitive. Preserves the non-array reject, the
+   * body-level envelope-status reject (reconstructed `{status, body}`), the
+   * resolved value (`results.user_status`), and the `'user-status'` emit.
+   */
+  getUserPresences(email = []) {
+    if (is.not.array(email)) {
+      return Promise.reject(new Error('`email` must have type of array'))
+    }
+
+    const self = this
+    return self.deps.userAdapter.getUserPresences(email).then(
+      (body) => {
+        if (body.status !== 200) return Promise.reject({ status: 200, body })
+        const res = body.results.user_status
         self.events.emit('user-status', res)
         return Promise.resolve(res)
       },

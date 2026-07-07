@@ -37,6 +37,15 @@ const getUserAdapterRaw = (s: Storage, api: Api.ApiRequester) => ({
     })
     return api.request<BlockUserResponse.RootObject>(apiConfig)
   },
+  getUserPresences(userIds: string[]): Promise<UserPresencesResponse.RootObject> {
+    return api.request<UserPresencesResponse.RootObject>(
+      Api.getUserPresences({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        userIds,
+      })
+    )
+  },
   getBlockedUser(page: number = 1, limit: number = 20): Promise<BlockedUserListResponse.RootObject> {
     const apiConfig = Api.getBlockedUsers({
       ...Provider.withBaseUrl(s),
@@ -273,6 +282,23 @@ export declare module BlockedUserListResponse {
   export interface Results {
     users: BlockedUser[]
     total: number
+  }
+
+  export interface RootObject {
+    results: Results
+    status: number
+  }
+}
+export declare module UserPresencesResponse {
+  export interface UserStatus {
+    email: string
+    status: number
+    timestamp: number
+    timestamp_str: string
+  }
+
+  export interface Results {
+    user_status: UserStatus[]
   }
 
   export interface RootObject {

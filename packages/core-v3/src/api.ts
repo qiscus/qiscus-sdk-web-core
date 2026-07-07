@@ -133,6 +133,18 @@ export const getUserList: ApiRequest<
   }))
 )
 
+export const getUserPresences: ApiRequest<
+  {
+    userIds: IQUser['id'][]
+  } & withCredentials
+> = compose(
+  usePostUrl('/users/status'),
+  useCredentials(),
+  useBody((o) => ({
+    user_ids: o.userIds,
+  }))
+)
+
 export const blockUser: ApiRequest<
   {
     userId: IQUser['id']

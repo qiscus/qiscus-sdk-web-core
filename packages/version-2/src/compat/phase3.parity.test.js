@@ -136,6 +136,33 @@ describe('compat/phase3 parity (message read path)', () => {
     }
   })
 
+  it('getUserPresences: old userAdapter.getUserPresences vs new resolve/reject identically', async () => {
+    const happy = { status: 200, results: { user_status: [{ email: 'a@e.com', status: 1, timestamp: 123 }] } }
+
+    const result = await compareParity({
+      reference: ({ response }) => new User(makeStubHttpAdapter(response)).getUserPresences(['a@e.com']),
+      candidate: ({ response }) =>
+        makeFakeSelf(makeStubHttpAdapter(response)).deps.userAdapter
+          .getUserPresences(['a@e.com'])
+          .then((body) => {
+            if (body.status !== 200) return Promise.reject({ status: 200, body })
+            return body.results.user_status
+          }),
+      cases: [
+        { name: '200 resolves results.user_status', input: { response: { status: 200, body: happy } } },
+        { name: 'HTTP 200 but envelope status 400 rejects on both', input: { response: { status: 200, body: { status: 400, error: { message: 'envelope' } } } } },
+        ...[400, 403, 500].map((status) => ({
+          name: `HTTP ${status} rejects identically`,
+          input: { response: { status, body: { error: { message: `err-${status}` } } } },
+        })),
+      ],
+    })
+
+    if (result.firstDivergence) {
+      throw new Error('parity divergence: ' + JSON.stringify(result.firstDivergence, null, 2))
+    }
+  })
+
   it('updateProfile transport: old userAdapter.updateProfile vs new updateUser resolve/reject identically', async () => {
     const user = { name: 'Alice', avatar_url: 'http://a/x.png', extras: { role: 'admin' } }
     const happy = { status: 200, results: { user: { id: 'user-1', username: 'Alice', avatar_url: 'http://a/x.png' } } }
