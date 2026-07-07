@@ -113,12 +113,20 @@ live once.
     (`1ba4213`), `upload` (`4edc5c0`, core-v3 `getUploadAdapter` = axios+FormData+progress;
     `deps.uploadAdapter`).
   - Re-platformed: `getUserPresences`, `deleteComment` (+ flags), `clearRoomMessages`
-    (`2c3e76e`), `getNonce`/`verifyIdentityToken` (`d93774a`), `upload`/`uploadFile`. Each
-    with parity/adaptation tests (compat 76). `request` (superagent) import dropped from
-    index.js.
+    (`2c3e76e`), `getNonce`/`verifyIdentityToken` (`d93774a`), `upload`/`uploadFile`,
+    `register`/`removeDeviceToken` (`88b0936`), `searchMessage` (V2, `/search`) + `getFileList`
+    (`5117fa5`). Each with parity/adaptation tests (compat 78). `request` (superagent) import
+    dropped from index.js.
+  - **Only 3 live HTTP calls remain in the shell** (verified by scan), all by design:
+    (a) `init()`'s `config` negotiation → deferred to **P4** (setup/orchestration);
+    (b) `searchMessages` (deprecated) — see below; (c) `getRoomParticipants(roomUniqueId,
+    offset)` (deprecated; core-v3's `getParticipants` has no `offset`) — stays legacy.
   - **EXCEPTION — `searchMessages` stays on legacy:** it's deprecated AND core-v3's
     `Api.searchMessages` (v1) uses `page` where old v2 sent `last_comment_id` — matching it
     needs a gated fix for a deprecated method (not worth it). Documented.
+  - **HttpAdapter still not deletable** — used by the `_legacy*` refs (removed in P5), the 2
+    deprecated methods above, `init()`'s config call (P4), and as the token store. Delete
+    after P4 + P5 + token migration.
   - **Upload caveat:** the real multipart transfer is browser-runtime (axios+FormData+
     onUploadProgress), unit-tested only at the v2 adaptation level (progress/callback/resolve)
     with an injected stub — verify in a real browser before shipping.
