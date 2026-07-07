@@ -1,6 +1,8 @@
 # Plan: make v2 a thin shell — move ALL logic (incl. transport & realtime connection) into core-v3
 
-**Status:** DRAFT for review (2026-07-07). Supersedes the "transport-per-shell" boundary
+**Status:** CONFIRMED (2026-07-07). User approved adding all 3 missing features to core-v3
+(**upload**, **getUserPresences**, **deleteMessages flags**) and starting with **P1a**
+(HttpAdapter error-shape characterization tests). Supersedes the "transport-per-shell" boundary
 adopted in §4a of `v2-on-core-v3-plan.md` and the "keep v2 realtime native" stance — the
 user's goal is **single source of truth for ALL logic**, with `version-2`'s `index.js`
 reduced to a state-only shell like `version-3`'s `index.ts`.
