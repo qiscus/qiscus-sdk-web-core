@@ -21,8 +21,10 @@ import MqttAdapter from '../lib/adapters/mqtt'
 
 function makeFakeClient() {
   const calls = { subscribe: [], unsubscribe: [], publish: [], end: [] }
+  const listeners = {}
   const client = {
     calls,
+    listeners,
     connected: true,
     _resubscribeTopics: {},
     subscribe(...a) {
@@ -40,8 +42,20 @@ function makeFakeClient() {
     end(...a) {
       calls.end.push(a)
     },
-    addListener() {},
-    removeAllListeners() {},
+    // core-v3's `getMqttAdapter` registers its connection-event handlers via
+    // `addListener` on whatever `connect()` returns, then reacts to the real
+    // mqtt.js client firing 'connect'/'reconnect'/'close'/'error'/'message'.
+    // Capture those handlers so tests can simulate the client emitting them
+    // (`emitEv`), without a real socket.
+    addListener(ev, fn) {
+      ;(listeners[ev] || (listeners[ev] = [])).push(fn)
+    },
+    removeAllListeners() {
+      Object.keys(listeners).forEach((ev) => delete listeners[ev])
+    },
+    emitEv(ev, ...a) {
+      ;(listeners[ev] || []).forEach((fn) => fn(...a))
+    },
   }
   return client
 }
@@ -96,15 +110,19 @@ describe('MqttAdapter facade characterization', () => {
       expect(opts.clientId).to.match(/^app-1_undefined_\d+$/)
     })
 
-    it('sets the `will` option with a NUMBER 0 payload', () => {
+    it('sets the `will` option (core-v3 shape: string \'0\', qos 1)', () => {
       const { connectSpy, core } = makeAdapter({ core: makeCore({ user_id: 'user-1' }) })
       const [, opts] = connectSpy.calls[0]
+      // ACCEPTED wire divergence (Fable-flagged): LWT payload 0->'0' + qos 1;
+      // retained-status subscribers parse via Number() so '0' is safe; MUST
+      // be verified in the P3d two-client soak.
       expect(opts.will).to.deep.equal({
         topic: `u/${core.user_id}/s`,
-        payload: 0,
+        payload: '0',
         retain: true,
+        qos: 1,
       })
-      expect(opts.will.payload).to.be.a('number')
+      expect(opts.will.payload).to.be.a('string')
     })
   })
 
@@ -232,9 +250,10 @@ describe('MqttAdapter facade characterization', () => {
         core: makeCore({ selected: { id: roomId }, user_id: uid }),
       })
       adapter.publishTyping(1)
-      // publishTyping doesn't pass an `options` arg; `publish`'s default
-      // `options = {}` still flows through to the underlying client call.
-      expect(fakeClient.calls.publish).to.deep.equal([[`r/${roomId}/${roomId}/${uid}/t`, '1', {}]])
+      // publishTyping calls core's `publish` directly with no `options` arg
+      // (P3c); core forwards `options` as-is (no `= {}` default), so the
+      // underlying client call now receives `undefined` as the 3rd arg.
+      expect(fakeClient.calls.publish).to.deep.equal([[`r/${roomId}/${roomId}/${uid}/t`, '1', undefined]])
     })
 
     it('does nothing when no room is selected', () => {
@@ -244,43 +263,60 @@ describe('MqttAdapter facade characterization', () => {
     })
   })
 
-  describe('buffering (subscribe/publish while disconnected)', () => {
-    it('subscribe buffers while adapter.mqtt is null, then flushes all on the next call', () => {
-      const { adapter, fakeClient } = makeAdapter()
-      adapter.mqtt = null
+  describe('buffering (subscribe/publish before the underlying client exists)', () => {
+    // core-v3 now owns buffering (packages/core-v3/src/adapters/mqtt.ts):
+    // subscribe/unsubscribe/publish push onto a buffer and attempt an
+    // immediate flush, but the flush is a no-op until a client object
+    // actually exists (`mqtt != null`), and creating that object
+    // (`conneck()`) does NOT itself flush — only the underlying client's
+    // real 'connect' event (-> core's `mqtt::connected`) does. This mirrors
+    // core-v3's own characterization
+    // (`packages/core-v3/src/adapters/mqtt.test.ts`, "buffers subscribe/
+    // publish issued before mqtt exists and flushes on the connect event").
+    // `shouldConnect: false` is required here so the adapter's constructor
+    // does NOT auto-`conneck()` — otherwise the client would already exist
+    // before the test's `subscribe`/`publish` call and it would flush
+    // immediately instead of buffering.
+    it('subscribe buffers before any client exists, then flushes on the connect event', () => {
+      const { adapter, fakeClient } = makeAdapter({ connectOpts: { shouldConnect: false } })
       adapter.subscribe('t/1')
       expect(fakeClient.calls.subscribe).to.deep.equal([])
 
-      adapter.mqtt = fakeClient
-      adapter.subscribe('t/2')
-      expect(fakeClient.calls.subscribe).to.deep.equal([['t/1'], ['t/2']])
+      adapter.connect()
+      // Client object now exists, but still not flushed — no 'connect' event yet.
+      expect(fakeClient.calls.subscribe).to.deep.equal([])
+
+      fakeClient.emitEv('connect')
+      expect(fakeClient.calls.subscribe).to.deep.equal([['t/1']])
     })
 
-    it('publish buffers while adapter.mqtt is null, then flushes all on the next call', () => {
-      const { adapter, fakeClient } = makeAdapter()
-      adapter.mqtt = null
+    it('publish buffers before any client exists, then flushes on the connect event', () => {
+      const { adapter, fakeClient } = makeAdapter({ connectOpts: { shouldConnect: false } })
       adapter.publish('p/1', 'x')
       expect(fakeClient.calls.publish).to.deep.equal([])
 
-      adapter.mqtt = fakeClient
-      adapter.publish('p/2', 'y')
-      expect(fakeClient.calls.publish).to.deep.equal([
-        ['p/1', 'x', {}],
-        ['p/2', 'y', {}],
-      ])
+      adapter.connect()
+      expect(fakeClient.calls.publish).to.deep.equal([])
+
+      fakeClient.emitEv('connect')
+      expect(fakeClient.calls.publish).to.deep.equal([['p/1', 'x', undefined]])
     })
   })
 
   describe('disconnect()', () => {
     it('publishes offline presence for the user email and unsubscribes the resubscribe-topic keys, without calling end()', () => {
       const { adapter, fakeClient, core } = makeAdapter({ core: makeCore({ userData: { token: 'tok-1', email: 'me@mail.test' } }) })
-      adapter.mqtt = fakeClient
+      // The adapter already `conneck()`ed during construction (default
+      // `shouldConnect: true`), so `fakeClient` is already `this._core.mqtt`
+      // here — no explicit assignment needed (there's no public setter).
       fakeClient._resubscribeTopics = { 'a/b': 1, 'c/d': 1 }
 
       adapter.disconnect()
 
       expect(fakeClient.calls.publish).to.deep.equal([[`u/${core.userData.email}/s`, '0', { retain: true }]])
-      expect(fakeClient.calls.unsubscribe).to.deep.equal([[['a/b', 'c/d']]])
+      // core-v3 unsubscribes per-topic (P3c), not with one call over the
+      // whole array (v2's old behavior).
+      expect(fakeClient.calls.unsubscribe).to.deep.equal([['a/b'], ['c/d']])
       expect(fakeClient.calls.end).to.deep.equal([])
     })
   })

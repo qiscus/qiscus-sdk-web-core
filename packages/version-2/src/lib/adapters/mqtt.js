@@ -1,11 +1,17 @@
-import { parseRealtimeEvent } from '@qiscus/core-v3'
+import { getMqttAdapter, storageFactory, parseRealtimeEvent } from '@qiscus/core-v3'
 import { adaptCanonicalToV2 } from '../../compat/realtime-bridge'
 import mitt from 'mitt'
-import connect from 'mqtt/lib/connect'
 import request from 'superagent'
-import debounce from 'lodash.debounce'
-import { wrapP } from '../util'
 
+/**
+ * P3c (docs/v2-full-shell-plan.md): v2's `MqttAdapter` keeps its exact public
+ * facade + mitt surface (so `index.js` / `custom-event.js` are untouched), but
+ * internally DELEGATES connection, topic subscription, and buffering to
+ * core-v3's `getMqttAdapter`. Only the pieces byte-parity requires stay here:
+ * the `core.selected`-null guards, the `core.mqttURL` read/write, and
+ * `__mqtt_message_handler`/`__mqtt_error_handler` (single-source parsing via
+ * `parseRealtimeEvent` + `adaptCanonicalToV2`, unchanged from before P3c).
+ */
 export default class MqttAdapter {
   /**
    * @typedef {Function} GetClientId
@@ -29,151 +35,92 @@ export default class MqttAdapter {
     core,
     login,
     {
-      shouldConnect = true,
+      shouldConnect,
       brokerLbUrl,
       enableLb,
       getClientId,
       // Test seam: allow injecting a fake `connect` implementation so the
       // facade (topic strings, buffering, disconnect, presence/typing
       // payloads, mitt passthrough) can be characterized without opening a
-      // real socket. Defaults to the real `mqtt/lib/connect` import, so this
-      // is fully backward-compatible.
-      connect: connectImpl = connect,
+      // real socket. Defaults to `undefined`, in which case core-v3's
+      // `getMqttAdapter` falls back to the real `mqtt` lib.
+      connect,
     }
   ) {
     this.emitter = mitt()
     this.core = core
-    this.mqtt = null
     this.brokerLbUrl = brokerLbUrl
     this.getClientId = getClientId
     this.enableLb = enableLb
     this.shouldConnect = shouldConnect
-    this._connect = connectImpl
 
-    let mqtt = this.__mqtt_conneck(url)
-    this.mqtt = mqtt
+    // A storage facade bound LIVE to `core`'s mutable state (not a one-time
+    // snapshot): core-v3's mqtt adapter reads/writes broker url, current
+    // user, and LB config through this on every connect/reconnect, so it
+    // must observe the SAME live fields v2's old adapter read directly off
+    // `this.core` (pre->post-login transitions, LB reconnect write-back).
+    const storage = storageFactory()
+    storage.setBaseUrl(core.baseURL)
+    storage.setAppId(core.AppId)
+    storage.setVersion(core.version)
+    storage.setCustomHeaders(core._customHeader || {})
 
-    // if appConfig set realtimeEnabled to false,
-    // we intentionally end mqtt connection here.
-    // TODO: Make a better way to not connect
-    //       to broker, but still having mqtt client initiated.
-    if (!shouldConnect) mqtt.end(true)
+    storage.getCurrentUser = () =>
+      core.user_id != null ? { ...(core.userData || {}), id: core.user_id } : null
+    storage.getToken = () => core.userData?.token
+    storage.getBrokerUrl = () => core.mqttURL
+    storage.setBrokerUrl = (u) => {
+      core.mqttURL = u
+    }
+    storage.getBrokerLbUrl = () => core.brokerLbUrl
+    storage.getBrokerLbEnabled = () => core.enableLb === true
 
-    this.willConnectToRealtime = false
+    // enableHeartbeat MUST be false: v2's shell owns its own 3.5s heartbeat
+    // (index.js, the `presensePublisherId` interval set right after login) —
+    // a core-owned heartbeat too would double-publish presence and break
+    // `publishOnlinePresence(false)` on logout.
+    this._core = getMqttAdapter(storage, { enableHeartbeat: false, getClientId, connect })
 
-    // handle load balencer
-    this.emitter.on('close', this._on_close_handler)
-    // this.emitter.on('connected', () => {
-    //   this.willConnectToRealtime = false
-    // })
+    // Bridge core's connection events onto v2's mitt surface so `index.js`'s
+    // `.on('connected'|'reconnect'|'close'|'error', …)` keep working.
+    this._core.onMqttConnected(() => this.emit('connected'))
+    this._core.onMqttReconnecting(() => this.emit('reconnect'))
+    this._core.onMqttClose((...args) => this.emit('close', args))
+    this._core.onMqttError((msg) => this.emit('error', msg))
+
+    // Bridge raw messages to v2's existing single-source parsing path
+    // (unchanged; see `__mqtt_message_handler` below).
+    this._core.onMessage((t, m) => this.__mqtt_message_handler(t, m))
+
+    // core-v3's `getMqttAdapter` does not auto-connect (only `conneck()`
+    // does), whereas v2's old constructor connected immediately unless
+    // `shouldConnect` was `false` (in which case it connected then
+    // immediately `end(true)`d — net observable = never connected). Preserve
+    // that: connect here unless the caller explicitly opted out.
+    if (shouldConnect !== false) this._core.conneck()
   }
 
-  _getClientId = () => {
-    if (this.getClientId == null)
-      return `${this.core.AppId}_${this.core.user_id}_${Date.now()}`
-    return this.getClientId()
-  }
-
-  __mqtt_connected_handler = () => {
-    this.emitter.emit('connected')
-  }
-  __mqtt_reconnect_handler = () => {
-    this.emitter.emit('reconnect')
-  }
-  __mqtt_closed_handler = (...args) => {
-    this.emitter.emit('close', args)
-  }
   __mqtt_message_handler = (t, m) => {
     const message = m.toString()
     this.logger('message', t, m)
     // Phase 4 single-source (docs/v2-on-core-v3-plan.md §7): classify + parse
-    // via core-v3's shared `parseRealtimeEvent`, then adapt to v2's mitt shapes
-    // (`compat/realtime-bridge.js` `adaptCanonicalToV2`). This supersedes this
-    // adapter's own per-topic handlers/matcher below (now dead — removed in a
-    // follow-up); the emit shapes are pinned by
-    // `compat/realtime-bridge.test.js`. Connection + subscribe/publish facade
-    // stay here (per-shell transport policy).
+    // via core-v3's shared `parseRealtimeEvent`, then adapt to v2's mitt
+    // shapes (`compat/realtime-bridge.js` `adaptCanonicalToV2`). The emit
+    // shapes are pinned by `compat/realtime-bridge.test.js`.
     const event = parseRealtimeEvent(t, message)
     if (event != null) adaptCanonicalToV2(event, (...args) => this.emit(...args), this.core)
   }
+
+  // Kept for API compat / characterization tests, which call this directly.
+  // Not wired to core's `onMqttError` bridge above: core-v3's own
+  // `__mqtt_error_handler` already suppresses "client disconnecting"
+  // internally, so this never fires in production, but the observable
+  // suppression behavior must remain callable/testable on the facade.
   __mqtt_error_handler = (err) => {
     if (err && err.message === 'client disconnecting') return
     this.emitter.emit('error', err.message)
     this.logger('error', err.message)
   }
-  __mqtt_conneck = (brokerUrl) => {
-    const topics = []
-    const opts = {
-      will: {
-        topic: `u/${this.core.user_id}/s`,
-        payload: 0,
-        retain: true,
-      },
-      clientId: this._getClientId(),
-      // reconnectPeriod: 0,
-      // connectTimeout: 1 * 1000,
-    }
-
-    if (brokerUrl == null) brokerUrl = this.cacheRealtimeURL
-    if (this.mqtt != null) {
-      const _topics = Object.keys(this.mqtt._resubscribeTopics)
-      topics.push(..._topics)
-
-      this.mqtt.removeAllListeners()
-      this.mqtt.end(true)
-      delete this.mqtt
-      this.mqtt = null
-    }
-
-    const mqtt = this._connect(brokerUrl, opts)
-
-    // #region Mqtt Listener
-    mqtt.addListener('connect', this.__mqtt_connected_handler)
-    mqtt.addListener('reconnect', this.__mqtt_reconnect_handler)
-    mqtt.addListener('close', this.__mqtt_closed_handler)
-    mqtt.addListener('error', this.__mqtt_error_handler)
-    mqtt.addListener('message', this.__mqtt_message_handler)
-    // #endregion
-
-    this.logger(`resubscribe to old topics ${topics}`)
-    topics.forEach((topic) => mqtt.subscribe(topic))
-
-    return mqtt
-  }
-  _on_close_handler = debounce(async () => {
-    const shouldReconnect =
-      this.enableLb === true && // appConfig enabling realtime lb
-      this.core.isLogin === true && // is logged in
-      this.shouldConnect === true && // should reconnect?
-      !this.willConnectToRealtime // is there still reconnect process in progress?
-
-    if (this.logEnabled) {
-      console.group('@mqtt.closed')
-      console.log(`this.enableLb(${this.enableLb})`)
-      console.log(`this.core.isLogin(${this.core.isLogin})`)
-      console.log(`this.shouldConnect(${this.shouldConnect})`)
-      console.log(`this.willConnectToRealtime(${this.willConnectToRealtime})`)
-      console.log(`shouldReconnect(${shouldReconnect})`)
-      console.groupEnd()
-    }
-
-    if (!shouldReconnect) return
-    this.willConnectToRealtime = true
-
-    const [url, err] = await wrapP(this.getMqttNode())
-    if (err) {
-      this.logger(
-        `cannot get new brokerURL, using old url instead (${this.cacheRealtimeURL})`
-      )
-      this.mqtt = this.__mqtt_conneck(this.cacheRealtimeURL)
-    } else {
-      this.cacheRealtimeURL = url
-      this.logger('trying to reconnect to', url)
-      this.mqtt = this.__mqtt_conneck(url)
-    }
-
-    this.willConnectToRealtime = false
-  }, 1000)
 
   get cacheRealtimeURL() {
     return this.core.mqttURL
@@ -183,7 +130,7 @@ export default class MqttAdapter {
   }
 
   connect() {
-    this.mqtt = this.__mqtt_conneck()
+    this._core.conneck()
   }
 
   /**
@@ -191,7 +138,7 @@ export default class MqttAdapter {
    */
   async openConnection() {
     this.shouldConnect = true
-    this.mqtt = this.__mqtt_conneck()
+    return this._core.open()
   }
 
   /**
@@ -199,12 +146,7 @@ export default class MqttAdapter {
    */
   async closeConnection() {
     this.shouldConnect = false
-    this.mqtt.end(true, (err) => {
-      if (err) {
-        this.logger('error when close connection', err.message)
-      }
-    })
-    this.mqtt = null
+    return this._core.close()
   }
 
   async getMqttNode() {
@@ -214,49 +156,24 @@ export default class MqttAdapter {
     return `wss://${url}:${port}/mqtt`
   }
 
+  get mqtt() {
+    return this._core.mqtt
+  }
+
   get connected() {
-    if (this.mqtt == null) return false
-    return this.mqtt.connected
+    return this._core.mqtt?.connected === true
   }
 
-  subscribtionBuffer = []
-  subscribe(...args) {
-    this.subscribtionBuffer.push(args)
-    while (this.mqtt != null && this.subscribtionBuffer.length > 0) {
-      const subs = this.subscribtionBuffer.shift()
-      if (subs != null) {
-        this.logger('subscribe topic', subs)
-        this.mqtt.subscribe(...subs)
-      }
-    }
+  subscribe(topic) {
+    this._core.subscribe(topic)
   }
 
-  unsubscribtionBuffer = []
-  unsubscribe(...args) {
-    this.unsubscribtionBuffer.push(args)
-    while (this.mqtt != null && this.unsubscribtionBuffer.length > 0) {
-      const subs = this.unsubscribtionBuffer.shift()
-      if (subs != null) {
-        this.logger('unsubscribe topic', subs)
-        this.mqtt.unsubscribe(...subs)
-      }
-    }
+  unsubscribe(topic) {
+    this._core.unsubscribe(topic)
   }
 
-  publishBuffer = []
-  publish(topic, payload, options = {}) {
-    this.publishBuffer.push({ topic, payload, options })
-    while (this.mqtt != null && this.publishBuffer.length > 0) {
-      const data = this.publishBuffer.shift()
-      if (data != null) {
-        this.logger('publish to', data.topic, data.payload, data.options)
-        this.mqtt.publish(
-          data.topic,
-          data.payload.toString(),
-          data.options
-        )
-      }
-    }
+  publish(topic, payload, options) {
+    this._core.publish(topic, String(payload), options)
   }
 
   emit(...args) {
@@ -282,25 +199,19 @@ export default class MqttAdapter {
 
   // #region old-methods
   subscribeChannel(appId, uniqueId) {
-    this.subscribe(`${appId}/${uniqueId}/c`)
+    this._core.subscribeChannel(appId, uniqueId)
   }
 
   subscribeRoom(roomId) {
     if (this.core.selected == null) return
     roomId = roomId || this.core.selected.id
-    this.subscribe(`r/${roomId}/typing`)
-    this.subscribe(`r/${roomId}/${roomId}/+/t`)
-    this.subscribe(`r/${roomId}/${roomId}/+/d`)
-    this.subscribe(`r/${roomId}/${roomId}/+/r`)
+    this._core.subscribeRoom(roomId)
   }
 
   unsubscribeRoom(roomId) {
     if (this.core.selected == null) return
     roomId = roomId || this.core.selected.id
-    this.unsubscribe(`r/${roomId}/typing`)
-    this.unsubscribe(`r/${roomId}/${roomId}/+/t`)
-    this.unsubscribe(`r/${roomId}/${roomId}/+/d`)
-    this.unsubscribe(`r/${roomId}/${roomId}/+/r`)
+    this._core.unsubscribeRoom(roomId)
   }
 
   get subscribeTyping() {
@@ -312,44 +223,41 @@ export default class MqttAdapter {
   }
 
   subscribeUserChannel() {
-    this.subscribe(`${this.core.userData.token}/c`)
-    this.subscribe(`${this.core.userData.token}/n`)
-    this.subscribe(`${this.core.userData.token}/update`)
+    this._core.subscribeUser(this.core.userData.token)
   }
 
   subscribeUserChannelByToken(token) {
-    this.subscribe(`${token}/c`)
-    this.subscribe(`${token}/n`)
-    this.subscribe(`${token}/update`)
+    this._core.subscribeUser(token)
   }
   unsubscribeUserChannel() {
-    this.unsubscribe(`${this.core.userData.token}/c`)
-    this.unsubscribe(`${this.core.userData.token}/n`)
-    this.unsubscribe(`${this.core.userData.token}/update`)
+    const token = this.core.userData.token
+    this._core.unsubscribe(`${token}/c`)
+    this._core.unsubscribe(`${token}/n`)
+    this._core.unsubscribe(`${token}/update`)
   }
   unsusbcribeUserChannelByToken(token) {
-    this.unsubscribe(`${token}/c`)
-    this.unsubscribe(`${token}/n`)
-    this.unsubscribe(`${token}/update`)
+    this._core.unsubscribe(`${token}/c`)
+    this._core.unsubscribe(`${token}/n`)
+    this._core.unsubscribe(`${token}/update`)
   }
 
   publishPresence(userId, isOnline = true) {
-    isOnline
-      ? this.publish(`u/${userId}/s`, 1, { retain: true })
-      : this.publish(`u/${userId}/s`, 0, { retain: true })
+    this._core.sendPresence(userId, isOnline)
   }
 
   disconnect() {
     this.publishPresence(this.core.userData.email, false)
-    this.unsubscribe(Object.keys(this.mqtt._resubscribeTopics))
+    Object.keys(this._core.mqtt?._resubscribeTopics ?? {}).forEach((topic) =>
+      this._core.unsubscribe(topic)
+    )
   }
 
   subscribeUserPresence(userId) {
-    this.subscribe(`u/${userId}/s`)
+    this._core.subscribeUserPresence(userId)
   }
 
   unsubscribeUserPresence(userId) {
-    this.unsubscribe(`u/${userId}/s`)
+    this._core.unsubscribeUserPresence(userId)
   }
 
   get subscribeRoomPresence() {
@@ -364,7 +272,7 @@ export default class MqttAdapter {
     if (this.core.selected == null) return
     const roomId = this.core.selected.id
     const userId = this.core.user_id
-    this.publish(`r/${roomId}/${roomId}/${userId}/t`, status)
+    this._core.publish(`r/${roomId}/${roomId}/${userId}/t`, String(status))
   }
 
   // #endregion

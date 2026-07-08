@@ -17,6 +17,12 @@ export { getRoomAdapterRaw } from './adapters/room.raw'
 export { getMessageAdapterRaw } from './adapters/message.raw'
 export { getUploadAdapter } from './adapters/upload'
 export type { UploadResponse, UploadProgress, UploadAdapter } from './adapters/upload'
+// P3c (docs/v2-full-shell-plan.md): re-export core-v3's mqtt adapter so v2's
+// `MqttAdapter` facade (packages/version-2/src/lib/adapters/mqtt.js) can
+// delegate its connection + topic + buffering logic to it instead of owning
+// a parallel implementation.
+export { default as getMqttAdapter } from './adapters/mqtt'
+export type { MqttAdapter } from './adapters/mqtt'
 export { parseRealtimeEvent } from './adapters/realtime-parser'
 export type { CanonicalEvent, DeletedMessage } from './adapters/realtime-parser'
 export { classifySyncEvents } from './adapters/sync-parser'
