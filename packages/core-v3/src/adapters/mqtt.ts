@@ -100,12 +100,20 @@ function adaptCanonicalToV3(event: CanonicalEvent, emitter: EventEmitter<Events>
 export type MqttAdapter = ReturnType<typeof getMqttAdapter>
 export default function getMqttAdapter(
   s: Storage,
-  opts?: { getClientId?: () => string; enableHeartbeat?: boolean }
+  opts?: {
+    getClientId?: () => string
+    enableHeartbeat?: boolean
+    // Injectable mqtt `connect` (default: the real `mqtt` lib). Lets a shell
+    // (v2) pass its own client factory through for testing, and lets tests
+    // inject a fake client without a real broker.
+    connect?: typeof connect
+  }
 ) {
   // Captured once, here — `__mqtt_conneck` below shadows this same param name
   // with its own local `IClientOptions` variable, so reading `opts?.enableHeartbeat`
   // from inside it would not see this flag.
   const enableHeartbeat = opts?.enableHeartbeat !== false
+  const connectImpl = opts?.connect ?? connect
   let mqtt: _MqttClient | undefined = undefined
   let shouldConnect = true
   let reconnectFailures = 0
@@ -176,7 +184,7 @@ export default function getMqttAdapter(
       },
     }
 
-    const mqtt_: MqttClient = connect(brokerUrl, opts)
+    const mqtt_: MqttClient = connectImpl(brokerUrl, opts)
     mqtt_.addListener('connect', __mqtt_connected_handler)
     mqtt_.addListener('reconnect', __mqtt_reconnect_handler)
     mqtt_.addListener('close', __mqtt_closed_handler)
