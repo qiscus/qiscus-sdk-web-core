@@ -28,7 +28,18 @@ export default class MqttAdapter {
     url,
     core,
     login,
-    { shouldConnect = true, brokerLbUrl, enableLb, getClientId }
+    {
+      shouldConnect = true,
+      brokerLbUrl,
+      enableLb,
+      getClientId,
+      // Test seam: allow injecting a fake `connect` implementation so the
+      // facade (topic strings, buffering, disconnect, presence/typing
+      // payloads, mitt passthrough) can be characterized without opening a
+      // real socket. Defaults to the real `mqtt/lib/connect` import, so this
+      // is fully backward-compatible.
+      connect: connectImpl = connect,
+    }
   ) {
     this.emitter = mitt()
     this.core = core
@@ -37,6 +48,7 @@ export default class MqttAdapter {
     this.getClientId = getClientId
     this.enableLb = enableLb
     this.shouldConnect = shouldConnect
+    this._connect = connectImpl
 
     let mqtt = this.__mqtt_conneck(url)
     this.mqtt = mqtt
@@ -113,7 +125,7 @@ export default class MqttAdapter {
       this.mqtt = null
     }
 
-    const mqtt = connect(brokerUrl, opts)
+    const mqtt = this._connect(brokerUrl, opts)
 
     // #region Mqtt Listener
     mqtt.addListener('connect', this.__mqtt_connected_handler)
