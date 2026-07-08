@@ -515,7 +515,7 @@ export const synchronize: ApiRequest<
 
 export const synchronizeEvent: ApiRequest<
   {
-    lastEventId?: string
+    lastEventId?: string | number
   } & withCredentials
 > = compose(
   useGetUrl('/sync_event'),

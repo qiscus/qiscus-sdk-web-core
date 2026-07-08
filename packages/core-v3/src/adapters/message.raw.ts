@@ -154,6 +154,24 @@ export const getMessageAdapterRaw = (s: Storage, api: Api.ApiRequester) => ({
       })
     )
   },
+  synchronize(lastMessageId?: number): Promise<SyncResponse.RootObject> {
+    return api.request<SyncResponse.RootObject>(
+      Api.synchronize({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        lastMessageId,
+      })
+    )
+  },
+  synchronizeEvent(lastEventId?: string | number): Promise<SyncEventResponse.RootObject> {
+    return api.request<SyncEventResponse.RootObject>(
+      Api.synchronizeEvent({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        lastEventId,
+      })
+    )
+  },
 })
 export default getMessageAdapterRaw
 export type MessageAdapterRaw = ReturnType<typeof getMessageAdapterRaw>
@@ -388,6 +406,26 @@ export declare module SearchMessagesV2Response {
   export interface RootObject {
     results: Results
     status: number
+  }
+}
+export declare module SyncResponse {
+  export interface Meta {
+    last_received_comment_id: number
+  }
+
+  export interface Results {
+    comments: any[]
+    meta: Meta
+  }
+
+  export interface RootObject {
+    status: number
+    results: Results
+  }
+}
+export declare module SyncEventResponse {
+  export interface RootObject {
+    events: any[]
   }
 }
 
