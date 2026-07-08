@@ -130,9 +130,38 @@ live once.
   - **Upload caveat:** the real multipart transfer is browser-runtime (axios+FormData+
     onUploadProgress), unit-tested only at the v2 adaptation level (progress/callback/resolve)
     with an injected stub — verify in a real browser before shipping.
-- **P3 — Realtime connection → core-v3**: v2 facade delegates to `getMqttAdapter` (+ heartbeat
-  flag OFF); replace `SyncAdapter` polling with core-v3 sync (keep v2's fallback policy);
-  delete v2 `MqttAdapter`/`SyncAdapter` connection code.
+- **P3 — Realtime connection → core-v3 — MQTT DONE (Fable-reviewed); SyncAdapter pending.**
+  - Fable review surfaced 5 divergences + core-v3 bugs; user decided: reconnect UNIFIES on
+    core-v3 backoff; all core-v3 changes approved; build P3a→P3c behind tests, defer soak.
+  - **P3a** (`420eace`): `mqtt-facade.characterization.test.js` pins v2's MqttAdapter facade
+    (topics, buffering, disconnect, presence/typing payloads, mitt) via an injected `connect`
+    seam — the oracle (26 tests).
+  - **P3b** (`96e949e`): core-v3 `getMqttAdapter` made delegatable — `enableHeartbeat` opt,
+    buffered generic `subscribe/unsubscribe/publish` (domain methods routed through them), 4th
+    `r/{id}/typing` topic on subscribeRoom, null-user tolerance at conneck, fixes
+    (`_getClientId` return, stacked-interval leak, dropped stale `cacheUrl`), `onMqttClose`/
+    `onMqttError`. +7 core-v3 tests. `connect` injection seam (`0ac21c3`).
+  - **P3c** (`ef52df9`): v2 `MqttAdapter` rewritten to a thin facade wrapping
+    `getMqttAdapter(storageFacade, {enableHeartbeat:false, getClientId, connect})`; storage
+    facade bound LIVE to `core.mqttURL`/`user_id`/`userData`/`enableLb`; core events bridged to
+    v2's mitt; raw `onMessage` → unchanged `__mqtt_message_handler` (single-source parse). v2's
+    own MqttAdapter connection code deleted. compat 104/104, core-v3 97, v2 test 20/1
+    (pre-existing), all builds green.
+  - **ACCEPTED divergences (need P3d two-client soak to confirm safe):** (1) reconnect cadence
+    fixed-1s → exponential backoff 1s→30s + suppress lib-retry (changes `onReconnectCallback`
+    timing); (2) LWT `will.payload` `0` (number) → `'0'` (string) + `qos:1` — retained-status
+    subscribers parse via `Number()` so `'0'` is safe, but LWT-firing must be verified live;
+    (3) `disconnect()` emits N per-topic UNSUBSCRIBE packets instead of 1 array packet (same
+    broker effect); (4) LB-node fetch now carries auth headers (`Api.getMqttNode` credentials)
+    vs v2's bare superagent GET; (5) mqtt lib `~4.2.6`→`^4.3.8`.
+  - **P3d — SOAK (MANDATORY GATE before any release): real broker + TWO clients** — verify LB
+    failover + resubscribe after broker kill, presence heartbeat-off honored
+    (`publishOnlinePresence(false)` → peer sees offline), LWT on tab-kill, no double-connection
+    on reinit, `onReconnectCallback` behavior acceptable. Cannot run in the worktree (no push);
+    deferred to the user.
+  - **STILL PENDING in P3: SyncAdapter** (`lib/adapters/sync.js`, HTTP-poll loop) → core-v3
+    sync (parsing already shared via `classifySyncEvents`); keep v2's fallback policy; then
+    delete v2's sync connection code.
 - **P4 — Model-agnostic usecases + orchestration move**: refactor core-v3 usecases to inject
   model-construction + state-mutation; move v2's optimistic-send + chatTarget/getRoomById
   flows into shared usecases; v2 methods become 1-line delegations.
