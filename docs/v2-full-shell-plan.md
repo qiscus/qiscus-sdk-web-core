@@ -130,7 +130,7 @@ live once.
   - **Upload caveat:** the real multipart transfer is browser-runtime (axios+FormData+
     onUploadProgress), unit-tested only at the v2 adaptation level (progress/callback/resolve)
     with an injected stub — verify in a real browser before shipping.
-- **P3 — Realtime connection → core-v3 — MQTT DONE (Fable-reviewed); SyncAdapter pending.**
+- **P3 — Realtime connection → core-v3 — DONE (MQTT + SyncAdapter, Fable-reviewed).**
   - Fable review surfaced 5 divergences + core-v3 bugs; user decided: reconnect UNIFIES on
     core-v3 backoff; all core-v3 changes approved; build P3a→P3c behind tests, defer soak.
   - **P3a** (`420eace`): `mqtt-facade.characterization.test.js` pins v2's MqttAdapter facade
@@ -159,9 +159,18 @@ live once.
     (`publishOnlinePresence(false)` → peer sees offline), LWT on tab-kill, no double-connection
     on reinit, `onReconnectCallback` behavior acceptable. Cannot run in the worktree (no push);
     deferred to the user.
-  - **STILL PENDING in P3: SyncAdapter** (`lib/adapters/sync.js`, HTTP-poll loop) → core-v3
-    sync (parsing already shared via `classifySyncEvents`); keep v2's fallback policy; then
-    delete v2's sync connection code.
+  - **SyncAdapter transport (`2f1bbcd`, `ac0c7d0`):** added `synchronize`/`synchronizeEvent`
+    RAW methods to core-v3's message adapter (additive; `Api.synchronizeEvent`'s `lastEventId`
+    widened to `string | number` since v2's ids are numeric while v3's are string — v3 still
+    passes string, unaffected). Rewrote v2 `lib/adapters/sync.js` to call
+    `deps.messageAdapter.synchronize()`/`.synchronizeEvent()` instead of
+    `UrlBuilder` + superagent `getHttp().get(url)`; kept the poll loops, fallback interval
+    policy, RAW emit shapes, and the pre-existing `getId()` reference quirk in the public
+    `synchronizeEvent()` byte-for-byte. `synchronizeFactory`/`synchronizeEventFactory` are now
+    exported for unit testing without triggering the infinite poll loop. Wired
+    `index.js`'s `SyncAdapter(() => this.deps.messageAdapter, {...})` (was
+    `() => this.HTTPAdapter`) — this removes one of the last live `HttpAdapter` users.
+    core-v3 99/99 (+2), compat 108/108 (+4), v2 test 20/1 (pre-existing), all builds green.
 - **P4 — Model-agnostic usecases + orchestration move**: refactor core-v3 usecases to inject
   model-construction + state-mutation; move v2's optimistic-send + chatTarget/getRoomById
   flows into shared usecases; v2 methods become 1-line delegations.
