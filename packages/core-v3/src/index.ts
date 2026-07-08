@@ -6,6 +6,12 @@ import type { QiscusDeps } from './usecases/types'
 // Factories
 export { storageFactory } from './storage'
 export { makeApiRequest } from './api'
+// P5 (docs/v2-full-shell-plan.md): re-export the `Api` request-descriptor
+// namespace and the `Provider` header/baseUrl/credentials helpers so v2 can
+// build descriptors for edge/deprecated endpoints via `deps.apiAdapter.request(...)`
+// without needing bespoke raw-adapter methods for every rarely-used call.
+export * as Api from './api'
+export * as Provider from './provider'
 export { hookAdapterFactory, Hooks } from './hook'
 export { default as getUserAdapter } from './adapters/user'
 export { default as getRealtimeAdapter } from './adapters/realtime'

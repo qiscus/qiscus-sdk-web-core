@@ -322,6 +322,12 @@ export const getRoomParticipants: ApiRequest<
     page?: number
     limit?: number
     sorting?: 'asc' | 'desc'
+    // P5 (docs/v2-full-shell-plan.md): v2's deprecated `getRoomParticipants`
+    // used old-style offset pagination (`offset`, not `page`/`limit`) — added
+    // so its request can be built with this encoder instead of a bespoke one.
+    // Undefined for every other caller, so it drops out of the query — v3 and
+    // v2's `getParticipants` wire are both unaffected.
+    offset?: number
   } & withCredentials
 > = compose(
   useGetUrl('/room_participants'),
@@ -334,6 +340,7 @@ export const getRoomParticipants: ApiRequest<
     page: o.page,
     limit: o.limit,
     sorting: o.sorting ?? 'asc',
+    offset: o.offset,
   }))
 )
 
@@ -428,6 +435,11 @@ export const searchMessages: ApiRequest<
     query: string
     roomId?: IQChatRoom['id']
     page?: number
+    // P5 (docs/v2-full-shell-plan.md): v2's deprecated `searchMessages` sends
+    // `last_comment_id` (no `page`) — added so its request can be built with
+    // this encoder. Undefined for every other caller, so it drops out of the
+    // body — v3 wire unaffected.
+    lastCommentId?: number
   } & withCredentials
 > = compose(
   usePostUrl('/search_messages'),
@@ -436,6 +448,7 @@ export const searchMessages: ApiRequest<
     query: o.query,
     room_id: o.roomId,
     page: o.page,
+    last_comment_id: o.lastCommentId,
   }))
 )
 
