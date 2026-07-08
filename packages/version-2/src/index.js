@@ -7,8 +7,6 @@ import Comment from './lib/Comment'
 import Room from './lib/Room'
 import HttpAdapter from './lib/adapters/http'
 import AuthAdapter from './lib/adapters/auth'
-import UserAdapter from './lib/adapters/user'
-import RoomAdapter from './lib/adapters/room'
 import MqttAdapter from './lib/adapters/mqtt'
 import CustomEventAdapter from './lib/adapters/custom-event'
 import SyncAdapter from './lib/adapters/sync'
@@ -710,9 +708,6 @@ class QiscusSDK {
           return this.user_id != null && this.isLogin
         }
       })
-
-      this.userAdapter = new UserAdapter(this.HTTPAdapter)
-      this.roomAdapter = new RoomAdapter(this.HTTPAdapter)
 
       this.realtimeAdapter.subscribeUserChannel()
       if (this.presensePublisherId != null && this.presensePublisherId !== -1) {
