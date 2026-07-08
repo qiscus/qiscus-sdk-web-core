@@ -15,7 +15,7 @@ import SyncAdapter from './lib/adapters/sync'
 import { delayed } from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
-import { Hooks, hookAdapterFactory } from '@qiscus/core-v3'
+import { Hooks, hookAdapterFactory, Api, Provider } from '@qiscus/core-v3'
 import { ExpiredTokenAdapter } from './lib/adapters/expired-token'
 import { makeDeps } from './compat/deps'
 import { rawRoomToV2, rawCreatedRoomToV2 } from './compat/to-v2'
@@ -1483,9 +1483,27 @@ class QiscusSDK {
    * @param {any} [params={query,room_id,last_comment_id}]
    * @memberof qiscusSDK
    */
+  /**
+   * Re-platformed on core-v3's shared axios transport (docs/v2-full-shell-plan.md
+   * P5) — same `api/v2/sdk/search_messages` POST, built inline via
+   * `Api.searchMessages` (parameterized with a `lastCommentId` field added for
+   * this old-style caller, which core-v3 v3 callers never pass). NOTE
+   * divergence: the old `userAdapter.searchMessages` sent explicit `null`s for
+   * omitted `query`/`room_id`/`last_comment_id`; the encoder here drops
+   * `undefined` fields instead of sending `null` — flagged, not resolved (see
+   * plan report).
+   */
   async searchMessages(params = {}) {
     console.warn('Deprecated: search message will be removed on next release')
-    const messages = await this.userAdapter.searchMessages(params)
+    const api = Api.searchMessages({
+      ...Provider.withBaseUrl(this.deps.storage),
+      ...Provider.withCredentials(this.deps.storage),
+      query: params.query,
+      roomId: params.room_id,
+      lastCommentId: params.last_comment_id,
+    })
+    const body = await this.deps.apiAdapter.request(api)
+    const messages = body.results.comments
     return messages.map((message) => {
       return new Comment(message)
     })
@@ -1825,18 +1843,28 @@ class QiscusSDK {
       .getParticipantList(roomUniqueId, page, limit)
       .then((raw) => raw.results)
   }
+  /**
+   * Re-platformed on core-v3's shared axios transport (docs/v2-full-shell-plan.md
+   * P5) — same `api/v2/sdk/room_participants` GET, built inline via
+   * `Api.getRoomParticipants` (parameterized with an `offset` field added for
+   * this old-style-pagination caller) instead of a raw HTTP call, so the wire
+   * matches the old `room_unique_id`+`offset` query. `apiAdapter.request`
+   * resolves the parsed body, so `.then((body) => body.results)` reproduces
+   * the old resolved value (`resp.body.results`). Accepted divergence (same
+   * as `getParticipants` above): the query also now carries `sorting=asc`
+   * (core-v3's default), which old v2 omitted.
+   */
   getRoomParticipants(roomUniqueId, offset = 0) {
     console.warn(
       '`getRoomParticipants` are deprecated, use `getParticipants` instead.'
     )
-    return this.HTTPAdapter.get_request('api/v2/sdk/room_participants')
-      .query({
-        room_unique_id: roomUniqueId,
-        offset,
-      })
-      .then((resp) => {
-        return Promise.resolve(resp.body.results)
-      })
+    const api = Api.getRoomParticipants({
+      ...Provider.withBaseUrl(this.deps.storage),
+      ...Provider.withCredentials(this.deps.storage),
+      uniqueId: roomUniqueId,
+      offset,
+    })
+    return this.deps.apiAdapter.request(api).then((body) => body.results)
   }
 
   /**
