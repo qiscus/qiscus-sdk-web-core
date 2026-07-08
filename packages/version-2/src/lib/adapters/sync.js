@@ -1,21 +1,16 @@
 import mitt from 'mitt'
 import { classifySyncEvents } from '@qiscus/core-v3'
-import UrlBuilder from '../url-builder'
 
 const noop = () => {}
 const sleep = (time) => new Promise((res) => setTimeout(res, time))
 
-function synchronizeFactory(getHttp, getInterval, getSync, getId, logger) {
+export function synchronizeFactory(getRequester, getInterval, getSync, getId, logger) {
   const emitter = mitt()
   const synchronize = (messageId) => {
-    const url = UrlBuilder('api/v2/sdk/sync')
-      .param('last_received_comment_id', messageId)
-      .build()
-
-    return getHttp()
-      .get(url)
-      .then((resp) => {
-        const results = resp.body.results
+    return getRequester()
+      .synchronize(messageId)
+      .then((body) => {
+        const results = body.results
         const messages = results.comments
         const lastMessageId = results.meta.last_received_comment_id
         messages.sort((a, b) => a.id - b.id)
@@ -30,7 +25,7 @@ function synchronizeFactory(getHttp, getInterval, getSync, getId, logger) {
   async function* generator() {
     let accumulatedInterval = 0
     const interval = 100
-    const shouldSync = () => getHttp() != null && getSync()
+    const shouldSync = () => getRequester() != null && getSync()
 
     while (true) {
       accumulatedInterval += interval
@@ -72,23 +67,19 @@ function synchronizeFactory(getHttp, getInterval, getSync, getId, logger) {
     },
   }
 }
-function synchronizeEventFactory(getHttp, getInterval, getSync, getId, logger) {
+export function synchronizeEventFactory(getRequester, getInterval, getSync, getId, logger) {
   const emitter = mitt()
   const synchronize = (messageId) => {
-    const url = UrlBuilder('api/v2/sdk/sync_event')
-      .param('start_event_id', messageId)
-      .build()
-
-    return getHttp()
-      .get(url)
-      .then((resp) => {
+    return getRequester()
+      .synchronizeEvent(messageId)
+      .then((body) => {
         // Single source (Phase 4 step 5): classify the sync_event batch via
         // core-v3's shared classifySyncEvents (also fixes the old divergence
         // where v2 matched 'delete_message' but core-v3 matched
         // 'deleted_message' — now both are accepted). Each shell still shapes
         // the raw payload.data buckets its own way (v2 emits them raw below).
         const { lastId, messageDelivered, messageRead, messageDeleted, roomCleared } =
-          classifySyncEvents(resp.body.events)
+          classifySyncEvents(body.events)
         return Promise.resolve({
           lastId,
           messageDelivered,
@@ -103,7 +94,7 @@ function synchronizeEventFactory(getHttp, getInterval, getSync, getId, logger) {
   async function* generator() {
     let accumulatedInterval = 0
     const interval = 100
-    const shouldSync = () => getHttp() != null && getSync()
+    const shouldSync = () => getRequester() != null && getSync()
 
     while (true) {
       accumulatedInterval += interval
@@ -149,7 +140,7 @@ function synchronizeEventFactory(getHttp, getInterval, getSync, getId, logger) {
 }
 
 export default function SyncAdapter(
-  getHttpAdapter,
+  getRequester,
   {
     isDebug = false,
     syncInterval,
@@ -177,7 +168,7 @@ export default function SyncAdapter(
 
   const _getShouldSync = () => getShouldSync() && enableSync()
   const syncFactory = synchronizeFactory(
-    getHttpAdapter,
+    getRequester,
     getInterval,
     _getShouldSync,
     lastCommentId,
@@ -190,7 +181,7 @@ export default function SyncAdapter(
 
   const _getShouldSyncEvent = () => getShouldSync() && enableSyncEvent()
   const syncEventFactory = synchronizeEventFactory(
-    getHttpAdapter,
+    getRequester,
     getInterval,
     _getShouldSyncEvent,
     () => lastEventId,

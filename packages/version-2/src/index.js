@@ -406,7 +406,7 @@ class QiscusSDK {
       }
     })
 
-    this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
+    this.syncAdapter = SyncAdapter(() => this.deps.messageAdapter, {
       getToken: () => this.userData.token,
       syncInterval: () => this.syncInterval,
       getShouldSync: () => this._forceEnableSync
