@@ -98,9 +98,15 @@ function adaptCanonicalToV3(event: CanonicalEvent, emitter: EventEmitter<Events>
 }
 
 export type MqttAdapter = ReturnType<typeof getMqttAdapter>
-export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => string }) {
+export default function getMqttAdapter(
+  s: Storage,
+  opts?: { getClientId?: () => string; enableHeartbeat?: boolean }
+) {
+  // Captured once, here — `__mqtt_conneck` below shadows this same param name
+  // with its own local `IClientOptions` variable, so reading `opts?.enableHeartbeat`
+  // from inside it would not see this flag.
+  const enableHeartbeat = opts?.enableHeartbeat !== false
   let mqtt: _MqttClient | undefined = undefined
-  let cacheUrl: string = s.getBrokerUrl()
   let shouldConnect = true
   let reconnectFailures = 0
   let willConnectToRealtime = false
@@ -144,9 +150,9 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
   }
   let intervalId = -1
   const _getClientId = () => {
-    if (opts?.getClientId != null) opts?.getClientId()
+    if (opts?.getClientId != null) return opts.getClientId()
     const appId = s.getAppId()
-    const userId = s.getCurrentUser().id
+    const userId = s.getCurrentUser()?.id
     const now = Date.now()
     return `${appId}_${userId}_${now}`
   }
@@ -156,7 +162,9 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
       mqtt?.end(true)
       mqtt = undefined
     }
-    const lastWill = `u/${s.getCurrentUser().id}/s`
+    // `?.id` (not `.id`): v2 connects PRE-login (no current user yet), which
+    // must produce a `u/undefined/s` will topic rather than throwing here.
+    const lastWill = `u/${s.getCurrentUser()?.id}/s`
     const opts: IClientOptions = {
       clientId: _getClientId(),
       reconnectPeriod: 1000,
@@ -175,16 +183,23 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
     mqtt_.addListener('error', __mqtt_error_handler)
     mqtt_.addListener('message', __mqtt_message_handler)
 
-    intervalId = setInterval(() => {
-      if (s.getCurrentUser() != null) {
-        sendPresence(mqtt, s.getCurrentUser().id, true)
-      }
-    }, 3500) as unknown as number
+    // Clear any interval left from a previous `conneck()`/`open()` before
+    // (maybe) starting a new one — otherwise repeated (re)connects stack
+    // duplicate heartbeat timers.
+    if (intervalId !== -1) {
+      clearInterval(intervalId)
+      intervalId = -1
+    }
+    if (enableHeartbeat) {
+      intervalId = setInterval(() => {
+        if (s.getCurrentUser() != null) {
+          sendPresence(s.getCurrentUser().id, true)
+        }
+      }, 3500) as unknown as number
+    }
 
     return mqtt_ as _MqttClient
   }
-
-  cacheUrl = s.getBrokerUrl()
 
   const __mqtt_schedule_lb_reconnect = () => {
     if (willConnectToRealtime) return
@@ -216,16 +231,15 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
       const topics = Object.keys((mqtt as any)?._resubscribeTopics ?? {})
       const [url, err] = await wrapP(getMqttNode())
       if (err) {
-        logger.log(`cannot get new brokerUrl, using old url instead (${cacheUrl})`)
-        mqtt = __mqtt_conneck(cacheUrl)
+        logger.log(`cannot get new brokerUrl, using old url instead (${s.getBrokerUrl()})`)
+        mqtt = __mqtt_conneck(s.getBrokerUrl())
       } else {
-        cacheUrl = url
         s.setBrokerUrl(url)
         logger.log(`connecting to new broker url ${url}`)
         mqtt = __mqtt_conneck(url)
       }
       logger.log(`resubscribe to old topics ${topics}`)
-      topics.forEach((t) => mqtt?.subscribe(t))
+      topics.forEach((t) => subscribeTopic(t))
       willConnectToRealtime = false
     }, delay)
   }
@@ -239,11 +253,59 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
     }
   })
 
-  function sendPresence(mqttClient: MqttClient | undefined, userId: string, isOnline: boolean) {
+  // Buffered generic subscribe/unsubscribe/publish (single code path): every
+  // domain method below (subscribeRoom, sendTyping, ...) routes through these
+  // three so a call made before the client exists is never silently dropped —
+  // this is a strict superset of v2's own subscribe/unsubscribe/publish
+  // buffers (`packages/version-2/src/lib/adapters/mqtt.js`). Each push is
+  // followed by an immediate drain attempt (mqtt may already be connected, as
+  // in v2), and `mqtt::connected` triggers one more drain so a buffered op
+  // isn't stuck forever if nothing happens to call subscribe/publish again.
+  const subscribeBuffer: string[] = []
+  const unsubscribeBuffer: string[] = []
+  const publishBuffer: { topic: string; payload: string; options?: object }[] = []
+
+  function flushSubscribe() {
+    while (mqtt != null && subscribeBuffer.length > 0) {
+      const topic = subscribeBuffer.shift()
+      if (topic != null) mqtt.subscribe(topic)
+    }
+  }
+  function flushUnsubscribe() {
+    while (mqtt != null && unsubscribeBuffer.length > 0) {
+      const topic = unsubscribeBuffer.shift()
+      if (topic != null) mqtt.unsubscribe(topic)
+    }
+  }
+  function flushPublish() {
+    while (mqtt != null && publishBuffer.length > 0) {
+      const data = publishBuffer.shift()
+      if (data != null) mqtt.publish(data.topic, data.payload, data.options as IClientPublishOptions)
+    }
+  }
+  function flushAll() {
+    flushSubscribe()
+    flushUnsubscribe()
+    flushPublish()
+  }
+  emitter.on('mqtt::connected', flushAll)
+
+  function subscribeTopic(topic: string): void {
+    subscribeBuffer.push(topic)
+    flushSubscribe()
+  }
+  function unsubscribeTopic(topic: string): void {
+    unsubscribeBuffer.push(topic)
+    flushUnsubscribe()
+  }
+  function publishTopic(topic: string, payload: string, options?: object): void {
+    publishBuffer.push({ topic, payload, options })
+    flushPublish()
+  }
+
+  function sendPresence(userId: string, isOnline: boolean) {
     const status = isOnline ? '1' : '0'
-    mqttClient?.publish(`u/${userId}/s`, status, {
-      retain: true,
-    } as IClientPublishOptions)
+    publishTopic(`u/${userId}/s`, status, { retain: true })
   }
 
   return {
@@ -253,7 +315,7 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
     clear() {
       // sendPresence(mqtt, userId, false)
       clearInterval(intervalId)
-      Object.keys(mqtt?._resubscribeTopics ?? {}).forEach((it) => mqtt?.unsubscribe(it))
+      Object.keys(mqtt?._resubscribeTopics ?? {}).forEach((it) => unsubscribeTopic(it))
       mqtt?.end()
     },
     async close() {
@@ -284,8 +346,18 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
       return () => emitter.off('mqtt::reconnecting', callback)
     },
     onMqttDisconnected(callback: () => void): Subscription {
+      // NOTE: 'mqtt::disconnected' is never emitted today (dead) — kept for
+      // back-compat; use onMqttClose/onMqttError below for live signals.
       emitter.on('mqtt::disconnected', callback)
       return () => emitter.off('mqtt::disconnected', callback)
+    },
+    onMqttClose(callback: () => void): () => void {
+      emitter.on('mqtt::close', callback)
+      return () => emitter.off('mqtt::close', callback)
+    },
+    onMqttError(callback: (err: string) => void): () => void {
+      emitter.on('mqtt::error', callback)
+      return () => emitter.off('mqtt::error', callback)
     },
     onMessageDeleted(callback: (data: m.IQMessage) => void): () => void {
       const handler = (msg: { roomId: number; uniqueId: string }) => {
@@ -357,64 +429,75 @@ export default function getMqttAdapter(s: Storage, opts?: { getClientId?: () => 
         sender: userId,
         data: data,
       })
-      mqtt?.publish(getTopicForCustomEvent(roomId), payload)
+      publishTopic(getTopicForCustomEvent(roomId), payload)
     },
     subscribeCustomEvent(roomId: number, callback: Callback<any>): void {
       const topic = getTopicForCustomEvent(roomId)
       if (subscribedCustomEventTopics.has(roomId)) return
 
-      mqtt?.subscribe(topic)
+      subscribeTopic(topic)
       subscribedCustomEventTopics.set(roomId, callback)
     },
     unsubscribeCustomEvent(roomId: number): void {
       const topic = getTopicForCustomEvent(roomId)
       if (!subscribedCustomEventTopics.has(roomId)) return
 
-      mqtt?.unsubscribe(topic)
+      unsubscribeTopic(topic)
       subscribedCustomEventTopics.delete(roomId)
     },
     sendPresence(userId: string, isOnline: boolean): void {
-      sendPresence(mqtt, userId, isOnline)
+      sendPresence(userId, isOnline)
     },
     sendTyping(roomId: number, userId: string, isTyping: boolean): void {
       const payload = isTyping ? '1' : '0'
-      mqtt?.publish(`r/${roomId}/${roomId}/${userId}/t`, payload)
+      publishTopic(`r/${roomId}/${roomId}/${userId}/t`, payload)
     },
     subscribeUser(userToken: string): Subscription {
-      mqtt //
-        ?.subscribe(`${userToken}/c`)
-        ?.subscribe(`${userToken}/n`)
-        ?.subscribe(`${userToken}/update`)
+      subscribeTopic(`${userToken}/c`)
+      subscribeTopic(`${userToken}/n`)
+      subscribeTopic(`${userToken}/update`)
       return () => {
-        mqtt //
-          ?.unsubscribe(`${userToken}/c`)
-          ?.unsubscribe(`${userToken}/n`)
-          ?.unsubscribe(`${userToken}/update`)
+        unsubscribeTopic(`${userToken}/c`)
+        unsubscribeTopic(`${userToken}/n`)
+        unsubscribeTopic(`${userToken}/update`)
       }
     },
     subscribeUserPresence(userId: string): void {
-      mqtt?.subscribe(`u/${userId}/s`)
+      subscribeTopic(`u/${userId}/s`)
     },
     unsubscribeUserPresence(userId: string): void {
-      mqtt?.unsubscribe(`u/${userId}/s`)
+      unsubscribeTopic(`u/${userId}/s`)
     },
+    // 4 topics, incl. `r/{roomId}/typing` (v2-only route today; the shared
+    // parser already has a `room-typing` CanonicalEvent kind for it).
     subscribeRoom(roomId: number): void {
-      mqtt
-        ?.subscribe(`r/${roomId}/${roomId}/+/t`)
-        ?.subscribe(`r/${roomId}/${roomId}/+/d`)
-        ?.subscribe(`r/${roomId}/${roomId}/+/r`)
+      subscribeTopic(`r/${roomId}/typing`)
+      subscribeTopic(`r/${roomId}/${roomId}/+/t`)
+      subscribeTopic(`r/${roomId}/${roomId}/+/d`)
+      subscribeTopic(`r/${roomId}/${roomId}/+/r`)
     },
     unsubscribeRoom(roomId: number): void {
-      mqtt
-        ?.unsubscribe(`r/${roomId}/${roomId}/+/t`)
-        ?.unsubscribe(`r/${roomId}/${roomId}/+/d`)
-        ?.unsubscribe(`r/${roomId}/${roomId}/+/r`)
+      unsubscribeTopic(`r/${roomId}/typing`)
+      unsubscribeTopic(`r/${roomId}/${roomId}/+/t`)
+      unsubscribeTopic(`r/${roomId}/${roomId}/+/d`)
+      unsubscribeTopic(`r/${roomId}/${roomId}/+/r`)
     },
     subscribeChannel(appId: string, channelUniqueId: string): void {
-      mqtt?.subscribe(`${appId}/${channelUniqueId}/c`)
+      subscribeTopic(`${appId}/${channelUniqueId}/c`)
     },
     unsubscribeChannel(appId: string, channelUniqueId: string): void {
-      mqtt?.unsubscribe(`${appId}/${channelUniqueId}/c`)
+      unsubscribeTopic(`${appId}/${channelUniqueId}/c`)
+    },
+    // Buffered generics (see the buffer block above) — the seam v2's
+    // `custom-event.js` and other v2 facade methods call directly.
+    subscribe(topic: string): void {
+      subscribeTopic(topic)
+    },
+    unsubscribe(topic: string): void {
+      unsubscribeTopic(topic)
+    },
+    publish(topic: string, payload: string, options?: object): void {
+      publishTopic(topic, payload, options)
     },
   }
 }
