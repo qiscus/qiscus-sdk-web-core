@@ -153,6 +153,21 @@ class QiscusSDK {
     if (this.user_id != null && typeof storage.setCurrentUser === 'function') {
       storage.setCurrentUser(this.userData)
     }
+    // full-shell P5: `init()`'s config negotiation can change `this.baseURL`/
+    // `this.mqttURL`/`this.brokerLbUrl` (and, in principle, `this.version`/
+    // `this._customHeader`) AFTER `deps` was first built — leaving `storage`
+    // stale for any descriptor built off it (e.g. `Provider.withBaseUrl`).
+    // Re-sync those too, on every access (cheap; guarded setters).
+    storage.setBaseUrl(this.baseURL)
+    if (typeof storage.setBrokerUrl === 'function') {
+      storage.setBrokerUrl(this.mqttURL)
+    }
+    if (typeof storage.setVersion === 'function') {
+      storage.setVersion(this.version)
+    }
+    if (typeof storage.setCustomHeaders === 'function') {
+      storage.setCustomHeaders(this._customHeader || {})
+    }
     return this._deps
   }
 
@@ -267,14 +282,22 @@ class QiscusSDK {
     this.withConfig = config.withConfig ?? true
 
     if (this.withConfig === true) {
-      await this.HTTPAdapter.get_request('api/v2/sdk/config')
-        .then((resp) => {
-          resp.status == 200
-            ? (this.isConfigLoaded = true)
-            : (this.isConfigLoaded = false)
-          return resp.body.results
-        })
-        .then((cfg) => {
+      // full-shell P5 (docs/v2-full-shell-plan.md): transport re-platformed onto
+      // core-v3's shared axios via `deps.userAdapter.getAppConfig()`
+      // (`Api.appConfig` = GET `/config`, headers-only, safe pre-login). The
+      // `deps` getter re-syncs `storage`'s baseUrl live (see above), so this
+      // first `this.deps` access builds/re-syncs it off the CURRENT
+      // `this.baseURL` (already reflecting any explicit `config.baseURL`
+      // override applied above, same as `this.HTTPAdapter` was just
+      // constructed with) — i.e. the config request goes out pre-cfg-override,
+      // matching the old HTTPAdapter call. The cfg-reading block below is
+      // UNCHANGED. Errors (transport or cfg-processing) are still swallowed
+      // the same way the old `.catch` did.
+      try {
+        const body = await this.deps.userAdapter.getAppConfig()
+        this.isConfigLoaded = body.status === 200 ? true : false
+        const cfg = body.results
+        {
           const baseUrl = this.baseURL // default value for baseUrl
           const brokerLbUrl = this.brokerLbUrl // default value for brokerLbUrl
           const mqttUrl = this.mqttURL // default value for brokerUrl
@@ -326,11 +349,11 @@ class QiscusSDK {
           this.enableSync = setterHelper(null, cfg.enable_sync, this.enableSync)
           this.enableSyncEvent = setterHelper(null, cfg.enable_sync_event, this.enableSyncEvent)
           this._autoRefreshToken = setterHelper(null, cfg.auto_refresh_token, false)
-        })
-        .catch((err) => {
-          this.logger('got error when trying to get app config', err)
-          this.isConfigLoaded = true
-        })
+        }
+      } catch (err) {
+        this.logger('got error when trying to get app config', err)
+        this.isConfigLoaded = true
+      }
     } else {
       this.isConfigLoaded = true
     }
