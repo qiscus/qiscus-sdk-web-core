@@ -1341,19 +1341,6 @@ class QiscusSDK {
       })
   }
 
-  /** TEMPORARY Phase 2 parity reference — see comment above `_legacyGetUsers`. */
-  async _legacyLoadRoomList(params = {}) {
-    const rooms = await this.userAdapter.loadRoomList(params)
-    return rooms.map((room) => {
-      room.last_comment_id = room.last_comment.id
-      room.last_comment_message = room.last_comment.message
-      room.last_comment_message_created_at = room.last_comment.timestamp
-      room.room_type = room.chat_type
-      room.comments = []
-      return new Room(room)
-    })
-  }
-
   /**
    * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
    * §9) — same `api/v2/sdk/user_rooms` GET. `getRoomList` now forwards
@@ -1429,19 +1416,6 @@ class QiscusSDK {
     return this.loadComments(this.selected.id, options)
   }
 
-  /** TEMPORARY parity reference — see comment above `_legacyGetUsers`. */
-  async _legacyRegisterDeviceToken(token, isDevelopment = false) {
-    const res = await this.HTTPAdapter.post(
-      'api/v2/sdk/set_user_device_token',
-      {
-        device_token: token,
-        device_platform: 'rn',
-        is_development: isDevelopment,
-      }
-    )
-    return res.body.results
-  }
-
   /**
    * Re-platformed on core-v3's raw user adapter (docs/v2-full-shell-plan.md P2)
    * — same `set_user_device_token` POST; `Api.setDeviceToken`'s encoder is
@@ -1451,19 +1425,6 @@ class QiscusSDK {
   async registerDeviceToken(token, isDevelopment = false) {
     const body = await this.deps.userAdapter.registerDeviceToken(token, isDevelopment)
     return body.results
-  }
-
-  /** TEMPORARY parity reference — see comment above `_legacyGetUsers`. */
-  async _legacyRemoveDeviceToken(token, isDevelopment = false) {
-    const res = await this.HTTPAdapter.post(
-      'api/v2/sdk/remove_user_device_token',
-      {
-        device_token: token,
-        device_platform: 'rn',
-        is_development: isDevelopment,
-      }
-    )
-    return res.body.results
   }
 
   /**
@@ -1507,18 +1468,6 @@ class QiscusSDK {
     return messages.map((message) => {
       return new Comment(message)
     })
-  }
-
-  /** TEMPORARY Phase 1 parity reference — see comment above `_legacyGetUsers`. */
-  _legacyUpdateProfile(user) {
-    return this.userAdapter.updateProfile(user).then(
-      (res) => {
-        this.events.emit('profile-updated', user)
-        this.userData = res
-        return Promise.resolve(res)
-      },
-      (err) => this.logger(err)
-    )
   }
 
   /**
@@ -1782,26 +1731,6 @@ class QiscusSDK {
   // #endregion
 
   /**
-   * TEMPORARY Phase 1 parity references (docs/v2-on-core-v3-plan.md §4a/§9,
-   * §14). `_legacy*` copies below are the pre-rewire method bodies, kept
-   * ONLY so `compat/phase1.parity.test.js` can assert the core-v3-backed
-   * replacements resolve/reject identically across 200/400/403/500
-   * responses. Remove both the `_legacy*` copies and this comment in the
-   * Phase 5 cleanup once parity is no longer being verified against them.
-   */
-  _legacyGetUsers(query = '', page = 1, limit = 20) {
-    return this.HTTPAdapter.get_request('api/v2/sdk/get_user_list')
-      .query({
-        query,
-        page,
-        limit,
-      })
-      .then((resp) => {
-        return Promise.resolve(resp.body.results)
-      })
-  }
-
-  /**
    * Re-platformed on core-v3's raw user adapter (docs/v2-on-core-v3-plan.md
    * §9 Phase 1) — `deps.userAdapter.getUserList` hits the same
    * `api/v2/sdk/get_user_list` endpoint through the same `this.HTTPAdapter`
@@ -1815,17 +1744,6 @@ class QiscusSDK {
     return this.deps.userAdapter.getUserList(query, page, limit).then((body) => {
       return Promise.resolve(body.results)
     })
-  }
-
-  /** TEMPORARY Phase 2/3 parity reference — see comment above `_legacyGetUsers`. */
-  _legacyGetParticipants(roomUniqueId, page = 1, limit = 20) {
-    return this.HTTPAdapter.get_request('api/v2/sdk/room_participants')
-      .query({
-        room_unique_id: roomUniqueId,
-        page,
-        limit,
-      })
-      .then((resp) => resp.body.results)
   }
 
   /**
@@ -1950,11 +1868,6 @@ class QiscusSDK {
    * @param {id, room_name, avatar_url, options} args
    * @return Promise
    */
-  /** TEMPORARY Phase 2 parity reference — see comment above `_legacyGetUsers`. */
-  _legacyUpdateRoom(args) {
-    return this.roomAdapter.updateRoom(args)
-  }
-
   /**
    * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
    * §9 Phase 2) — same `api/v2/sdk/update_room` POST. `Api.updateRoom`'s
@@ -2058,21 +1971,6 @@ class QiscusSDK {
    * @returns Promise
    * @memberof QiscusSDK
    */
-  /** TEMPORARY Phase 2 parity reference — see comment above `_legacyGetUsers`. */
-  _legacyAddParticipantsToGroup(roomId, emails) {
-    const self = this
-    if (!Array.isArray(emails)) {
-      throw new Error(`emails' must be type of Array`)
-    }
-    return self.roomAdapter.addParticipantsToGroup(roomId, emails).then(
-      (res) => {
-        self.events.emit('participants-added', res)
-        return Promise.resolve(res)
-      },
-      (err) => Promise.reject(err)
-    )
-  }
-
   /**
    * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
    * §9 Phase 2) — same `api/v2/sdk/add_room_participants` POST. Preserves the
@@ -2107,19 +2005,6 @@ class QiscusSDK {
    * @returns Promise
    * @memberof QiscusSDK
    */
-  /** TEMPORARY Phase 2 parity reference — see comment above `_legacyGetUsers`. */
-  _legacyRemoveParticipantsFromGroup(roomId, emails) {
-    if (is.not.array(emails)) {
-      return Promise.reject(new Error('`emails` must have type of array'))
-    }
-    return this.roomAdapter
-      .removeParticipantsFromGroup(roomId, emails)
-      .then((res) => {
-        this.events.emit('participants-removed', emails)
-        return Promise.resolve(res)
-      })
-  }
-
   /**
    * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
    * §9 Phase 2) — same `api/v2/sdk/remove_room_participants` POST. Preserves
@@ -2150,17 +2035,6 @@ class QiscusSDK {
    * @returns Promise
    * @memberof QiscusSDK
    */
-  /** TEMPORARY Phase 1 parity reference — see comment above `_legacyGetUsers`. */
-  _legacyGetBlockedUser(page = 1, limit = 20) {
-    const self = this
-    return self.userAdapter.getBlockedUser(page, limit).then(
-      (res) => {
-        return Promise.resolve(res)
-      },
-      (err) => Promise.reject(err)
-    )
-  }
-
   /**
    * Re-platformed on core-v3's raw user adapter (docs/v2-on-core-v3-plan.md
    * §9 Phase 1) — same `api/v2/sdk/get_blocked_users` endpoint, same
@@ -2182,18 +2056,6 @@ class QiscusSDK {
       (body) => {
         if (body.status !== 200) return Promise.reject({ status: 200, body })
         return Promise.resolve(body.results.blocked_users)
-      },
-      (err) => Promise.reject(err)
-    )
-  }
-
-  /** TEMPORARY Phase 1 parity reference — see comment above `_legacyGetUsers`. */
-  _legacyBlockUser(email) {
-    const self = this
-    return self.userAdapter.blockUser(email).then(
-      (res) => {
-        self.events.emit('block-user', res)
-        return Promise.resolve(res)
       },
       (err) => Promise.reject(err)
     )
@@ -2230,18 +2092,6 @@ class QiscusSDK {
     )
   }
 
-  /** TEMPORARY Phase 1 parity reference — see comment above `_legacyGetUsers`. */
-  _legacyUnblockUser(email) {
-    const self = this
-    return self.userAdapter.unblockUser(email).then(
-      (res) => {
-        self.events.emit('unblock-user', res)
-        return Promise.resolve(res)
-      },
-      (err) => Promise.reject(err)
-    )
-  }
-
   /**
    * Remove user from block list
    *
@@ -2262,22 +2112,6 @@ class QiscusSDK {
         if (body.status !== 200) return Promise.reject({ status: 200, body })
         const res = body.results.user
         self.events.emit('unblock-user', res)
-        return Promise.resolve(res)
-      },
-      (err) => Promise.reject(err)
-    )
-  }
-
-  /** TEMPORARY parity reference — see comment above `_legacyGetUsers`. */
-  _legacyGetUserPresences(email = []) {
-    if (is.not.array(email)) {
-      return Promise.reject(new Error('`email` must have type of array'))
-    }
-
-    const self = this
-    return self.userAdapter.getUserPresences(email).then(
-      (res) => {
-        self.events.emit('user-status', res)
         return Promise.resolve(res)
       },
       (err) => Promise.reject(err)
@@ -2398,11 +2232,6 @@ class QiscusSDK {
    * @returns
    * @memberof QiscusSDK
    */
-  /** TEMPORARY Phase 3 parity reference — see comment above `_legacyGetUsers`. */
-  _legacyGetRoomsInfo(params) {
-    return this.userAdapter.getRoomsInfo(params)
-  }
-
   /**
    * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
    * §9) — same `api/v2/sdk/rooms_info` POST, resolves the raw `res.body`
@@ -2422,27 +2251,6 @@ class QiscusSDK {
       params.show_removed || false,
       params.show_participants || true
     )
-  }
-
-  /** TEMPORARY parity reference — see comment above `_legacyGetUsers`. */
-  _legacyDeleteComment(roomId, commentUniqueIds, isForEveryone, isHard) {
-    if (!Array.isArray(commentUniqueIds)) {
-      throw new Error(`unique ids' must be type of Array`)
-    }
-    return this.userAdapter
-      .deleteComment(roomId, commentUniqueIds, isForEveryone, isHard)
-      .then(
-        (res) => {
-          this.events.emit('comment-deleted', {
-            roomId,
-            commentUniqueIds,
-            isForEveryone,
-            isHard,
-          })
-          return Promise.resolve(res)
-        },
-        (err) => Promise.reject(err)
-      )
   }
 
   /**
@@ -2526,14 +2334,6 @@ class QiscusSDK {
     this.selected = null
   }
 
-  /** TEMPORARY parity reference — see comment above `_legacyGetUsers`. */
-  _legacyClearRoomMessages(roomIds) {
-    if (!Array.isArray(roomIds)) {
-      throw new Error('room_ids must be type of array')
-    }
-    return this.userAdapter.clearRoomMessages(roomIds)
-  }
-
   /**
    * Re-platformed on core-v3's raw room adapter (docs/v2-full-shell-plan.md P2)
    * — same `api/v2/sdk/clear_room_messages` DELETE via `deps.roomAdapter.clearRoom`.
@@ -2555,18 +2355,6 @@ class QiscusSDK {
     }
   }
 
-  /** TEMPORARY Phase 2 parity reference — see comment above `_legacyGetUsers`. */
-  _legacyGetTotalUnreadCount() {
-    return this.roomAdapter.getTotalUnreadCount().then(
-      (response) => {
-        return Promise.resolve(response)
-      },
-      (error) => {
-        return Promise.reject(error)
-      }
-    )
-  }
-
   /**
    * Re-platformed on core-v3's raw room adapter (docs/v2-on-core-v3-plan.md
    * §9 Phase 2) — same `api/v2/sdk/total_unread_count` GET. The old adapter
@@ -2578,11 +2366,6 @@ class QiscusSDK {
     return this.deps.roomAdapter
       .getUnreadCount()
       .then((body) => body.results.total_unread_count)
-  }
-
-  /** TEMPORARY Phase 2 parity reference — see comment above `_legacyGetUsers`. */
-  _legacyGetRoomUnreadCount() {
-    return this.roomAdapter.getRoomUnreadCount()
   }
 
   /**
@@ -2615,11 +2398,6 @@ class QiscusSDK {
       throw new TypeError('`headers` must have type of object')
     }
     this._customHeader = headers
-  }
-
-  /** TEMPORARY Phase 1 parity reference — see comment above `_legacyGetUsers`. */
-  _legacyGetUserProfile() {
-    return this.userAdapter.getProfile()
   }
 
   /**
@@ -2999,11 +2777,6 @@ class QiscusSDK {
       },
     })
     return comment
-  }
-
-  /** TEMPORARY Phase 3 parity reference — see comment above `_legacyGetUsers`. */
-  async _legacyUpdateMessage(message) {
-    return this.userAdapter.updateMessage(message)
   }
 
   /**
