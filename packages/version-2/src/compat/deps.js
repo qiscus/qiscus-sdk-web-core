@@ -5,19 +5,21 @@ import { makeV2AxiosRequester } from './axios-requester'
  * compat/deps.js
  *
  * Builds a core-v3 `QiscusDeps`-shaped bundle (see
- * packages/core-v3/src/usecases/types.ts) wired to v2's own transport
- * (`self.HTTPAdapter`, via `makeV2Requester`) and RAW adapters (raw JSON
- * responses, no `Decoder`/`IQ*` mapping — see docs/v2-on-core-v3-plan.md §3,
- * §4). `self` is the live `QiscusSDK` instance; this is a best-effort spike
- * (Phase 0) — it is NOT wired into `QiscusSDK`'s behavior yet.
+ * packages/core-v3/src/usecases/types.ts) wired to core-v3's shared axios
+ * transport (`makeV2AxiosRequester`, production default; tests inject a
+ * stub `apiAdapter`) and RAW adapters (raw JSON responses, no
+ * `Decoder`/`IQ*` mapping — see docs/v2-on-core-v3-plan.md §3, §4). `self`
+ * is the live `QiscusSDK` instance.
  *
  * `storage` getters/setters are seeded once here from `self`'s config
- * fields. The MUTABLE ones that a few methods read as VALUES (not just headers)
- * — `token` (updateMessage body) and `currentUser` (updateUser id) — are
- * re-synced live on every access by the `deps` getter in `../index.js`, so a
- * post-init token refresh or re-login is reflected without rebuilding `deps`.
- * (mqttURL liveness is moot: v2 realtime uses its own `MqttAdapter`, not this
- * bundle.)
+ * fields, including the token (from `self.userData.token`, if already set).
+ * The token is kept live afterwards by writing directly to `storage` at
+ * every set site (login, `ExpiredTokenAdapter.refreshAuthToken` — see
+ * `lib/adapters/expired-token.js`), not by re-syncing from `self` on every
+ * `deps` access. `currentUser` (updateUser id) is still re-synced live on
+ * every access by the `deps` getter in `../index.js`, so a re-login is
+ * reflected without rebuilding `deps`. (mqttURL liveness is moot: v2
+ * realtime uses its own `MqttAdapter`, not this bundle.)
  *
  * @param {import('../index').default} self
  * @param {{ apiAdapter?: { request(api: object): Promise<unknown> }, uploadAdapter?: { upload(file: any, opts?: object): Promise<unknown> } }} [opts]
@@ -40,8 +42,8 @@ export function makeDeps(self, { apiAdapter, uploadAdapter } = {}) {
   if (self.user_id != null && typeof storage.setCurrentUser === 'function') {
     storage.setCurrentUser(self.userData)
   }
-  if (self.HTTPAdapter && self.HTTPAdapter.token != null) {
-    storage.setToken(self.HTTPAdapter.token)
+  if (self.userData?.token != null) {
+    storage.setToken(self.userData.token)
   }
 
   // Default transport: core-v3's SHARED axios (single source), wrapped to
@@ -53,9 +55,6 @@ export function makeDeps(self, { apiAdapter, uploadAdapter } = {}) {
     makeV2AxiosRequester(storage, {
       refreshToken: async () => {
         await self.refreshAuthToken()
-        if (self.HTTPAdapter && self.HTTPAdapter.token != null) {
-          storage.setToken(self.HTTPAdapter.token)
-        }
       },
     })
 

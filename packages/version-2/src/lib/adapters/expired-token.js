@@ -12,8 +12,11 @@ export class ExpiredTokenAdapter {
   /** @type {Date | null} */
   _expiredAt = null
 
-  /** @type {import('./http').default} */
-  _http
+  /** @type {() => import('@qiscus/core-v3').QiscusDeps['userAdapter']} */
+  _getUserAdapter
+
+  /** @type {() => import('@qiscus/core-v3').QiscusDeps['storage']} */
+  _getStorage
 
   /** @type {(token: string, refreshToken: string, expiredAt: Date, oldToken: string) => void | undefined} */
   _onTokenRefreshed
@@ -28,7 +31,8 @@ export class ExpiredTokenAdapter {
    * @constructor
    *
    * @param {{
-   *  httpAdapter: import('./http').default,
+   *  getUserAdapter: () => import('@qiscus/core-v3').QiscusDeps['userAdapter'],
+   *  getStorage: () => import('@qiscus/core-v3').QiscusDeps['storage'],
    *  userId: string,
    *  refreshToken: string | null,
    *  expiredAt: string | null,
@@ -37,14 +41,16 @@ export class ExpiredTokenAdapter {
    * }} param
    */
   constructor({
-    httpAdapter,
+    getUserAdapter,
+    getStorage,
     refreshToken,
     expiredAt,
     userId,
     onTokenRefreshed,
     getAuthenticationStatus,
   }) {
-    this._http = httpAdapter
+    this._getUserAdapter = getUserAdapter
+    this._getStorage = getStorage
     this._refreshToken = refreshToken
     // this._expiredAt = expiredAt == null ? null : new Date(expiredAt)
     this._userId = userId
@@ -90,19 +96,16 @@ export class ExpiredTokenAdapter {
       return
     }
 
-    return this._http
-      .post('api/v2/sdk/refresh_user_token', {
-        user_id: this._userId,
-        refresh_token: this._refreshToken,
-      })
-      .then((r) => {
-        let res = r.body.results
+    return this._getUserAdapter()
+      .refreshToken(this._userId, this._refreshToken)
+      .then((body) => {
+        let res = body.results
         let token = res.token
+        let oldToken = this._getStorage().getToken()
 
         this._refreshToken = res.refresh_token
-        // @ts-ignore
-        this._onTokenRefreshed?.(token, this._refreshToken, this._expiredAt, this._http.token)
-        this._http.setToken(res.token)
+        this._onTokenRefreshed?.(token, this._refreshToken, this._expiredAt, oldToken)
+        this._getStorage().setToken(res.token)
 
         if (res.token_expires_at != null) {
           this._expiredAt = new Date(res.token_expires_at)
@@ -115,9 +118,6 @@ export class ExpiredTokenAdapter {
   }
 
   async logout() {
-    return this._http.post('api/v2/sdk/logout', {
-      user_id: this._userId,
-      token: this._http.token,
-    })
+    return this._getUserAdapter().logout(this._userId, this._getStorage().getToken())
   }
 }

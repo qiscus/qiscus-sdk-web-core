@@ -42,8 +42,7 @@ describe('deps production axios path (P1c end-to-end)', () => {
       mqttURL: 'wss://mqtt.example/mqtt',
       _customHeader: {},
       user_id: 'user-1',
-      userData: { id: 'user-1' },
-      HTTPAdapter: { token: 'tok-1' },
+      userData: { id: 'user-1', token: 'tok-1' },
       refreshAuthToken: async () => {},
       _deps: null,
     }

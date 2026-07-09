@@ -138,16 +138,13 @@ class QiscusSDK {
     }
     // Keep the core-v3 storage's MUTABLE fields live: `makeDeps` seeds them
     // once, but the memoized `deps` is reused across the instance's lifetime,
-    // so a later token refresh (HttpAdapter 403-retry) or re-login (new
-    // `userData`) would otherwise leave `storage` stale. Request headers are
-    // always live (they come from `HTTPAdapter.setupHeaders`, not `storage`),
-    // but a few methods read `storage` VALUES directly — e.g. `updateMessage`'s
-    // body `token = s.getToken()` and `updateUser`'s `s.getCurrentUser().id` —
-    // so re-sync those two here on every access (cheap; two setters).
+    // so a re-login (new `userData`) would otherwise leave `storage` stale.
+    // The token itself is now written directly to `storage` at every
+    // set site (login, `ExpiredTokenAdapter.refreshAuthToken`) — see
+    // `lib/adapters/expired-token.js` — so it no longer needs a re-sync here.
+    // A few methods still read `storage` VALUES directly — e.g. `updateUser`'s
+    // `s.getCurrentUser().id` — so re-sync that here on every access (cheap).
     const storage = this._deps.storage
-    if (this.HTTPAdapter && this.HTTPAdapter.token != null) {
-      storage.setToken(this.HTTPAdapter.token)
-    }
     if (this.user_id != null && typeof storage.setCurrentUser === 'function') {
       storage.setCurrentUser(this.userData)
     }
@@ -559,17 +556,6 @@ class QiscusSDK {
       this.authAdapter.userId = this.userData.email
     }
 
-    self.events.on('start-init', () => {
-      self.HTTPAdapter = new HttpAdapter({
-        baseURL: self.baseURL,
-        AppId: self.AppId,
-        userId: self.user_id,
-        version: self.version,
-        getCustomHeader: () => this._customHeader,
-      })
-      self.HTTPAdapter.setToken(self.userData.token)
-    })
-
     self.events.on('room-changed', (room) => {
       this.logging('room changed', room)
       if (self.options.roomChangedCallback) {
@@ -675,15 +661,7 @@ class QiscusSDK {
         this.updateLastReceivedComment(this.last_received_comment_id)
 
       // now that we have the token, etc, we need to set all our adapters
-      this.HTTPAdapter = new HttpAdapter({
-        baseURL: this.baseURL,
-        AppId: this.AppId,
-        userId: this.user_id,
-        version: this.version,
-        getCustomHeader: () => this._customHeader,
-        expiredTokenAdapterGetter: () => this.expiredTokenAdapter,
-      })
-      this.HTTPAdapter.setToken(this.userData.token)
+      this.deps.storage.setToken(this.userData.token)
 
       let user = response.user;
       this._delayedSync = delayed(() => {
@@ -691,7 +669,8 @@ class QiscusSDK {
         this.synchronizeEvent()
       }, 500)
       this.expiredTokenAdapter = new ExpiredTokenAdapter({
-        httpAdapter: this.HTTPAdapter,
+        getUserAdapter: () => this.deps.userAdapter,
+        getStorage: () => this.deps.storage,
         refreshToken: user.refresh_token,
         expiredAt: user.token_expires_at,
         userId: this.user_id,

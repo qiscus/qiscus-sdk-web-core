@@ -21,7 +21,6 @@ function makeSelf(uploadStub, overrides = {}) {
     _customHeader: {},
     user_id: 'user-1',
     userData: { id: 'user-1', token: 't' },
-    HTTPAdapter: { token: 't' },
     refreshAuthToken: async () => {},
     uploadURL: 'https://api.example.com/api/v2/sdk/upload',
     events: mitt(),
