@@ -177,6 +177,42 @@ live once.
 - **P5 — Shell reduction + cleanup**: v2 `index.js` reduced to state + model construction +
   delegations; remove `_legacy*`; delete now-dead `lib/adapters/*` (http/user/room/mqtt/sync/
   auth/expired-token) that finally have zero references; keep `Comment.js`/`Room.js`.
+  - **P5 pass 3 (auth cluster: token refresh + logout) — DONE for the scoped piece, HttpAdapter
+    NOT fully deletable yet.** Added core-v3 `Api.refreshToken`/`Api.logout`
+    (`POST /refresh_user_token`/`/logout`) + `getUserAdapterRaw.refreshToken`/`.logout` raw
+    methods (additive, v3 byte-identical, +2 tests). Rewrote `ExpiredTokenAdapter` to call
+    `deps.userAdapter.refreshToken()`/`.logout()` instead of `HttpAdapter.post(...)`, taking
+    `getUserAdapter`/`getStorage` instead of an `httpAdapter` instance — same token lifecycle
+    (`_refreshToken` rotation, `onTokenRefreshed` callback shape, refresh guard, retry timer).
+    Token now lives in `deps.storage` as the single writer: login calls
+    `this.deps.storage.setToken(...)` (was `HTTPAdapter.setToken`), `makeDeps` seeds it from
+    `self.userData.token` (was `self.HTTPAdapter.token`), and the `deps` getter no longer
+    re-syncs it from `HTTPAdapter`. Deleted the now-dead `'start-init'` HttpAdapter
+    reconstruction (its only consumers — the `deps` re-sync and `ExpiredTokenAdapter`'s
+    `httpAdapter` param — are both gone) and the `expiredTokenAdapterGetter` wiring on the
+    login-success one. Request token headers are unaffected — they already came from
+    `deps.storage.getToken()`, never from `HttpAdapter`, before this pass. New
+    `compat/auth-transport.test.js` pins the swap. core-v3 101/103 (99+2, unrelated
+    skip/todo), compat 84/84 (+3), v2 baseline test 20/1 (pre-existing), `build:lib` clean.
+  - **HttpAdapter NOT deleted — genuine blocker found, out of this pass's scope:**
+    `lib/adapters/auth.js`'s `AuthAdapter`, constructed in `setEventListeners()`
+    (`this.authAdapter = new AuthAdapter(self.HTTPAdapter)`) and driving the LIVE login flow
+    (`setUser()` → `authAdapter.loginOrRegister(params)` → `HTTPAdapter.post('api/v2/sdk/
+    login_or_register', params)`), still depends on `HttpAdapter`. This was not listed in the
+    "what still uses HttpAdapter" inventory used to scope this pass. `AuthAdapter`'s other
+    methods (`getNonce`/`verifyIdentityToken`/`refreshAuthToken`/`expiredAuthToken`) are dead
+    (never called — those flows were already re-platformed elsewhere in P2), but
+    `loginOrRegister` is real and load-bearing. Re-platforming it onto core-v3's existing
+    `userAdapter.login()` is NOT a drop-in swap: v2 sends `login_or_register` as
+    `application/x-www-form-urlencoded` with `extras: JSON.stringify(extras)`, while core-v3's
+    `Encode.loginOrRegister` sends `extras` as a raw object over JSON (axios default) — a wire
+    format change on the login endpoint with no characterization test pinning it yet (unlike
+    the P1a HttpAdapter contract tests). Deferred to a follow-up pass (P5 pass 4?): pin
+    v2's exact `login_or_register` request shape first (superagent urlencoded body,
+    stringified `extras`), then re-platform `AuthAdapter.loginOrRegister`, THEN
+    `lib/adapters/http.js` + `lib/adapters/auth.js` can finally be deleted. Until then,
+    `init()`'s one `new HttpAdapter({...})` construction (feeding `AuthAdapter` only) and the
+    class file stay.
 
 ## 5. Missing v3 features — CONFIRM before implementing (per user)
 
