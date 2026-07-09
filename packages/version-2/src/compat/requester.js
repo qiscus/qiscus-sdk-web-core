@@ -120,7 +120,10 @@ function buildPath(api) {
  *     path (HTTP 4xx/5xx) is byte-identical — the superagent error object
  *     propagates unchanged through this shim.
  *
- * @param {import('../lib/adapters/http').default} httpAdapter
+ * @param {{ get: Function, post_json: Function, put: Function, patch: Function, del: Function }} httpAdapter
+ *   (legacy) superagent-shaped HTTP adapter — kept as a test-only fixture
+ *   shape after `lib/adapters/http.js`'s `HttpAdapter` class was deleted
+ *   (docs/v2-full-shell-plan.md P5 pass 4); production uses `axios-requester.js`.
  * @returns {{ request(api: { method: 'get'|'post'|'put'|'patch'|'delete', url: string, baseUrl?: string, params?: object, body?: object, headers?: object }): Promise<unknown> }}
  */
 export function makeV2Requester(httpAdapter) {

@@ -5,8 +5,6 @@ import format from 'date-fns/format'
 import distanceInWordsToNow from 'date-fns/distance_in_words_to_now'
 import Comment from './lib/Comment'
 import Room from './lib/Room'
-import HttpAdapter from './lib/adapters/http'
-import AuthAdapter from './lib/adapters/auth'
 import MqttAdapter from './lib/adapters/mqtt'
 import CustomEventAdapter from './lib/adapters/custom-event'
 import SyncAdapter from './lib/adapters/sync'
@@ -61,7 +59,6 @@ class QiscusSDK {
     this.enableRealtimeCheck = true
     this.enableSync = true
     this.enableSyncEvent = false
-    this.HTTPAdapter = null
     this.expiredTokenAdapter = null;
     this.realtimeAdapter = null
     this.customEventAdapter = null
@@ -108,11 +105,11 @@ class QiscusSDK {
     this._autoRefreshToken = false
 
     // Phase 1 re-platform (docs/v2-on-core-v3-plan.md §4a/§9): lazily-built,
-    // memoized core-v3 `QiscusDeps` bundle wired to this instance's own
-    // `HTTPAdapter` (see `compat/deps.js`/`compat/requester.js`). Built on
+    // memoized core-v3 `QiscusDeps` bundle (see `compat/deps.js`, built via
+    // `makeDeps(this)` over core-v3's shared axios transport). Built on
     // first access via the `deps` getter below, not here in the
-    // constructor, since it needs `this.HTTPAdapter` to exist (i.e. must be
-    // accessed post-`init()`).
+    // constructor, since it reads config fields (`baseURL`/`AppId`/…) that
+    // are only finalized post-`init()`.
     this._deps = null
   }
 
@@ -127,9 +124,9 @@ class QiscusSDK {
   /**
    * Lazily-built, memoized core-v3 `QiscusDeps` bundle (docs/v2-on-core-v3-plan.md
    * §4/§4a/§9 Phase 1). Built once, on first access, from `makeDeps(this)` —
-   * NOT rebuilt per call. Only meaningful after `init()` has set
-   * `this.HTTPAdapter`; re-platformed methods that read `this.deps` are only
-   * ever called post-`init()`, same as today.
+   * NOT rebuilt per call. Only meaningful after `init()` has finalized this
+   * instance's config fields; re-platformed methods that read `this.deps` are
+   * only ever called post-`init()`, same as today.
    * @returns {import('@qiscus/core-v3').QiscusDeps}
    */
   get deps() {
@@ -227,15 +224,6 @@ class QiscusSDK {
     if (config.syncInterval != null) this.syncInterval = config.syncInterval
     // this._customHeader = {}
 
-    // set appConfig
-    this.HTTPAdapter = new HttpAdapter({
-      baseURL: this.baseURL,
-      AppId: this.AppId,
-      userId: this.user_id,
-      version: this.version,
-      getCustomHeader: () => this._customHeader,
-    })
-
     /**
      * @callback SetterCallback
      * @param {string | number} value
@@ -283,11 +271,10 @@ class QiscusSDK {
       // `deps` getter re-syncs `storage`'s baseUrl live (see above), so this
       // first `this.deps` access builds/re-syncs it off the CURRENT
       // `this.baseURL` (already reflecting any explicit `config.baseURL`
-      // override applied above, same as `this.HTTPAdapter` was just
-      // constructed with) — i.e. the config request goes out pre-cfg-override,
-      // matching the old HTTPAdapter call. The cfg-reading block below is
-      // UNCHANGED. Errors (transport or cfg-processing) are still swallowed
-      // the same way the old `.catch` did.
+      // override applied above) — i.e. the config request goes out
+      // pre-cfg-override, matching the old (pre-re-platform) behavior. The
+      // cfg-reading block below is UNCHANGED. Errors (transport or
+      // cfg-processing) are still swallowed the same way the old `.catch` did.
       try {
         const body = await this.deps.userAdapter.getAppConfig()
         this.isConfigLoaded = body.status === 200 ? true : false
@@ -551,11 +538,6 @@ class QiscusSDK {
   setEventListeners() {
     const self = this
 
-    this.authAdapter = new AuthAdapter(self.HTTPAdapter)
-    if (this.userData.email != null) {
-      this.authAdapter.userId = this.userData.email
-    }
-
     self.events.on('room-changed', (room) => {
       this.logging('room changed', room)
       if (self.options.roomChangedCallback) {
@@ -700,10 +682,6 @@ class QiscusSDK {
       if (this.options.loginSuccessCallback) {
         this.options.loginSuccessCallback(response)
       }
-
-      this.authAdapter.userId = this.userData.email
-      this.authAdapter.refreshToken = this.userData.refresh_token
-      this.authAdapter.autoRefreshToken = this._autoRefreshToken
     })
 
     /**
