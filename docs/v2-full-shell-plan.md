@@ -228,6 +228,21 @@ live once.
   `getSyncAdapter` (pass `isMqttConnected: () => realtimeAdapter.connected`, subscribe the raw
   firehose, build `Comment` + emit v2's shapes). Self-contained; same proven pattern as the MQTT
   swap; do it characterization-first. This closes the last real realtime duplication.
+  - **Gating nuance:** v2 STOPS syncing when MQTT is connected (`getShouldSync` includes
+    `!realtimeAdapter.connected`); core-v3's `getSyncAdapter` only SLOWS the interval and keeps
+    polling. To preserve v2 byte-for-byte without changing v3, add a `syncOnlyWhenDisconnected`
+    flag to `getSyncAdapter` (default off = v3 unchanged; v2 passes it on) — same shape as the
+    MQTT `enableHeartbeat` flag. No behavior decision needed.
+- **NEXT ITEM — Expired-token auto-refresh scheduler → move to core-v3 (bidirectional-parity
+  feature, NOT a dedup).** The refresh/logout HTTP is already in core-v3
+  (`Api.refreshToken`/`Api.logout`, P5 pass 3), but the SCHEDULER — v2's
+  `lib/adapters/expired-token.js` `ExpiredTokenAdapter` (`setTimeout` at `token_expires_at`,
+  the `refresh_token` rotation, the `onTokenRefreshed` callback, the auth-status guard) —
+  exists ONLY in v2; core-v3 / version-3 do NO proactive token refresh (`token_expires_at` is
+  just a response field there). So this is not duplication to remove but a v2-only feature to
+  LIFT into core-v3 so version-3 gains auto-refresh too ([[sdk-js-v2-v3-parity]]). Scope: a
+  core-v3 token-refresh scheduler owning the timer + lifecycle; v2's `expired-token.js` becomes
+  a thin delegator; v3 opts in. Scheduled AFTER the sync-loop unification.
 
 ## 5. Missing v3 features — CONFIRM before implementing (per user)
 
