@@ -924,14 +924,6 @@ class QiscusSDK {
     self.username = username
     self.avatar_url = avatarURL
 
-    let params = {
-      email: this.user_id,
-      password: this.key,
-      username: this.username,
-      extras: extras ? JSON.stringify(extras) : null,
-    }
-    if (this.avatar_url) params.avatar_url = this.avatar_url
-
     return new Promise((resolve, reject) => {
       let waitingConfig = setInterval(() => {
         if (!this.isConfigLoaded) {
@@ -942,19 +934,37 @@ class QiscusSDK {
           clearInterval(waitingConfig)
           this.logger('Config Success!')
           self.events.emit('start-init')
-          let login$ = self.authAdapter.loginOrRegister(params).then(
-            (response) => {
-              self.isInit = true
-              self.refresh_token = response.user.refresh_token
-              self.events.emit('login-success', response)
-              this.realtimeAdapter.connect()
-              resolve(response)
-            },
-            (error) => {
-              self.events.emit('login-error', error)
-              reject(error)
-            }
-          )
+          // full-shell P5 pass 4 (docs/v2-full-shell-plan.md): re-platformed onto
+          // core-v3's shared axios via `deps.userAdapter.login(...)` (`Api.loginOrRegister`
+          // = POST `/login_or_register`). `extras` is passed ALREADY STRINGIFIED (same as
+          // the old `AuthAdapter.loginOrRegister` params) so the wire body matches v2
+          // byte-for-byte (pinned by `compat/login-transport.test.js`), except for the
+          // accepted urlencoded->JSON divergence shared with every other re-platformed POST.
+          // The old adapter's status-check + `resp.body.results` unwrap is reproduced below;
+          // the `.then(response => {...}, error => {...})` chain that follows is UNCHANGED.
+          let login$ = self.deps.userAdapter
+            .login(self.user_id, self.key, {
+              name: self.username,
+              avatarUrl: self.avatar_url,
+              extras: extras ? JSON.stringify(extras) : null,
+            })
+            .then((body) => {
+              if (body.status !== 200) return Promise.reject({ status: 200, body })
+              return body.results
+            })
+            .then(
+              (response) => {
+                self.isInit = true
+                self.refresh_token = response.user.refresh_token
+                self.events.emit('login-success', response)
+                this.realtimeAdapter.connect()
+                resolve(response)
+              },
+              (error) => {
+                self.events.emit('login-error', error)
+                reject(error)
+              }
+            )
 
           return login$;
         }
