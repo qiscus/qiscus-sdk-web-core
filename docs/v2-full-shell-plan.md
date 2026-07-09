@@ -217,22 +217,30 @@ live once.
    tab-kill; no double-connection on reinit; `onReconnectCallback` cadence acceptable.
 
 ### Deferred single-source opportunities (real remaining duplication, well-scoped — NOT the risky P4)
-- **Sync poll loop (P3 left it transport-only).** core-v3's `getSyncAdapter`
-  (`adapters/sync.ts`) ALREADY owns the poll loop + the MQTT-fallback interval logic
-  (`getInterval()` = `getSyncIntervalWhenConnected()` when MQTT up, else `getSyncInterval()`),
-  gating, enable flags. v2's `lib/adapters/sync.js` DUPLICATES that whole loop. In P3 we only
-  moved the HTTP transport (kept v2's loop) because core-v3's sync factories DECODE to
-  `IQMessage` and v2 needs RAW comments. To unify: add a RAW firehose to
-  `sync-factory.ts`/`sync-event-factory.ts` (emit raw before `Decoder.message`, exactly like
-  MQTT's `onMessage` firehose in `mqtt.ts`), then rewire v2's `sync.js` to delegate its loop to
-  `getSyncAdapter` (pass `isMqttConnected: () => realtimeAdapter.connected`, subscribe the raw
-  firehose, build `Comment` + emit v2's shapes). Self-contained; same proven pattern as the MQTT
-  swap; do it characterization-first. This closes the last real realtime duplication.
-  - **Gating nuance:** v2 STOPS syncing when MQTT is connected (`getShouldSync` includes
-    `!realtimeAdapter.connected`); core-v3's `getSyncAdapter` only SLOWS the interval and keeps
-    polling. To preserve v2 byte-for-byte without changing v3, add a `syncOnlyWhenDisconnected`
-    flag to `getSyncAdapter` (default off = v3 unchanged; v2 passes it on) — same shape as the
-    MQTT `enableHeartbeat` flag. No behavior decision needed.
+- **Sync poll loop — DONE (`9dc11bc`, `1915026`, `9d29e9d`).** core-v3's `getSyncAdapter`
+  (`adapters/sync.ts`) now exposes a RAW firehose (`onRawMessages`/`onRawEvents`, alongside the
+  existing decoded emits) plus an opt-in `syncOnlyWhenDisconnected` flag (`9dc11bc`, additive,
+  v3 default unchanged), and is re-exported from the core-v3 barrel (`1915026`). v2's
+  `lib/adapters/sync.js` was rewritten (`9d29e9d`) to build a core-v3 `getSyncAdapter` off a
+  storage facade mapping v2's live option getters (`getShouldSync`, `enableSync`/
+  `enableSyncEvent`, `syncInterval`/`syncOnConnect`, `lastCommentId`) onto core-v3's gate/
+  interval getters, instead of running its own poll-loop generators
+  (`synchronizeFactory`/`synchronizeEventFactory`, deleted). The raw firehose is re-shaped back
+  into v2's exact mitt event names/payloads/order/guards (`message.new` sorted ASC then
+  `last-message-id.new`; `last-event-id.new` then delivered/deleted/read/cleared), preserving
+  v2's public interface and every `index.js` `.on(...)` handler byte-for-byte.
+  - **Gating resolution:** did NOT need `syncOnlyWhenDisconnected` — v2's own `getShouldSync`
+    already ANDs in `!realtimeAdapter.connected`, so mapping its negation onto core-v3's
+    `getForceDisableSync` reproduces v2's exact gate as a single source, without double-applying
+    the mqtt-disconnected condition. No v3 behavior change needed.
+  - **Guard subtlety:** core-v3 advances its OWN last-event-id cursor on its DECODED emit, which
+    fires BEFORE the raw firehose — so v2's "already emitted?" guard uses a separate local var
+    (`lastEmittedEventId`), distinct from the storage-cursor var (`emittedEventId`) the facade
+    exposes to core-v3, to avoid the guard always comparing an id to itself.
+  - Tests: core-v3 106/106 (+1 skip, unaffected), compat 78/78 (`sync-transport.test.js` deleted
+    — tested the deleted factories; replaced by `sync-delegation.test.js`), v2 `test/**` 20/1
+    (pre-existing fail, unaffected), `build:lib` clean (the sync.js named/default-export warning
+    is gone).
 - **NEXT ITEM — Expired-token auto-refresh scheduler → move to core-v3 (bidirectional-parity
   feature, NOT a dedup).** The refresh/logout HTTP is already in core-v3
   (`Api.refreshToken`/`Api.logout`, P5 pass 3), but the SCHEDULER — v2's
