@@ -216,6 +216,19 @@ live once.
    heartbeat-off honored (`publishOnlinePresence(false)` → peer offline); LWT `'0'`/qos-1 on
    tab-kill; no double-connection on reinit; `onReconnectCallback` cadence acceptable.
 
+### Deferred single-source opportunities (real remaining duplication, well-scoped — NOT the risky P4)
+- **Sync poll loop (P3 left it transport-only).** core-v3's `getSyncAdapter`
+  (`adapters/sync.ts`) ALREADY owns the poll loop + the MQTT-fallback interval logic
+  (`getInterval()` = `getSyncIntervalWhenConnected()` when MQTT up, else `getSyncInterval()`),
+  gating, enable flags. v2's `lib/adapters/sync.js` DUPLICATES that whole loop. In P3 we only
+  moved the HTTP transport (kept v2's loop) because core-v3's sync factories DECODE to
+  `IQMessage` and v2 needs RAW comments. To unify: add a RAW firehose to
+  `sync-factory.ts`/`sync-event-factory.ts` (emit raw before `Decoder.message`, exactly like
+  MQTT's `onMessage` firehose in `mqtt.ts`), then rewire v2's `sync.js` to delegate its loop to
+  `getSyncAdapter` (pass `isMqttConnected: () => realtimeAdapter.connected`, subscribe the raw
+  firehose, build `Comment` + emit v2's shapes). Self-contained; same proven pattern as the MQTT
+  swap; do it characterization-first. This closes the last real realtime duplication.
+
 ## 5. Missing v3 features — CONFIRM before implementing (per user)
 
 core-v3 already has Api for: `getNonce`, `verifyIdentityToken`, `search_messages`,
