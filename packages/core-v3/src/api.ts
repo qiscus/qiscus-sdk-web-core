@@ -110,6 +110,34 @@ export const verifyIdentityToken: ApiRequest<
   } & withHeaders
 > = compose(usePostUrl('/auth/verify_identity_token'), useHeaders(), useBody(Encode.verifyIdentityToken))
 
+export const refreshToken: ApiRequest<
+  {
+    userId: string
+    refreshToken: string
+  } & withCredentials
+> = compose(
+  usePostUrl('/refresh_user_token'),
+  useCredentials(),
+  useBody((o) => ({
+    user_id: o.userId,
+    refresh_token: o.refreshToken,
+  }))
+)
+
+export const logout: ApiRequest<
+  {
+    userId: string
+    token: string
+  } & withCredentials
+> = compose(
+  usePostUrl('/logout'),
+  useCredentials(),
+  useBody((o) => ({
+    user_id: o.userId,
+    token: o.token,
+  }))
+)
+
 export const getProfile: ApiRequest<withCredentials> = compose(useGetUrl('/my_profile'), useHeaders())
 export const patchProfile: ApiRequest<Partial<IQUser> & withCredentials> = compose(
   usePatchUrl('/my_profile'),

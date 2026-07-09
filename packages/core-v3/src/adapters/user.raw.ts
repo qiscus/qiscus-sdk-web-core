@@ -108,6 +108,26 @@ const getUserAdapterRaw = (s: Storage, api: Api.ApiRequester) => ({
       })
     )
   },
+  refreshToken(userId: string, refreshToken: string): Promise<RefreshTokenResponse.RootObject> {
+    return api.request<RefreshTokenResponse.RootObject>(
+      Api.refreshToken({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        userId,
+        refreshToken,
+      })
+    )
+  },
+  logout(userId: string, token: string): Promise<LogoutResponse.RootObject> {
+    return api.request<LogoutResponse.RootObject>(
+      Api.logout({
+        ...Provider.withBaseUrl(s),
+        ...Provider.withCredentials(s),
+        userId,
+        token,
+      })
+    )
+  },
   getUserData(): Promise<UserResponse.RootObject> {
     return api.request<UserResponse.RootObject>(
       Api.getProfile({
@@ -316,6 +336,24 @@ export declare module DeviceTokenResponse {
   export interface RootObject {
     results: Results
     status: number
+  }
+}
+export declare module RefreshTokenResponse {
+  export interface Results {
+    token: string
+    refresh_token: string
+    token_expires_at: string
+  }
+
+  export interface RootObject {
+    results: Results
+    status: number
+  }
+}
+export declare module LogoutResponse {
+  export interface RootObject {
+    status: number
+    results: any
   }
 }
 export declare module AppConfigResponse {
