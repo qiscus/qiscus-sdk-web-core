@@ -1,7 +1,6 @@
 import { getMqttAdapter, storageFactory, parseRealtimeEvent } from '@qiscus/core-v3'
 import { adaptCanonicalToV2 } from '../../compat/realtime-bridge'
 import mitt from 'mitt'
-import request from 'superagent'
 
 /**
  * P3c (docs/v2-full-shell-plan.md): v2's `MqttAdapter` keeps its exact public
@@ -147,13 +146,6 @@ export default class MqttAdapter {
   async closeConnection() {
     this.shouldConnect = false
     return this._core.close()
-  }
-
-  async getMqttNode() {
-    const res = await request.get(this.brokerLbUrl)
-    const url = res.body.data.url
-    const port = res.body.data.wss_port
-    return `wss://${url}:${port}/mqtt`
   }
 
   get mqtt() {
