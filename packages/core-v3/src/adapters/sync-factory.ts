@@ -11,6 +11,11 @@ interface SynchronizeData {
   'last-message-id.new': (messageId: m.IQAccount['lastMessageId']) => void
   'message.new': (message: m.IQMessage) => void
   synchronized: () => void
+  // Raw firehose (see `mqtt.ts`'s `onMessage`): the RAW (un-decoded) comments
+  // from a synchronize response, emitted alongside the decoded `message.new`
+  // events above. Consumers that need the raw API shape (e.g. v2's own
+  // `Comment` builder) subscribe here instead of re-decoding.
+  'raw-sync': (data: { lastMessageId: m.IQAccount['lastMessageId']; comments: SyncResponse.Comment[] }) => void
 }
 
 export function synchronizeFactory(
@@ -29,6 +34,7 @@ export function synchronizeFactory(
     lastMessageId: m.IQAccount['lastMessageId']
     messages: m.IQMessage[]
     interval: number
+    rawComments: SyncResponse.Comment[]
   }> => {
     return api
       .request<SyncResponse.RootObject>(
@@ -48,7 +54,7 @@ export function synchronizeFactory(
         )
         const lastMessageId = resp.results.meta.last_received_comment_id ?? 0
         logger(`lastMessageId:${JSON.stringify(resp.results.meta, null, 2)}`)
-        return { lastMessageId, messages, interval: getInterval() }
+        return { lastMessageId, messages, interval: getInterval(), rawComments: resp.results.comments }
       })
   }
 
@@ -64,6 +70,9 @@ export function synchronizeFactory(
       .forEach((m) => {
         emitter.emit('message.new', m)
       })
+    // Raw firehose, emitted UNSORTED after the decoded emits above — consumers
+    // that need raw ordering apply their own sort rule.
+    emitter.emit('raw-sync', { lastMessageId: res.lastMessageId, comments: res.rawComments })
 
     return result
   }

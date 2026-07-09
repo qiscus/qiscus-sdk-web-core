@@ -16,6 +16,10 @@ interface SynchronizeEventData {
   'message.read': (message: m.IQMessage) => void
   'message.received': (message: m.IQMessage) => void
   'room.cleared': (room: m.IQChatRoom) => void
+  // Raw firehose (see `mqtt.ts`'s `onMessage` / `sync-factory.ts`'s `raw-sync`):
+  // the RAW (un-decoded) event buckets from `classifySyncEvents`, emitted
+  // alongside the decoded events above.
+  'raw-sync-event': (data: { lastId: any; delivered: any[]; read: any[]; deleted: any[]; cleared: any[] }) => void
 }
 
 export function synchronizeEventFactory(
@@ -92,6 +96,12 @@ export function synchronizeEventFactory(
           messageDeleted,
           roomCleared,
           interval: getInterval(),
+          rawBuckets: {
+            messageDelivered: c.messageDelivered,
+            messageRead: c.messageRead,
+            messageDeleted: c.messageDeleted,
+            roomCleared: c.roomCleared,
+          },
         }
       })
   }
@@ -105,6 +115,14 @@ export function synchronizeEventFactory(
     res.messageDeleted.forEach((it) => it.forEach((m) => emitter.emit('message.deleted', m)))
     res.messageRead.forEach((it) => emitter.emit('message.read', it))
     res.roomCleared.forEach((it) => it.forEach((room) => emitter.emit('room.cleared', room)))
+    // Raw firehose, emitted after the decoded emits above.
+    emitter.emit('raw-sync-event', {
+      lastId: res.lastId,
+      delivered: res.rawBuckets.messageDelivered,
+      read: res.rawBuckets.messageRead,
+      deleted: res.rawBuckets.messageDeleted,
+      cleared: res.rawBuckets.roomCleared,
+    })
 
     return result
   }

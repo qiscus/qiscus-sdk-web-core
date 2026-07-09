@@ -24,6 +24,11 @@ export default function getSyncAdapter(o: {
   api: Api.ApiRequester
   isMqttConnected: () => boolean
   logger: (...args: string[]) => void
+  // Optional gating flag (default off = v3 behavior unchanged, same shape as
+  // `mqtt.ts`'s `enableHeartbeat`): when true, sync is skipped entirely while
+  // MQTT is connected (v2's "sync only when MQTT disconnected" rule), instead
+  // of only slowing the poll interval.
+  syncOnlyWhenDisconnected?: boolean
 }) {
   const emitter = new EventEmitter<IQSyncEvent>()
   function shouldSync(): boolean {
@@ -33,7 +38,11 @@ export default function getSyncAdapter(o: {
     o.logger(`enableSync --> isNotForceDisabled(${isNotForceDisabled})`)
     o.logger(`enableSync --> isAuthenticated(${isAuthenticated})`)
 
-    return isAuthenticated && isNotForceDisabled
+    return (
+      isAuthenticated &&
+      isNotForceDisabled &&
+      (o.syncOnlyWhenDisconnected !== true || o.isMqttConnected() !== true)
+    )
   }
   function isSyncEnabled(): boolean {
     let isAbleToSync = shouldSync()
@@ -111,6 +120,20 @@ export default function getSyncAdapter(o: {
     onSynchronized(callback: () => void): () => void {
       sync.on('synchronized', callback)
       return () => sync.off('synchronized', callback)
+    },
+    // Raw firehose subscriptions (see `mqtt.ts`'s `onMessage`): fire with the
+    // RAW (un-decoded) API shapes for every synchronize/synchronizeEvent
+    // response, alongside (not instead of) the decoded events above. This is
+    // the seam v2 uses to build its own `Comment` without re-decoding.
+    onRawMessages(callback: (data: { lastMessageId: m.IQAccount['lastMessageId']; comments: any[] }) => void): () => void {
+      sync.on('raw-sync', callback)
+      return () => sync.off('raw-sync', callback)
+    },
+    onRawEvents(
+      callback: (data: { lastId: any; delivered: any[]; read: any[]; deleted: any[]; cleared: any[] }) => void
+    ): () => void {
+      syncEvent.on('raw-sync-event', callback)
+      return () => syncEvent.off('raw-sync-event', callback)
     },
   }
 }
