@@ -29,6 +29,13 @@ export type { UploadResponse, UploadProgress, UploadAdapter } from './adapters/u
 // a parallel implementation.
 export { default as getMqttAdapter } from './adapters/mqtt'
 export type { MqttAdapter } from './adapters/mqtt'
+// Sync-loop unification (docs/v2-full-shell-plan.md "Sync poll loop"): re-export
+// core-v3's HTTP-poll sync adapter so v2's `SyncAdapter` facade
+// (packages/version-2/src/lib/adapters/sync.js) can delegate its poll loop +
+// gating to it instead of owning a parallel implementation, via the raw
+// (`onRawMessages`/`onRawEvents`) firehose.
+export { default as getSyncAdapter } from './adapters/sync'
+export type { SyncAdapter } from './adapters/sync'
 export { parseRealtimeEvent } from './adapters/realtime-parser'
 export type { CanonicalEvent, DeletedMessage } from './adapters/realtime-parser'
 export { classifySyncEvents } from './adapters/sync-parser'
