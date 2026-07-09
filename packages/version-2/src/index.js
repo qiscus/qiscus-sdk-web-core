@@ -411,7 +411,7 @@ class QiscusSDK {
       }
     })
 
-    this.syncAdapter = SyncAdapter(() => this.deps.messageAdapter, {
+    this.syncAdapter = SyncAdapter(() => this.deps, {
       getToken: () => this.userData.token,
       syncInterval: () => this.syncInterval,
       getShouldSync: () => this._forceEnableSync
@@ -421,6 +421,7 @@ class QiscusSDK {
       statusLogin: () => this.isLogin,
       enableSync: () => this.enableSync,
       enableSyncEvent: () => this.enableSyncEvent,
+      isMqttConnected: () => this.realtimeAdapter.connected,
     })
     this.syncAdapter.on('message.new', async (message) => {
       message = await this._hookAdapter.trigger(

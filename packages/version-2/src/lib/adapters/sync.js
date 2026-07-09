@@ -1,148 +1,27 @@
 import mitt from 'mitt'
-import { classifySyncEvents } from '@qiscus/core-v3'
+import { getSyncAdapter as CoreGetSyncAdapter, storageFactory } from '@qiscus/core-v3'
 
-const noop = () => {}
-const sleep = (time) => new Promise((res) => setTimeout(res, time))
-
-export function synchronizeFactory(getRequester, getInterval, getSync, getId, logger) {
-  const emitter = mitt()
-  const synchronize = (messageId) => {
-    return getRequester()
-      .synchronize(messageId)
-      .then((body) => {
-        const results = body.results
-        const messages = results.comments
-        const lastMessageId = results.meta.last_received_comment_id
-        messages.sort((a, b) => a.id - b.id)
-        return Promise.resolve({
-          lastMessageId,
-          messages,
-          interval: getInterval(),
-        })
-      })
-      .catch(noop)
-  }
-  async function* generator() {
-    let accumulatedInterval = 0
-    const interval = 100
-    const shouldSync = () => getRequester() != null && getSync()
-
-    while (true) {
-      accumulatedInterval += interval
-      if (accumulatedInterval >= getInterval() && shouldSync()) {
-        accumulatedInterval = 0
-        yield synchronize(getId())
-      }
-      await sleep(interval)
-    }
-  }
-
-  return {
-    get synchronize() {
-      return synchronize
-    },
-    get on() {
-      return emitter.on
-    },
-    get off() {
-      return emitter.off
-    },
-    async run() {
-      for await (let result of generator()) {
-        try {
-          emitter.emit('synchronize', Date.now())
-          if (result?.lastMessageId != null && result?.messages != null) {
-            const messageId = result.lastMessageId
-            const messages = result.messages
-            if (messageId > getId()) {
-              messages.forEach((m) => emitter.emit('message.new', m))
-              emitter.emit('last-message-id.new', messageId)
-            }
-          }
-        } catch (e) {
-          logger('error when sync', e.message)
-          console.log('error when sync', e)
-        }
-      }
-    },
-  }
-}
-export function synchronizeEventFactory(getRequester, getInterval, getSync, getId, logger) {
-  const emitter = mitt()
-  const synchronize = (messageId) => {
-    return getRequester()
-      .synchronizeEvent(messageId)
-      .then((body) => {
-        // Single source (Phase 4 step 5): classify the sync_event batch via
-        // core-v3's shared classifySyncEvents (also fixes the old divergence
-        // where v2 matched 'delete_message' but core-v3 matched
-        // 'deleted_message' — now both are accepted). Each shell still shapes
-        // the raw payload.data buckets its own way (v2 emits them raw below).
-        const { lastId, messageDelivered, messageRead, messageDeleted, roomCleared } =
-          classifySyncEvents(body.events)
-        return Promise.resolve({
-          lastId,
-          messageDelivered,
-          messageRead,
-          messageDeleted,
-          roomCleared,
-          interval: getInterval(),
-        })
-      })
-      .catch(noop)
-  }
-  async function* generator() {
-    let accumulatedInterval = 0
-    const interval = 100
-    const shouldSync = () => getRequester() != null && getSync()
-
-    while (true) {
-      accumulatedInterval += interval
-      if (accumulatedInterval >= getInterval() && shouldSync()) {
-        accumulatedInterval = 0
-        yield synchronize(getId())
-      }
-      await sleep(interval)
-    }
-  }
-
-  return {
-    get synchronize() {
-      return synchronize
-    },
-    get on() {
-      return emitter.on
-    },
-    get off() {
-      return emitter.off
-    },
-    async run() {
-      for await (let result of generator()) {
-        try {
-          const eventId = result.lastId
-          if (eventId > getId()) {
-            emitter.emit('last-event-id.new', eventId)
-            result.messageDelivered.forEach((it) =>
-              emitter.emit('message.delivered', it)
-            )
-            result.messageDeleted.forEach((it) =>
-              emitter.emit('message.deleted', it)
-            )
-            result.messageRead.forEach((it) => emitter.emit('message.read', it))
-            result.roomCleared.forEach((it) => emitter.emit('room.cleared', it))
-          }
-        } catch (e) {
-          logger('error when sync event', e.message)
-        }
-      }
-    },
-  }
-}
-
+/**
+ * Sync-loop unification (docs/v2-full-shell-plan.md "Sync poll loop"): v2's
+ * `SyncAdapter` used to own its own HTTP-poll generators
+ * (`synchronizeFactory`/`synchronizeEventFactory`, deleted here). Now it
+ * DELEGATES the poll loop + gating entirely to core-v3's `getSyncAdapter`
+ * (`@qiscus/core-v3`), which already owns: the interval producer, the
+ * MQTT-connected/disconnected interval switch, the enable/force-disable
+ * gates, and the sync/sync_event HTTP calls. This facade's only job is to
+ * (a) build a storage facade that maps core-v3's gate/interval getters onto
+ * v2's live option getters, and (b) re-shape core-v3's RAW firehose
+ * (`onRawMessages`/`onRawEvents`/`onSynchronized`) back into v2's exact mitt
+ * event names/payloads/ordering/guards, so `index.js`'s `.on(...)` handlers
+ * (unchanged) keep observing the same behavior as before.
+ *
+ * Public interface (`on`/`off`/`interval`/`enabled`/`synchronize`/
+ * `synchronizeEvent`) and every emitted event shape are preserved
+ * byte-for-byte; see `compat/sync-delegation.test.js`.
+ */
 export default function SyncAdapter(
-  getRequester,
+  getDeps,
   {
-    isDebug = false,
     syncInterval,
     getShouldSync,
     syncOnConnect,
@@ -150,59 +29,94 @@ export default function SyncAdapter(
     statusLogin,
     enableSync,
     enableSyncEvent,
+    isMqttConnected,
+    // Test seam: inject a fake `getSyncAdapter` so the facade (guard/order/
+    // event-shape behavior) can be characterized without a real HTTP poll
+    // loop. Defaults to core-v3's real `getSyncAdapter`.
+    _getSyncAdapter,
   }
 ) {
   const emitter = mitt()
-  const logger = (...args) => (isDebug ? console.log('QSync:', ...args) : {})
 
-  let lastMessageId = 0
-  let lastEventId = 0
+  // v2-local guard vars, INDEPENDENT of core-v3's own storage cursor: core-v3
+  // advances its storage cursor on its DECODED emit, which fires BEFORE the
+  // raw firehose used below — so the storage cursor can't be reused as v2's
+  // "already emitted?" guard. Keep dedicated guard vars instead.
+  let emittedMsgId = -1
+  // `emittedEventId` backs the storage facade's getLastEventId/setLastEventId
+  // (core-v3's OWN cursor, which it reads to compute the next poll's id and
+  // writes via its DECODED 'last-event-id.new' handler — BEFORE the raw
+  // firehose fires). `lastEmittedEventId` is a SEPARATE var used only for
+  // v2's own "already emitted?" guard below: if it shared `emittedEventId`,
+  // core's decoded handler would advance it to the new id first, making the
+  // raw-firehose guard compare the id to itself (always false) and v2 would
+  // never emit. Keep them distinct.
+  let emittedEventId = 0
+  let lastEmittedEventId = 0
 
-  const getInterval = () => {
-    if (statusLogin()) {
-      if (getShouldSync()) return syncInterval()
-      return syncOnConnect()
-    }
-    return 0
+  const storage = storageFactory()
+
+  // Auth gate: v2's login status. The id value itself is irrelevant to
+  // core-v3's sync adapter (only null vs non-null matters for `shouldSync`).
+  storage.getCurrentUser = () => (statusLogin() ? { id: 'v2' } : null)
+
+  // `getShouldSync` already ANDs in `_forceEnableSync && isLogin &&
+  // !realtimeAdapter.connected` — mapping its negation onto
+  // `getForceDisableSync` reproduces v2's exact "should we sync at all"
+  // decision as the SINGLE source of the gate. Do NOT also pass
+  // `syncOnlyWhenDisconnected` to `getSyncAdapter` below — that would
+  // double-apply the mqtt-disconnected condition already folded into
+  // `getShouldSync`.
+  storage.getForceDisableSync = () => getShouldSync() !== true
+  storage.getIsSyncEnabled = () => enableSync()
+  storage.getIsSyncEventEnabled = () => enableSyncEvent()
+
+  storage.getSyncInterval = () => syncInterval()
+  storage.getSyncIntervalWhenConnected = () => syncOnConnect()
+
+  // Message poll cursor = v2's live `last_received_comment_id`; core-v3's
+  // `setLastMessageId` is a no-op here because `index.js`'s
+  // `last-message-id.new` handler owns that field (assigns it back onto
+  // `this.last_received_comment_id`).
+  storage.getLastMessageId = () => lastCommentId()
+  storage.setLastMessageId = () => {}
+
+  // Event cursor is v2-owned here (no equivalent live field on the shell).
+  storage.getLastEventId = () => emittedEventId
+  storage.setLastEventId = (id) => {
+    emittedEventId = id
   }
 
-  const _getShouldSync = () => getShouldSync() && enableSync()
-  const syncFactory = synchronizeFactory(
-    getRequester,
-    getInterval,
-    _getShouldSync,
-    lastCommentId,
-    logger
-  )
-  syncFactory.on('last-message-id.new', (id) => (lastMessageId = id))
-  syncFactory.on('message.new', (m) => emitter.emit('message.new', m))
-  syncFactory.on('synchronize', (m) => emitter.emit('synchronize', m))
-  syncFactory.run().catch((err) => logger('got error when sync', err))
+  const core = (_getSyncAdapter || CoreGetSyncAdapter)({
+    s: storage,
+    api: getDeps().apiAdapter,
+    isMqttConnected,
+    logger: () => {},
+  })
 
-  const _getShouldSyncEvent = () => getShouldSync() && enableSyncEvent()
-  const syncEventFactory = synchronizeEventFactory(
-    getRequester,
-    getInterval,
-    _getShouldSyncEvent,
-    () => lastEventId,
-    logger
-  )
-  syncEventFactory.on('last-event-id.new', (id) => {
-    lastEventId = id
+  core.onRawMessages(({ lastMessageId, comments }) => {
+    if (lastMessageId > emittedMsgId) {
+      comments
+        .slice()
+        .sort((a, b) => a.id - b.id)
+        .forEach((c) => emitter.emit('message.new', c))
+      emitter.emit('last-message-id.new', lastMessageId)
+      emittedMsgId = lastMessageId
+    }
   })
-  syncEventFactory.on('message.read', (it) => {
-    emitter.emit('message.read', it)
+
+  core.onSynchronized(() => emitter.emit('synchronize', Date.now()))
+
+  core.onRawEvents(({ lastId, delivered, read, deleted, cleared }) => {
+    if (lastId > lastEmittedEventId) {
+      emitter.emit('last-event-id.new', lastId)
+      delivered.forEach((it) => emitter.emit('message.delivered', it))
+      deleted.forEach((it) => emitter.emit('message.deleted', it))
+      read.forEach((it) => emitter.emit('message.read', it))
+      cleared.forEach((it) => emitter.emit('room.cleared', it))
+      lastEmittedEventId = lastId
+    }
   })
-  syncEventFactory.on('message.delivered', (it) =>
-    emitter.emit('message.delivered', it)
-  )
-  syncEventFactory.on('message.deleted', (it) =>
-    emitter.emit('message.deleted', it)
-  )
-  syncEventFactory.on('room.cleared', (it) => emitter.emit('room.cleared', it))
-  syncEventFactory
-    .run()
-    .catch((err) => logger('got error when sync event', err))
 
   return {
     get on() {
@@ -212,41 +126,20 @@ export default function SyncAdapter(
       return emitter.off
     },
     get interval() {
-      return getInterval()
+      if (statusLogin()) {
+        if (getShouldSync()) return syncInterval()
+        return syncOnConnect()
+      }
+      return 0
     },
     get enabled() {
       return enableSync()
     },
     async synchronize() {
-      let id = lastCommentId()
-      let result = await syncFactory.synchronize(id)
-      let messages = result?.messages ?? []
-      let lastMessageId = result?.lastMessageId ?? -1
-      for (let message of messages) {
-        emitter.emit('message.new', message)
-      }
-      if (lastMessageId > 0) {
-        emitter.emit('last-message-id.new', lastMessageId)
-      }
+      core.synchronize(lastCommentId())
     },
     async synchronizeEvent() {
-      let result = await syncEventFactory.synchronize(lastEventId)
-      try {
-        const eventId = result.lastId
-        if (eventId > getId()) {
-          emitter.emit('last-event-id.new', eventId)
-          result.messageDelivered.forEach((it) =>
-            emitter.emit('message.delivered', it)
-          )
-          result.messageDeleted.forEach((it) =>
-            emitter.emit('message.deleted', it)
-          )
-          result.messageRead.forEach((it) => emitter.emit('message.read', it))
-          result.roomCleared.forEach((it) => emitter.emit('room.cleared', it))
-        }
-      } catch (e) {
-        logger('error when sync event', e.message)
-      }
+      core.synchronizeEvent(lastEmittedEventId)
     },
   }
 }
