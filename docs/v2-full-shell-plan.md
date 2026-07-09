@@ -171,48 +171,50 @@ live once.
     `index.js`'s `SyncAdapter(() => this.deps.messageAdapter, {...})` (was
     `() => this.HTTPAdapter`) — this removes one of the last live `HttpAdapter` users.
     core-v3 99/99 (+2), compat 108/108 (+4), v2 test 20/1 (pre-existing), all builds green.
-- **P4 — Model-agnostic usecases + orchestration move**: refactor core-v3 usecases to inject
-  model-construction + state-mutation; move v2's optimistic-send + chatTarget/getRoomById
-  flows into shared usecases; v2 methods become 1-line delegations.
-- **P5 — Shell reduction + cleanup**: v2 `index.js` reduced to state + model construction +
-  delegations; remove `_legacy*`; delete now-dead `lib/adapters/*` (http/user/room/mqtt/sync/
-  auth/expired-token) that finally have zero references; keep `Comment.js`/`Room.js`.
-  - **P5 pass 3 (auth cluster: token refresh + logout) — DONE for the scoped piece, HttpAdapter
-    NOT fully deletable yet.** Added core-v3 `Api.refreshToken`/`Api.logout`
-    (`POST /refresh_user_token`/`/logout`) + `getUserAdapterRaw.refreshToken`/`.logout` raw
-    methods (additive, v3 byte-identical, +2 tests). Rewrote `ExpiredTokenAdapter` to call
-    `deps.userAdapter.refreshToken()`/`.logout()` instead of `HttpAdapter.post(...)`, taking
-    `getUserAdapter`/`getStorage` instead of an `httpAdapter` instance — same token lifecycle
-    (`_refreshToken` rotation, `onTokenRefreshed` callback shape, refresh guard, retry timer).
-    Token now lives in `deps.storage` as the single writer: login calls
-    `this.deps.storage.setToken(...)` (was `HTTPAdapter.setToken`), `makeDeps` seeds it from
-    `self.userData.token` (was `self.HTTPAdapter.token`), and the `deps` getter no longer
-    re-syncs it from `HTTPAdapter`. Deleted the now-dead `'start-init'` HttpAdapter
-    reconstruction (its only consumers — the `deps` re-sync and `ExpiredTokenAdapter`'s
-    `httpAdapter` param — are both gone) and the `expiredTokenAdapterGetter` wiring on the
-    login-success one. Request token headers are unaffected — they already came from
-    `deps.storage.getToken()`, never from `HttpAdapter`, before this pass. New
-    `compat/auth-transport.test.js` pins the swap. core-v3 101/103 (99+2, unrelated
-    skip/todo), compat 84/84 (+3), v2 baseline test 20/1 (pre-existing), `build:lib` clean.
-  - **HttpAdapter NOT deleted — genuine blocker found, out of this pass's scope:**
-    `lib/adapters/auth.js`'s `AuthAdapter`, constructed in `setEventListeners()`
-    (`this.authAdapter = new AuthAdapter(self.HTTPAdapter)`) and driving the LIVE login flow
-    (`setUser()` → `authAdapter.loginOrRegister(params)` → `HTTPAdapter.post('api/v2/sdk/
-    login_or_register', params)`), still depends on `HttpAdapter`. This was not listed in the
-    "what still uses HttpAdapter" inventory used to scope this pass. `AuthAdapter`'s other
-    methods (`getNonce`/`verifyIdentityToken`/`refreshAuthToken`/`expiredAuthToken`) are dead
-    (never called — those flows were already re-platformed elsewhere in P2), but
-    `loginOrRegister` is real and load-bearing. Re-platforming it onto core-v3's existing
-    `userAdapter.login()` is NOT a drop-in swap: v2 sends `login_or_register` as
-    `application/x-www-form-urlencoded` with `extras: JSON.stringify(extras)`, while core-v3's
-    `Encode.loginOrRegister` sends `extras` as a raw object over JSON (axios default) — a wire
-    format change on the login endpoint with no characterization test pinning it yet (unlike
-    the P1a HttpAdapter contract tests). Deferred to a follow-up pass (P5 pass 4?): pin
-    v2's exact `login_or_register` request shape first (superagent urlencoded body,
-    stringified `extras`), then re-platform `AuthAdapter.loginOrRegister`, THEN
-    `lib/adapters/http.js` + `lib/adapters/auth.js` can finally be deleted. Until then,
-    `init()`'s one `new HttpAdapter({...})` construction (feeding `AuthAdapter` only) and the
-    class file stay.
+- **P5 — Shell reduction + cleanup — DONE. `HttpAdapter`/`AuthAdapter` deleted; v2 runtime is
+  superagent-free.** Passes:
+  - **pass 1** (`b55314b`/`f01b489`/`ba10f10`): exported core-v3 `Api`/`Provider` from the
+    barrel; parameterized `Api.getRoomParticipants` (`offset`) + `Api.searchMessages`
+    (`lastCommentId`); added baseUrl/broker/version/headers liveness to the `deps` getter;
+    re-platformed the last three live non-`_legacy` `HttpAdapter` HTTP users — `init()` config
+    (`deps.userAdapter.getAppConfig()`), deprecated `getRoomParticipants`, deprecated
+    `searchMessages`.
+  - **pass 2** (`66efb9d`/`d7d4244`): deleted all 18 `_legacy*` methods + the 4 phase*
+    parity-test files + the old superagent `UserAdapter`/`RoomAdapter` (`lib/adapters/user.js`,
+    `room.js`) — after proving every `userAdapter`/`roomAdapter` call site was in a `_legacy*`
+    body. compat 108→81.
+  - **pass 3** (`e5be5cc`/`ced7cae`): auth cluster — core-v3 `Api.refreshToken`/`Api.logout`
+    + raw methods; `ExpiredTokenAdapter` calls `deps.userAdapter.refreshToken()`/`.logout()`
+    (takes `getUserAdapter`/`getStorage`, not `httpAdapter`); token now lives in `deps.storage`
+    as the single writer (login → `storage.setToken`, `makeDeps` seeds from `userData.token`).
+    Request token headers unaffected (already from `storage.getToken()`).
+    `compat/auth-transport.test.js` pins it.
+  - **pass 4 / final** (`22677ec`/`2a7472d`/`351af62`): re-platformed `login_or_register` onto
+    `deps.userAdapter.login()` — characterization test (`login-transport.test.js`) pins the
+    exact body first (`{email, password, username, avatar_url, extras: JSON.stringify(extras)}`
+    — the shell passes the ALREADY-stringified `extras` straight through, so the only change is
+    the accepted urlencoded→JSON Content-Type). **Deleted `lib/adapters/http.js` + `auth.js`**,
+    then dropped the last `superagent` import (dead `MqttAdapter.getMqttNode`). core-v3 101,
+    compat 79 (0 fail), v2 baseline 20/1 (pre-existing), `build:lib` clean.
+  - **What legitimately stays in the shell** (this is the "shell", not "empty"): mutable state
+    fields, `Comment`/`Room` construction from raw, the mitt emitter, the singleton, thin
+    per-shell adapters (`compat/axios-requester.js`, `mqtt.js`/`sync.js` facades,
+    `realtime-bridge`, `expired-token.js`), and the one-line public-method delegations.
+- **P4 — Model-agnostic usecases + orchestration move — NOT DONE (deliberately deferred).**
+  This would refactor core-v3's WORKING v3 usecases (xstream + IQ + Decoder) to inject
+  model-construction + state-mutation, then move v2's optimistic-send + chatTarget/getRoomById
+  orchestration into shared usecases. It is the plan's "largest single piece", touches
+  production v3 code, and single-sources BUSINESS LOGIC — not transport/realtime (already
+  single-sourced). Recommended as its own project. The orchestration currently lives in v2's
+  shell methods, which already delegate all HTTP/realtime to core-v3, so this is a refinement,
+  not a blocker.
+
+### Release gates (code done + unit-tested here, but NOT verifiable in the worktree — run before shipping)
+1. **Live login** against a real Qiscus backend (accepted urlencoded→JSON divergence).
+2. **Live auth-refresh** (403 → `refresh_user_token` → retry) + `logout` against a real backend.
+3. **Realtime two-client soak** (P3d): broker kill → LB failover + resubscribe; presence
+   heartbeat-off honored (`publishOnlinePresence(false)` → peer offline); LWT `'0'`/qos-1 on
+   tab-kill; no double-connection on reinit; `onReconnectCallback` cadence acceptable.
 
 ## 5. Missing v3 features — CONFIRM before implementing (per user)
 
