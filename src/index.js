@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid'
 import request from 'superagent'
 import mitt from 'mitt'
 import is from './lib/is'
@@ -62,7 +63,7 @@ class QiscusSDK {
     this.enableSync = true
     this.enableSyncEvent = false
     this.HTTPAdapter = null
-    this.expiredTokenAdapter = null;
+    this.expiredTokenAdapter = null
     this.realtimeAdapter = null
     this.customEventAdapter = null
     this.isInit = false
@@ -139,9 +140,9 @@ class QiscusSDK {
     if ((isDifferentBaseUrl || isDifferentMqttUrl) && !isDifferentBrokerLbUrl) {
       this.logger(
         '' +
-        'force disable load balancing for realtime server, because ' +
-        '`baseURL` or `mqttURL` get changed but ' +
-        'did not provide `brokerLbURL`'
+          'force disable load balancing for realtime server, because ' +
+          '`baseURL` or `mqttURL` get changed but ' +
+          'did not provide `brokerLbURL`'
       )
       this.enableLb = false
     } else if (config.enableRealtimeLB != null) {
@@ -245,8 +246,6 @@ class QiscusSDK {
           const enableEventReport = this.enableEventReport // default value for enableEventReport
           const configExtras = {} // default value for extras
 
-
-
           this.baseURL = setterHelper(config.baseURL, cfg.base_url, baseUrl)
           this.brokerLbUrl = setterHelper(
             config.brokerLbURL,
@@ -284,8 +283,16 @@ class QiscusSDK {
           )
           this.extras = setterHelper(null, cfg.extras, configExtras)
           this.enableSync = setterHelper(null, cfg.enable_sync, this.enableSync)
-          this.enableSyncEvent = setterHelper(null, cfg.enable_sync_event, this.enableSyncEvent)
-          this._autoRefreshToken = setterHelper(null, cfg.auto_refresh_token, false)
+          this.enableSyncEvent = setterHelper(
+            null,
+            cfg.enable_sync_event,
+            this.enableSyncEvent
+          )
+          this._autoRefreshToken = setterHelper(
+            null,
+            cfg.auto_refresh_token,
+            false
+          )
         })
         .catch((err) => {
           this.logger('got error when trying to get app config', err)
@@ -311,7 +318,7 @@ class QiscusSDK {
         this.updateLastReceivedComment(this.last_received_comment_id)
       }
     })
-    this.realtimeAdapter.on('close', () => { })
+    this.realtimeAdapter.on('close', () => {})
     this.realtimeAdapter.on('reconnect', () => {
       this.options.onReconnectCallback?.()
     })
@@ -369,8 +376,10 @@ class QiscusSDK {
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
       getToken: () => this.userData.token,
       syncInterval: () => this.syncInterval,
-      getShouldSync: () => this._forceEnableSync
-        && (this.isLogin && !this.realtimeAdapter.connected),
+      getShouldSync: () =>
+        this._forceEnableSync &&
+        this.isLogin &&
+        !this.realtimeAdapter.connected,
       syncOnConnect: () => this.syncOnConnect,
       lastCommentId: () => this.last_received_comment_id,
       statusLogin: () => this.isLogin,
@@ -544,7 +553,7 @@ class QiscusSDK {
       if (
         lastReceivedMessageNotEmpty &&
         this.lastReceiveMessages[0].unique_temp_id ===
-        comments[0].unique_temp_id
+          comments[0].unique_temp_id
       ) {
         this.logging('lastReceiveMessages double', comments)
         return
@@ -624,7 +633,7 @@ class QiscusSDK {
       })
       this.HTTPAdapter.setToken(this.userData.token)
 
-      let user = response.user;
+      let user = response.user
       this._delayedSync = delayed(() => {
         this.synchronize()
         this.synchronizeEvent()
@@ -638,14 +647,19 @@ class QiscusSDK {
           this.userData.token = token
           this.userData.refresh_token = refreshToken
           this.userData.token_expires_at = expiredAt?.toJSON()
-          this.events.emit('token-refreshed', { token, refreshToken, expiredAt, oldToken })
+          this.events.emit('token-refreshed', {
+            token,
+            refreshToken,
+            expiredAt,
+            oldToken,
+          })
           this.realtimeAdapter.unsusbcribeUserChannelByToken(oldToken)
           this.realtimeAdapter.subscribeUserChannelByToken(token)
           this._delayedSync()
         },
         getAuthenticationStatus: () => {
           return this.user_id != null && this.isLogin
-        }
+        },
       })
 
       this.userAdapter = new UserAdapter(this.HTTPAdapter)
@@ -720,7 +734,8 @@ class QiscusSDK {
           }
 
           // Find last comment object on `self.selected.comments` array
-          const lastComment = self.selected.comments[self.selected.comments.length - 1]
+          const lastComment =
+            self.selected.comments[self.selected.comments.length - 1]
           self.selected.last_comment_id = lastComment.id
           self.selected.last_comment_message = lastComment.message
         })
@@ -794,8 +809,8 @@ class QiscusSDK {
           payload[0] === 1
             ? 'Online'
             : `Last seen ${distanceInWordsToNow(
-              Number(payload[1].substring(0, 13))
-            )}`
+                Number(payload[1].substring(0, 13))
+              )}`
       }
       if (self.options.presenceCallback)
         self.options.presenceCallback(message, userId)
@@ -919,7 +934,7 @@ class QiscusSDK {
             }
           )
 
-          return login$;
+          return login$
         }
       }, 300)
     })
@@ -947,7 +962,7 @@ class QiscusSDK {
   }
 
   refreshAuthToken() {
-    return this.expiredTokenAdapter.refreshAuthToken();
+    return this.expiredTokenAdapter.refreshAuthToken()
   }
 
   publishOnlinePresence(val) {
@@ -1428,8 +1443,8 @@ class QiscusSDK {
 
     if (self.selected) self.selected.comments.push(messageData)
 
-    const sendComment = () => this.userAdapter
-      .postComment(
+    const sendComment = () =>
+      this.userAdapter.postComment(
         '' + topicId,
         messageData.message,
         messageData.unique_id,
@@ -1440,10 +1455,7 @@ class QiscusSDK {
 
     try {
       let res = await sendComment()
-      res = await this._hookAdapter.trigger(
-        Hooks.MESSAGE_BEFORE_RECEIVED,
-        res
-      )
+      res = await this._hookAdapter.trigger(Hooks.MESSAGE_BEFORE_RECEIVED, res)
       Object.assign(messageData, res)
 
       if (!self.selected) return Promise.resolve(messageData)
@@ -1458,7 +1470,9 @@ class QiscusSDK {
       self.events.emit('comment-sent', messageData)
 
       self.sortComments()
-      const commentIndex = self._pendingComments.findIndex(c => c.unique_id === messageData.unique_id)
+      const commentIndex = self._pendingComments.findIndex(
+        (c) => c.unique_id === messageData.unique_id
+      )
       if (commentIndex > -1) {
         self._pendingComments.splice(commentIndex, 1)
       }
@@ -1467,7 +1481,19 @@ class QiscusSDK {
     } catch (error) {
       messageData.markAsFailed()
       // From superagent: `https://forwardemail.github.io/superagent/#retrying-requests`
-      const whitelistedErrorStatus = [undefined, 408, 413, 429, 500, 502, 503, 504, 521, 522, 524]
+      const whitelistedErrorStatus = [
+        undefined,
+        408,
+        413,
+        429,
+        500,
+        502,
+        503,
+        504,
+        521,
+        522,
+        524,
+      ]
       const message = error.message?.toLowerCase() ?? ''
       const isOffline = message.includes('offline')
       if (whitelistedErrorStatus.includes(error.status) || isOffline) {
@@ -1483,7 +1509,7 @@ class QiscusSDK {
   // count of how much does a comment has been retried
   _pendingCommentsCount = {}
   async _retrySendComment(comment) {
-    this.logger('Retrying send comment', comment);
+    this.logger('Retrying send comment', comment)
 
     this._pendingCommentsCount[comment.unique_id] =
       (this._pendingCommentsCount[comment.unique_id] ?? 0) + 1
@@ -1495,7 +1521,9 @@ class QiscusSDK {
       )
       this.options.commentRetryExceedCallback?.(comment)
       // Remove the comment from pending comments
-      const index = this._pendingComments.findIndex(c => c.unique_id === comment.unique_id)
+      const index = this._pendingComments.findIndex(
+        (c) => c.unique_id === comment.unique_id
+      )
       if (index > -1) {
         this._pendingComments.splice(index, 1)
       }
@@ -1507,44 +1535,49 @@ class QiscusSDK {
       return Promise.reject(new Error('Exceeding maximum retry count'))
     }
 
-    return this.userAdapter.postComment(
-      '' + comment.room_id,
-      comment.message,
-      comment.unique_id,
-      comment.type,
-      comment.payload,
-      comment.extras
-    ).then(async (res) => {
-      if (this.selected?.id !== comment.room_id) {
-        return res
-      }
-
-      Object.assign(comment, res)
-      comment.markAsSent()
-      comment.id = res.id
-      comment.before_id = res.comment_before_id
-      comment.unix_timestamp = res.unix_timestamp
-
-      const index = this.selected?.comments.findIndex(
-        (c) => c.unique_id === comment.unique_id
+    return this.userAdapter
+      .postComment(
+        '' + comment.room_id,
+        comment.message,
+        comment.unique_id,
+        comment.type,
+        comment.payload,
+        comment.extras
       )
-      if (index > -1) {
-        this.selected.comments[index] = comment
-      }
-      this.sortComments()
+      .then(async (res) => {
+        if (this.selected?.id !== comment.room_id) {
+          return res
+        }
 
-      this.options.commentSentCallback?.({ comment })
-      this.events.emit('comment-sent', comment)
-      const commentIndex = this._pendingComments.findIndex(c => c.unique_id === comment.unique_id)
-      if (commentIndex > -1) {
-        this._pendingComments.splice(commentIndex, 1)
-      }
+        Object.assign(comment, res)
+        comment.markAsSent()
+        comment.id = res.id
+        comment.before_id = res.comment_before_id
+        comment.unix_timestamp = res.unix_timestamp
 
-      return comment
-    }).catch((err) => {
-      comment.markAsFailed()
-      return Promise.reject(err)
-    })
+        const index = this.selected?.comments.findIndex(
+          (c) => c.unique_id === comment.unique_id
+        )
+        if (index > -1) {
+          this.selected.comments[index] = comment
+        }
+        this.sortComments()
+
+        this.options.commentSentCallback?.({ comment })
+        this.events.emit('comment-sent', comment)
+        const commentIndex = this._pendingComments.findIndex(
+          (c) => c.unique_id === comment.unique_id
+        )
+        if (commentIndex > -1) {
+          this._pendingComments.splice(commentIndex, 1)
+        }
+
+        return comment
+      })
+      .catch((err) => {
+        comment.markAsFailed()
+        return Promise.reject(err)
+      })
   }
 
   // #endregion
@@ -1618,11 +1651,10 @@ class QiscusSDK {
   }
 
   prepareCommentToBeSubmitted(comment) {
-    var commentToBeSubmitted, uniqueId
-    commentToBeSubmitted = new Comment(comment)
+    let commentToBeSubmitted = new Comment(comment)
     // We're gonna use timestamp for uniqueId for now.
     // "bq" stands for "Bonjour Qiscus" by the way.
-    uniqueId = 'bq' + Date.now()
+    let uniqueId = `javascript-${nanoid()}`
     if (comment.unique_id) uniqueId = comment.unique_id
     commentToBeSubmitted.attachUniqueId(uniqueId)
     commentToBeSubmitted.markAsPending()
@@ -1805,10 +1837,11 @@ class QiscusSDK {
     )
   }
   upload(file, callback) {
-    let req = request.post(this.uploadURL);
+    let req = request.post(this.uploadURL)
 
     req = this.HTTPAdapter.setupHeaders(req)
-    return req.attach('file', file)
+    return req
+      .attach('file', file)
       .on('progress', (event) => {
         if (event.direction === 'upload') callback(null, event)
       })
@@ -1821,7 +1854,6 @@ class QiscusSDK {
         callback(error)
         return Promise.reject(error)
       })
-
   }
 
   /**
@@ -2022,7 +2054,7 @@ class QiscusSDK {
     return this.noop
   }
 
-  noop() { }
+  noop() {}
 
   get _throttleDelay() {
     if (
@@ -2083,7 +2115,7 @@ class QiscusSDK {
 
     this.userAdapter
       .updateCommentStatus(roomId, commentId1, commentId2)
-      .catch((err) => { })
+      .catch((err) => {})
   }
 
   _readComment = (roomId, commentId) => this._updateStatus(roomId, commentId)
@@ -2250,7 +2282,7 @@ class QiscusSDK {
   }
 
   _generateUniqueId() {
-    return `javascript-${Date.now()}`
+    return `javascript-${nanoid()}`
   }
 
   generateMessage({ roomId, text, extras }) {
@@ -2372,10 +2404,10 @@ class QiscusSDK {
   }
 
   async startSync() {
-    this._forceEnableSync = true;
+    this._forceEnableSync = true
   }
   async stopSync() {
-    this._forceEnableSync = false;
+    this._forceEnableSync = false
   }
 }
 

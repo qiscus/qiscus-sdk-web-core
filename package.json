@@ -55,6 +55,7 @@
     "lodash.throttle": "^4.1.1",
     "mitt": "^1.2.0",
     "mqtt": "~4.2.6",
+    "nanoid": "^5.1.16",
     "superagent": "^3.8.3"
   },
   "prettier": {
@@ -62,5 +63,8 @@
     "singleQuote": true,
     "trailingComma": "es5"
   },
-  "packageManager": "pnpm@11.8.0"
+  "packageManager": "pnpm@11.8.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
 }
