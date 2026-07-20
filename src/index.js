@@ -576,26 +576,30 @@ class QiscusSDK {
           const selected = self.selected
           const lastComment =
             self.selected.comments[self.selected.comments.length - 1]
-          // kirim event read kalau ini bukan komen kita sendiri
-          if (
-            !lastComment.isPending &&
-            !isAlreadyRead &&
-            self.user_id !== comment.email
-          ) {
-            self.readComment(comment.room_id, comment.id)
-          }
-          // pastiin sync
-          const roomLastCommentId = lastComment.id
-          const commentBeforeThis = self.selected.comments.find(
-            (c) => c.id === lastComment.comment_before_id
-          )
-          if (!lastComment.isPending && !commentBeforeThis) {
-            this.logging(
-              'comment before id not found! ',
-              comment.comment_before_id
+          // lastComment bisa undefined kalau room aktif masih kosong (belum
+          // punya pesan sama sekali) dan ini pesan pertama yang masuk
+          if (lastComment) {
+            // kirim event read kalau ini bukan komen kita sendiri
+            if (
+              !lastComment.isPending &&
+              !isAlreadyRead &&
+              self.user_id !== comment.email
+            ) {
+              self.readComment(comment.room_id, comment.id)
+            }
+            // pastiin sync
+            const roomLastCommentId = lastComment.id
+            const commentBeforeThis = self.selected.comments.find(
+              (c) => c.id === lastComment.comment_before_id
             )
-            // need to fix, these method does not work
-            self.synchronize(roomLastCommentId)
+            if (!lastComment.isPending && !commentBeforeThis) {
+              this.logging(
+                'comment before id not found! ',
+                comment.comment_before_id
+              )
+              // need to fix, these method does not work
+              self.synchronize(roomLastCommentId)
+            }
           }
           // pastikan dulu komen ini komen baru, klo komen lama ga usah panggil cb
           const pendingComment = new Comment(comment)
@@ -736,8 +740,12 @@ class QiscusSDK {
           // Find last comment object on `self.selected.comments` array
           const lastComment =
             self.selected.comments[self.selected.comments.length - 1]
-          self.selected.last_comment_id = lastComment.id
-          self.selected.last_comment_message = lastComment.message
+          // lastComment bisa undefined kalau pesan terakhir/satu-satunya
+          // baru saja dihapus dari room
+          if (lastComment) {
+            self.selected.last_comment_id = lastComment.id
+            self.selected.last_comment_message = lastComment.message
+          }
         })
       }
       if (self.options.commentDeletedCallback) {
