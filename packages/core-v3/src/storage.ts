@@ -89,6 +89,18 @@ export const storageFactory = () => {
     getLastEventId: makeGetter<IQAccount['lastSyncEventId']>('last-event-id'),
     setLastEventId: makeSetter<IQAccount['lastSyncEventId']>('last-event-id'),
 
+    // Token-refresh scheduler inputs (see `adapters/token-refresh.ts`). Only
+    // populated when the login response includes both fields — that
+    // presence is itself the enablement rule (no config flag gate).
+    // `null` default (not `undefined`) so an explicit `setRefreshToken(null)`
+    // (e.g. on logout) round-trips back as `null` through the `?? default`
+    // getter pattern above, instead of falling through to `undefined`.
+    getRefreshToken: makeGetter<string | null>('refresh-token', null),
+    setRefreshToken: makeSetter<string | null>('refresh-token'),
+    // Raw ISO string exactly as sent by the server — not parsed to Date here.
+    getTokenExpiresAt: makeGetter<string | null>('token-expires-at', null),
+    setTokenExpiresAt: makeSetter<string | null>('token-expires-at'),
+
     getForceDisableSync: makeGetter<boolean>('force-disable-sync', false),
     setForceDisableSync: makeSetter<boolean>('force-disable-sync'),
 

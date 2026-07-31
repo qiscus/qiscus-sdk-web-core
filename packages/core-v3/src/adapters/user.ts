@@ -13,9 +13,11 @@ const getUserAdapter = (s: Storage, api: Api.ApiRequester) => {
   return {
     login(userId: string, userKey: string, extra: IQUserExtraProps): Promise<model.IQAccount> {
       return raw.login(userId, userKey, extra).then((resp) => {
-        const [account, token_] = Decoder.account(resp.results.user)
+        const [account, token_, refreshToken, tokenExpiresAt] = Decoder.account(resp.results.user)
         s.setCurrentUser(account)
         s.setToken(token_)
+        s.setRefreshToken(refreshToken ?? null)
+        s.setTokenExpiresAt(tokenExpiresAt ?? null)
         s.setLastMessageId(account.lastMessageId)
         s.setLastEventId(account.lastSyncEventId)
         return account
@@ -41,9 +43,11 @@ const getUserAdapter = (s: Storage, api: Api.ApiRequester) => {
     },
     setUserFromIdentityToken(identityToken: string): Promise<model.IQAccount> {
       return raw.setUserFromIdentityToken(identityToken).then((resp) => {
-        const [account, token] = Decoder.account(resp.results.user)
+        const [account, token, refreshToken, tokenExpiresAt] = Decoder.account(resp.results.user)
         s.setCurrentUser(account)
         s.setToken(token)
+        s.setRefreshToken(refreshToken ?? null)
+        s.setTokenExpiresAt(tokenExpiresAt ?? null)
         return account
       })
     },
@@ -74,6 +78,15 @@ const getUserAdapter = (s: Storage, api: Api.ApiRequester) => {
     },
     async getAppConfig(): Promise<IAppConfig> {
       return raw.getAppConfig().then((r) => Decoder.appConfig(r.results))
+    },
+    refreshToken(userId: string, refreshToken: string) {
+      // Intentionally returns the RAW body — the token-refresh scheduler reads
+      // body.results.{token, refresh_token, token_expires_at} directly.
+      return raw.refreshToken(userId, refreshToken)
+    },
+    logout(userId: string, token: string) {
+      // Intentionally returns the RAW body — see refreshToken() above.
+      return raw.logout(userId, token)
     },
   }
 }

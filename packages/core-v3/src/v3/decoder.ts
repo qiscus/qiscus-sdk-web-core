@@ -25,9 +25,15 @@ interface AccountJson {
   rtKey: string
   token: string
   username: string
+  // Only present when the app is provisioned for the token-refresh feature —
+  // see `adapters/token-refresh.ts` / `startTokenRefresh`'s enablement rule.
+  refresh_token?: string
+  token_expires_at?: string
 }
 
-export const account = <T extends AccountJson>(json: T): [IQAccount, AccountJson['token']] => [
+export const account = <T extends AccountJson>(
+  json: T
+): [IQAccount, AccountJson['token'], AccountJson['refresh_token'], AccountJson['token_expires_at']] => [
   {
     name: json.username,
     avatarUrl: json.avatar_url,
@@ -37,6 +43,8 @@ export const account = <T extends AccountJson>(json: T): [IQAccount, AccountJson
     lastSyncEventId: String(json.last_sync_event_id),
   },
   json.token,
+  json.refresh_token,
+  json.token_expires_at,
 ]
 
 interface UserJson1 {
