@@ -241,16 +241,26 @@ live once.
     — tested the deleted factories; replaced by `sync-delegation.test.js`), v2 `test/**` 20/1
     (pre-existing fail, unaffected), `build:lib` clean (the sync.js named/default-export warning
     is gone).
-- **NEXT ITEM — Expired-token auto-refresh scheduler → move to core-v3 (bidirectional-parity
-  feature, NOT a dedup).** The refresh/logout HTTP is already in core-v3
-  (`Api.refreshToken`/`Api.logout`, P5 pass 3), but the SCHEDULER — v2's
-  `lib/adapters/expired-token.js` `ExpiredTokenAdapter` (`setTimeout` at `token_expires_at`,
-  the `refresh_token` rotation, the `onTokenRefreshed` callback, the auth-status guard) —
-  exists ONLY in v2; core-v3 / version-3 do NO proactive token refresh (`token_expires_at` is
-  just a response field there). So this is not duplication to remove but a v2-only feature to
-  LIFT into core-v3 so version-3 gains auto-refresh too ([[sdk-js-v2-v3-parity]]). Scope: a
-  core-v3 token-refresh scheduler owning the timer + lifecycle; v2's `expired-token.js` becomes
-  a thin delegator; v3 opts in. Scheduled AFTER the sync-loop unification.
+- **Expired-token auto-refresh scheduler — SCHEDULER LIFT DONE.** core-v3 now owns the
+  timer + lifecycle mechanism (`packages/core-v3/src/adapters/token-refresh.ts`,
+  `getTokenRefreshScheduler`, re-exported from the barrel): `setTimeout` at `token_expires_at`,
+  the `refresh_token` rotation, the `onTokenRefreshed` callback (still invoked with the OLD
+  `expiredAt`, a preserved v2 quirk), and the auth-status guard — reproduced byte-for-byte from
+  v2's original `ExpiredTokenAdapter`, including that an already-expired token does NOT trigger
+  an immediate refresh (the old JSDoc claiming otherwise was wrong; the code's behavior is what
+  moved). v2's `lib/adapters/expired-token.js` `ExpiredTokenAdapter` is now a thin delegator
+  over it — identical constructor shape + public methods (`refreshAuthToken()`/`logout()`), so
+  `index.js` needed ZERO changes. Tests: core-v3 `adapters/token-refresh.test.ts` (+8, real
+  timers per the vitest-0.25.8 constraint), v2 `compat/expired-token.test.js` (+4, mocha/chai).
+  All green: core-v3 106→114, compat 78→82, v2 `test/**` 20/1 (pre-existing, unaffected),
+  `build:lib` clean, v3 `build` clean.
+  - **Version-3 enablement is a SEPARATE follow-up**, not done here. It requires: (a) adding
+    `refreshToken`/`tokenExpiresAt` storage fields to core-v3 (currently absent); (b) capturing
+    `refresh_token`/`token_expires_at` at login in v3's decoder/account model (currently
+    dropped); (c) a v3 shell opt-in that constructs `getTokenRefreshScheduler` and wires
+    `onTokenRefreshed` into v3's storage. Also note: v2's `auto_refresh_token` app-config flag
+    is currently DEAD (write-only, never read anywhere) — it's a natural gate to wire in when
+    v3 opts in, rather than always-on.
 
 ## 5. Missing v3 features — CONFIRM before implementing (per user)
 
