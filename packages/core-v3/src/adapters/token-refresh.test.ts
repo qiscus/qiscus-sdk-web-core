@@ -1,5 +1,7 @@
 import { expect, test } from 'vitest'
-import getTokenRefreshScheduler from './token-refresh'
+import getTokenRefreshScheduler, { startTokenRefresh, stopTokenRefresh } from './token-refresh'
+import { storageFactory } from '../storage'
+import { QiscusDeps } from '../usecases/types'
 
 /**
  * Expired-token auto-refresh scheduler (docs/v2-full-shell-plan.md "NEXT
@@ -225,4 +227,148 @@ test('dispose() prevents a pending timer from firing', async () => {
   await new Promise((r) => setTimeout(r, 60))
 
   expect(calls.refreshToken).toHaveLength(0)
+})
+
+/**
+ * version-3 wiring: `startTokenRefresh`/`stopTokenRefresh` (see
+ * `usecases/user.ts`'s `setUser`/`setUserWithIdentityToken`/`clearUser`).
+ * Enablement rule under test: the scheduler starts iff-and-only-if BOTH
+ * `refreshToken` and `tokenExpiresAt` are present in storage AND there is a
+ * current user — no config-flag gate.
+ */
+
+function makeDeps(opts: {
+  refreshToken?: string | null
+  tokenExpiresAt?: string | null
+  hasCurrentUser?: boolean
+  refreshTokenImpl?: (userId: string, refreshToken: string) => Promise<any>
+  withRealtimeAdapter?: boolean
+}) {
+  const storage = storageFactory()
+  storage.setToken('old-token')
+  if (opts.hasCurrentUser !== false) {
+    storage.setCurrentUser({
+      id: 'user-id',
+      lastMessageId: 1,
+      lastSyncEventId: '1',
+      name: 'user-name',
+      avatarUrl: 'avatar-url',
+      extras: {},
+    })
+  }
+  if (opts.refreshToken !== undefined) storage.setRefreshToken(opts.refreshToken)
+  if (opts.tokenExpiresAt !== undefined) storage.setTokenExpiresAt(opts.tokenExpiresAt)
+
+  const userAdapter = {
+    refreshToken: opts.refreshTokenImpl ?? (() => Promise.reject(new Error('refreshToken not stubbed'))),
+  }
+
+  const mqttCalls: string[] = []
+  const mqtt = {
+    unsubscribe: (topic: string) => mqttCalls.push(`unsubscribe:${topic}`),
+    subscribeUser: (token: string) => mqttCalls.push(`subscribeUser:${token}`),
+  }
+
+  const deps = {
+    storage,
+    userAdapter,
+    realtimeAdapter: opts.withRealtimeAdapter === false ? undefined : { mqtt },
+  } as unknown as QiscusDeps
+
+  return { deps, storage, mqttCalls }
+}
+
+test('startTokenRefresh returns null when refresh token is missing', () => {
+  const { deps } = makeDeps({ refreshToken: null, tokenExpiresAt: new Date(Date.now() + 60_000).toJSON() })
+  expect(startTokenRefresh(deps)).toBeNull()
+})
+
+test('startTokenRefresh returns null when token expiry is missing', () => {
+  const { deps } = makeDeps({ refreshToken: 'rt-1', tokenExpiresAt: null })
+  expect(startTokenRefresh(deps)).toBeNull()
+})
+
+test('startTokenRefresh returns null when there is no current user', () => {
+  const { deps } = makeDeps({
+    refreshToken: 'rt-1',
+    tokenExpiresAt: new Date(Date.now() + 60_000).toJSON(),
+    hasCurrentUser: false,
+  })
+  expect(startTokenRefresh(deps)).toBeNull()
+})
+
+test('startTokenRefresh returns a scheduler when refresh token, expiry, and current user are all present', () => {
+  const { deps } = makeDeps({ refreshToken: 'rt-1', tokenExpiresAt: new Date(Date.now() + 60_000).toJSON() })
+  const scheduler = startTokenRefresh(deps)
+  expect(scheduler).not.toBeNull()
+  scheduler?.dispose()
+})
+
+test('a fired refresh persists the new token/refresh-token/expiry and re-subscribes the MQTT user channel', async () => {
+  const newExpiresAt = new Date(Date.now() + 60_000).toJSON()
+  const { deps, storage, mqttCalls } = makeDeps({
+    refreshToken: 'rt-1',
+    tokenExpiresAt: new Date(Date.now() + 20).toJSON(),
+    refreshTokenImpl: () =>
+      Promise.resolve({
+        results: { token: 'new', refresh_token: 'newrt', token_expires_at: newExpiresAt },
+      }),
+  })
+
+  const scheduler = startTokenRefresh(deps)
+  expect(scheduler).not.toBeNull()
+
+  await new Promise((r) => setTimeout(r, 80))
+
+  expect(storage.getToken()).toBe('new')
+  expect(storage.getRefreshToken()).toBe('newrt')
+  expect(storage.getTokenExpiresAt()).toBe(newExpiresAt)
+
+  expect(mqttCalls).toEqual([
+    'unsubscribe:old-token/c',
+    'unsubscribe:old-token/n',
+    'unsubscribe:old-token/update',
+    'subscribeUser:new',
+  ])
+
+  scheduler?.dispose()
+})
+
+test('stopTokenRefresh prevents a pending scheduled refresh from firing', async () => {
+  const refreshCalls: any[] = []
+  const { deps } = makeDeps({
+    refreshToken: 'rt-1',
+    tokenExpiresAt: new Date(Date.now() + 20).toJSON(),
+    refreshTokenImpl: (userId, refreshToken) => {
+      refreshCalls.push({ userId, refreshToken })
+      return Promise.resolve({ results: { token: 'new', refresh_token: 'newrt', token_expires_at: null } })
+    },
+  })
+
+  const scheduler = startTokenRefresh(deps)
+  expect(scheduler).not.toBeNull()
+
+  stopTokenRefresh(deps)
+
+  await new Promise((r) => setTimeout(r, 60))
+
+  expect(refreshCalls).toHaveLength(0)
+})
+
+test('startTokenRefresh does not throw when realtimeAdapter is undefined, including when a refresh fires', async () => {
+  const { deps, storage } = makeDeps({
+    refreshToken: 'rt-1',
+    tokenExpiresAt: new Date(Date.now() + 20).toJSON(),
+    withRealtimeAdapter: false,
+    refreshTokenImpl: () =>
+      Promise.resolve({ results: { token: 'new', refresh_token: 'newrt', token_expires_at: null } }),
+  })
+
+  expect(() => startTokenRefresh(deps)).not.toThrow()
+  const scheduler = startTokenRefresh(deps)
+
+  await new Promise((r) => setTimeout(r, 60))
+
+  expect(storage.getToken()).toBe('new')
+  scheduler?.dispose()
 })

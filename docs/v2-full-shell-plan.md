@@ -261,6 +261,28 @@ live once.
     `onTokenRefreshed` into v3's storage. Also note: v2's `auto_refresh_token` app-config flag
     is currently DEAD (write-only, never read anywhere) — it's a natural gate to wire in when
     v3 opts in, rather than always-on.
+  - **Version-3 enablement — DONE.** v3 now opts into the same scheduler, using the SAME rule
+    as v2: the scheduler starts iff-and-only-if the login response provided BOTH
+    `refresh_token` AND `token_expires_at` — no config-flag gate. The dead `auto_refresh_token`
+    app-config flag noted above remains unwired, deliberately (backend field presence is the
+    only gate, matching v2). Added: storage fields `refreshToken`/`tokenExpiresAt`
+    (`core-v3/src/storage.ts`); `v3/decoder.ts#account` tuple extended from 2 to 4 elements
+    (`[IQAccount, token, refresh_token?, token_expires_at?]`, backward compatible with
+    prefix-destructuring call sites); `login`/`setUserFromIdentityToken` in
+    `adapters/user.ts` persist the two new fields, plus thin `refreshToken`/`logout`
+    pass-throughs returning the raw body; `startTokenRefresh`/`stopTokenRefresh` added to
+    `adapters/token-refresh.ts` (instance-tracked per `deps.storage` via a `WeakMap`), plus an
+    additive `onExpiryUpdated` scheduler callback (v2 never passes it, so v2 is unaffected);
+    usecase wiring in `setUser`/`setUserWithIdentityToken`/`clearUser`
+    (`usecases/user.ts`) — `clearUser` also stops the scheduler and clears both storage
+    fields. On refresh, the token-keyed MQTT user channel is unsubscribed (old token) and
+    re-subscribed (new token) so realtime doesn't silently die post-rotation.
+    `packages/version-3/src/index.ts` needed ZERO changes — the wiring lives entirely in the
+    usecases layer. Tests: core-v3 114→127 (+13: decoder tuple regression, decoded
+    `login`/`setUserFromIdentityToken` persistence, `startTokenRefresh`/`stopTokenRefresh`
+    enablement/disable/MQTT-resubscribe/no-realtime-adapter cases), v2 compat 82/82 unchanged,
+    v2 `test/**` 20/1 unchanged (pre-existing, unrelated). As with the rest of this section,
+    live verification against a real backend remains a release gate before shipping.
 
 ## 5. Missing v3 features — CONFIRM before implementing (per user)
 
