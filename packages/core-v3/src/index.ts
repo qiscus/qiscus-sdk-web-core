@@ -36,6 +36,14 @@ export type { MqttAdapter } from './adapters/mqtt'
 // (`onRawMessages`/`onRawEvents`) firehose.
 export { default as getSyncAdapter } from './adapters/sync'
 export type { SyncAdapter } from './adapters/sync'
+// Expired-token auto-refresh scheduler (docs/v2-full-shell-plan.md "NEXT
+// ITEM — Expired-token auto-refresh scheduler"): re-export core-v3's
+// timer/lifecycle scheduler so v2's `ExpiredTokenAdapter`
+// (packages/version-2/src/lib/adapters/expired-token.js) can delegate to it
+// instead of owning a parallel implementation. version-3 does not opt in
+// yet — see the plan doc for the follow-up needed.
+export { default as getTokenRefreshScheduler } from './adapters/token-refresh'
+export type { TokenRefreshScheduler } from './adapters/token-refresh'
 export { parseRealtimeEvent } from './adapters/realtime-parser'
 export type { CanonicalEvent, DeletedMessage } from './adapters/realtime-parser'
 export { classifySyncEvents } from './adapters/sync-parser'
