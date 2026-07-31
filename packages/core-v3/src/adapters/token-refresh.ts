@@ -11,15 +11,19 @@
  * v2's `ExpiredTokenAdapter` (packages/version-2/src/lib/adapters/expired-token.js)
  * is now a thin delegator over this module — its public surface (constructor
  * shape, `refreshAuthToken()`, `logout()`) is UNCHANGED, so `index.js` needs
- * no changes. version-3 does NOT opt into this yet: core-v3 has no
- * `refreshToken`/`tokenExpiresAt` storage fields and v3's decoder doesn't
- * capture `refresh_token`/`token_expires_at` at login — wiring v3 to use this
- * scheduler is a separate follow-up (see the plan doc).
+ * no changes.
+ *
+ * version-3 now opts into the same scheduler via `startTokenRefresh`/
+ * `stopTokenRefresh` below (wired from `usecases/user.ts`), using the SAME
+ * enablement rule as v2: it starts iff-and-only-if the login response
+ * provided BOTH `refresh_token` and `token_expires_at` — no config-flag gate.
  *
  * Every branch below reproduces v2's CODE (not its stale JSDoc) byte-for-byte
  * — see the inline notes at the two spots where the code and the old v2
  * comments disagreed.
  */
+
+import { QiscusDeps } from '../usecases/types'
 
 export type TokenRefreshUserAdapter = {
   refreshToken(userId: string, refreshToken: string): Promise<any>
@@ -40,6 +44,10 @@ export default function getTokenRefreshScheduler(o: {
   refreshToken: string | null
   expiredAt: string | null
   onTokenRefreshed?: (token: string, refreshToken: string, expiredAt: Date | null, oldToken: string) => void
+  // Additive, v3-only hook: fired with the NEW `_expiredAt` right after the
+  // timer is (re)armed, so a caller can persist the refreshed expiry. v2
+  // never passes this, so v2's behavior is unaffected.
+  onExpiryUpdated?: (expiredAt: Date | null) => void
   getAuthenticationStatus: () => boolean
 }) {
   let _refreshToken: string | null = o.refreshToken
@@ -109,6 +117,7 @@ export default function getTokenRefreshScheduler(o: {
         }
 
         _setTimer(_expiredAt)
+        o.onExpiryUpdated?.(_expiredAt)
 
         return res
       })
@@ -140,5 +149,68 @@ export default function getTokenRefreshScheduler(o: {
     get refreshToken(): string | null {
       return _refreshToken
     },
+  }
+}
+
+/**
+ * version-3 entry points that wire `getTokenRefreshScheduler` into core-v3's
+ * own storage/user-adapter/realtime-adapter, following the SAME enablement
+ * rule as v2: the scheduler only starts when the login response provided
+ * BOTH `refresh_token` and `token_expires_at` (captured by
+ * `v3/decoder.ts#account` and persisted by `adapters/user.ts`). There is no
+ * config-flag gate — the backend only sends those fields when the feature is
+ * provisioned for that app.
+ */
+const _instances = new WeakMap<object, TokenRefreshScheduler>()
+
+export function startTokenRefresh(deps: QiscusDeps): TokenRefreshScheduler | null {
+  const refreshToken = deps.storage.getRefreshToken()
+  const expiresAt = deps.storage.getTokenExpiresAt()
+  const userId = deps.storage.getCurrentUser()?.id
+
+  if (refreshToken == null || refreshToken === '') return null
+  if (expiresAt == null || expiresAt === '') return null
+  if (userId == null || userId === '') return null
+
+  // Dispose any scheduler already running for this storage instance before
+  // starting a new one (e.g. re-login without an intervening clearUser).
+  stopTokenRefresh(deps)
+
+  const scheduler = getTokenRefreshScheduler({
+    getUserAdapter: () => deps.userAdapter,
+    getStorage: () => deps.storage,
+    userId,
+    refreshToken,
+    expiredAt: expiresAt,
+    getAuthenticationStatus: () => deps.storage.getCurrentUser() != null,
+    onTokenRefreshed: (token, newRefreshToken, _oldExpiredAt, oldToken) => {
+      deps.storage.setRefreshToken(newRefreshToken)
+
+      // Re-subscribe the token-keyed MQTT user channel after a token
+      // rotation — the old channel is keyed by the old token, so without
+      // this, realtime silently dies post-refresh. `deps.realtimeAdapter`
+      // is absent from v2's deps bundle, so this must never throw if it's
+      // missing.
+      const mqtt = deps.realtimeAdapter?.mqtt
+      if (mqtt != null && oldToken != null) {
+        ;['c', 'n', 'update'].forEach((suffix) => mqtt.unsubscribe(`${oldToken}/${suffix}`))
+        mqtt.subscribeUser(token)
+      }
+    },
+    onExpiryUpdated: (expiredAt) => {
+      deps.storage.setTokenExpiresAt(expiredAt != null ? expiredAt.toISOString() : null)
+    },
+  })
+
+  _instances.set(deps.storage, scheduler)
+
+  return scheduler
+}
+
+export function stopTokenRefresh(deps: QiscusDeps): void {
+  const existing = _instances.get(deps.storage)
+  if (existing != null) {
+    existing.dispose()
+    _instances.delete(deps.storage)
   }
 }

@@ -18,6 +18,7 @@ import {
 } from '../utils/param-utils'
 import { QiscusDeps } from './types'
 import { publishOnlinePresence } from './realtime'
+import { startTokenRefresh, stopTokenRefresh } from '../adapters/token-refresh'
 
 export function setUser(
   deps: QiscusDeps,
@@ -51,6 +52,7 @@ export function setUser(
       tap(() => {
         deps.realtimeAdapter.mqtt.conneck()
         deps.realtimeAdapter.mqtt.subscribeUser(deps.storage.getToken())
+        startTokenRefresh(deps)
       })
     )
     .compose(toCallbackOrPromise(callback))
@@ -73,15 +75,19 @@ export function clearUser(deps: QiscusDeps, callback?: IQCallback1): void | Prom
   // this method should clear currentUser and token
   return xs
     .combine(process(callback, isOptCallback({ callback })))
-    .map(() =>
-      xs.fromPromise(
+    .map(() => {
+      stopTokenRefresh(deps)
+      deps.storage.setRefreshToken(null)
+      deps.storage.setTokenExpiresAt(null)
+
+      return xs.fromPromise(
         Promise.all([
           Promise.resolve(publishOnlinePresence(deps, false)),
           Promise.resolve(deps.userAdapter.clear()),
           Promise.resolve(deps.realtimeAdapter.clear()),
         ])
       )
-    )
+    })
     .compose(flattenConcurrently)
     .map(() => undefined as void)
     .compose(toCallbackOrPromise<void>(callback))
@@ -237,6 +243,7 @@ export function setUserWithIdentityToken(
       tap(() => {
         deps.realtimeAdapter.mqtt.conneck()
         deps.realtimeAdapter.mqtt.subscribeUser(deps.storage.getToken())
+        startTokenRefresh(deps)
       })
     )
     .compose(toCallbackOrPromise(callback))
