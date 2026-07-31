@@ -1291,23 +1291,23 @@ class QiscusSDK {
     return this.loadComments(this.selected.id, options)
   }
 
-  async registerDeviceToken(token, isDevelopment = false) {
+  async registerDeviceToken(token, isDevelopment = false, devicePlatform = 'rn') {
     const res = await this.HTTPAdapter.post(
       'api/v2/sdk/set_user_device_token',
       {
         device_token: token,
-        device_platform: 'rn',
+        device_platform: devicePlatform,
         is_development: isDevelopment,
       }
     )
     return res.body.results
   }
-  async removeDeviceToken(token, isDevelopment = false) {
+  async removeDeviceToken(token, isDevelopment = false, devicePlatform = 'rn') {
     const res = await this.HTTPAdapter.post(
       'api/v2/sdk/remove_user_device_token',
       {
         device_token: token,
-        device_platform: 'rn',
+        device_platform: devicePlatform,
         is_development: isDevelopment,
       }
     )
