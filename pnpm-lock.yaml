@@ -62,6 +62,9 @@ importers:
       acorn-walk:
         specifier: ^8.0.0
         version: 8.3.5
+      chai:
+        specifier: ^4.2.0
+        version: 4.5.0
       local-pkg:
         specifier: ^0.4.3
         version: 0.4.3

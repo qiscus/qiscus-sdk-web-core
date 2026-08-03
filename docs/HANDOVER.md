@@ -29,9 +29,18 @@ compatible, because Vue customers read/write them directly.
 ## 2. Getting started
 
 ```fish
-cd /Users/afief/code/qiscus/sdk-js   # branch `monorepo` (see §7 if it's still a worktree)
+cd /Users/afief/code/qiscus/sdk-js   # `monorepo` is checked out here directly (no worktree)
 pnpm install                          # workspace root
 ```
+
+> **History:** this work used to live in a linked worktree (`.claude/worktrees/monorepo`). On
+> 2026-08-03 that worktree was removed and `monorepo` is now checked out in the repo root like
+> any normal branch. A safety tag **`backup/monorepo-2026-08-03`** marks the state at migration
+> time — delete it whenever you want: `git tag -d backup/monorepo-2026-08-03`.
+>
+> Leftovers from the previously checked-out branch may sit untracked in the repo root
+> (`dist/`, `lib/`, `coverage/`); they are stale build output from the old non-workspace layout
+> (this branch builds into `packages/*/dist`) and are safe to delete.
 
 ### Test / build commands (all must be green before any commit)
 
