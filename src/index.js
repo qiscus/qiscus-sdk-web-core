@@ -13,7 +13,7 @@ import RoomAdapter from './lib/adapters/room'
 import MqttAdapter from './lib/adapters/mqtt'
 import CustomEventAdapter from './lib/adapters/custom-event'
 import SyncAdapter from './lib/adapters/sync'
-import { delayed, GroupChatBuilder } from './lib/utils'
+import { delayed, findCommentIndex, GroupChatBuilder } from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
@@ -337,6 +337,17 @@ class QiscusSDK {
         Hooks.MESSAGE_BEFORE_RECEIVED,
         message
       )
+      // Echo dari MQTT bisa datang waktu pesannya sudah tampil, entah dari
+      // pending comment hasil optimistic update atau dari `synchronize()` yang
+      // jalan duluan. Kalau di-emit lagi, pesannya kelihatan dobel, jadi dedup
+      // dulu seperti yang dilakukan sync handler di bawah.
+      if (
+        this.selected != null &&
+        findCommentIndex(this.selected.comments, message) !== -1
+      ) {
+        this.logging('duplicate message from realtime, skipped', message)
+        return
+      }
       this.events.emit('newmessages', [message])
     })
     this.realtimeAdapter.on('presence', (data) =>
@@ -392,10 +403,7 @@ class QiscusSDK {
         message
       )
       if (this.selected != null) {
-        const index = this.selected.comments.findIndex(
-          (it) =>
-            it.id === message.id || it.unique_id === message.unique_temp_id
-        )
+        const index = findCommentIndex(this.selected.comments, message)
         if (index === -1) {
           const _message = new Comment(message)
           if (_message.room_id === this.selected.id) {

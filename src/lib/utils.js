@@ -95,6 +95,31 @@ export function scrollToBottom(latestCommentId) {
   })
 }
 
+/**
+ * Cari index pesan yang sudah pernah diterima di dalam list comment.
+ *
+ * Payload dari server nyimpen client generated id di `unique_temp_id`,
+ * sedangkan `Comment` nyimpennya di `unique_id`, jadi dua-duanya perlu
+ * dibandingkan. Comment yang masih pending belum punya `id`, makanya ada null
+ * check biar dua pending comment yang beda ga saling match.
+ *
+ * @param {Array<object>} comments - list comment yang sudah ada
+ * @param {object} message - payload pesan dari realtime / sync
+ * @return {number} index comment yang match, -1 kalau ga ketemu
+ */
+export function findCommentIndex(comments, message) {
+  if (comments == null || message == null) return -1
+
+  const messageId = message.id
+  const messageUniqueId = message.unique_temp_id ?? message.unique_id
+
+  return comments.findIndex(
+    (it) =>
+      (messageId != null && it.id === messageId) ||
+      (messageUniqueId != null && it.unique_id === messageUniqueId)
+  )
+}
+
 export function delayed(cb, timeout) {
   let timer = null
   return function (...args) {
