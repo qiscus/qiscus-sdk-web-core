@@ -341,10 +341,12 @@ class QiscusSDK {
       // pending comment hasil optimistic update atau dari `synchronize()` yang
       // jalan duluan. Kalau di-emit lagi, pesannya kelihatan dobel, jadi dedup
       // dulu seperti yang dilakukan sync handler di bawah.
-      if (
-        this.selected != null &&
-        findCommentIndex(this.selected.comments, message) !== -1
-      ) {
+      const index =
+        this.selected != null
+          ? findCommentIndex(this.selected.comments, message)
+          : -1
+      if (index !== -1) {
+        this._reconcilePendingComment(this.selected.comments[index], message)
         this.logging('duplicate message from realtime, skipped', message)
         return
       }
@@ -411,6 +413,8 @@ class QiscusSDK {
             this.sortComments()
           }
           this.events.emit('newmessages', [message])
+        } else {
+          this._reconcilePendingComment(this.selected.comments[index], message)
         }
       } else {
         this.events.emit('newmessages', [message])
@@ -887,6 +891,47 @@ class QiscusSDK {
     if (this.options.onReconnectCallback) this.options.onReconnectedCallback()
     if (!this.selected) return
     this.loadComments(this.selected.id)
+  }
+
+  /**
+   * Sembuhkan comment yang masih `pending`/`failed` pakai payload dari server.
+   *
+   * Server publish echo MQTT sebelum response POST balik, jadi echo-nya sampai
+   * duluan waktu comment kita masih pending. Kalau POST-nya menggantung atau
+   * gagal padahal server sudah nyimpen pesannya, echo ini satu-satunya bukti
+   * bahwa pesannya terkirim — tanpa ini bubble-nya nyangkut di "pending"
+   * selamanya dan agent cenderung kirim ulang.
+   *
+   * @param {Comment} comment - comment yang sudah ada di room aktif
+   * @param {object} message - payload pesan dari realtime / sync
+   * @return {boolean} true kalau comment-nya memang di-reconcile
+   */
+  _reconcilePendingComment(comment, message) {
+    if (comment == null || message == null) return false
+    if (!comment.isPending && !comment.isFailed) return false
+
+    comment.update(message)
+    // `update` cuma bersihin flag pending lewat `markAsSent`. Untuk status
+    // `delivered`/`read`, helper-nya keburu return duluan (dipanggil tanpa
+    // actor), jadi flag-nya dipastikan di sini.
+    comment.isPending = false
+    comment.isFailed = false
+    comment.isSent = true
+
+    // Timestamp pending diambil dari jam browser waktu kirim; pakai punya
+    // server supaya urutan dan label jamnya sama dengan comment lain.
+    if (message.timestamp != null) {
+      comment.timestamp = message.timestamp
+      comment.date = format(message.timestamp, 'YYYY-MM-DD')
+      comment.time = format(message.timestamp, 'HH:mm')
+    }
+    if (message.unix_timestamp != null) {
+      comment.unix_timestamp = message.unix_timestamp
+    }
+    this.sortComments()
+
+    this.logging('reconciled pending comment from server echo', message)
+    return true
   }
 
   _callNewMessagesCallback(comments) {
