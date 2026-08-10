@@ -1,4 +1,5 @@
 import Comment from './Comment'
+import { findCommentIndex } from './utils'
 
 /**
  * Holds chat rooms for qiscus chat sdk
@@ -76,10 +77,15 @@ export default class Room {
   receiveComment(comment) {
     // Ignore if not from the same room
     if (comment.room_id !== this.id) return
-    // let's check first whether this room already has this specific comment
-    const commentToFind = this.comments.find(
-      (cmt) => cmt.unique_id === comment.unique_id
-    )
+    // let's check first whether this room already has this specific comment.
+    // Cocokin pakai `unique_id` doang ga cukup: buat pesan WhatsApp,
+    // `unique_id`-nya diganti wamid sama backend sekitar sedetik sesudah pesan
+    // kekirim. Jadi pas room-nya di-load ulang, pesan yang sama datang dengan
+    // `unique_id` yang ga dikenal sama yang udah tampil di layar, terus
+    // ke-append lagi. `id` ga pernah berubah, makanya cocokin pakai salah satu
+    // dari keduanya, sama kayak handler realtime dan sync.
+    const index = findCommentIndex(this.comments, comment)
+    const commentToFind = index === -1 ? null : this.comments[index]
     if (commentToFind) {
       commentToFind.id = comment.id
       commentToFind.message = comment.message
