@@ -62,6 +62,7 @@ class QiscusSDK {
     this.enableRealtimeCheck = true
     this.enableSync = true
     this.enableSyncEvent = false
+    this.syncOnlyWhenDisconnected = false
     this.HTTPAdapter = null
     this.expiredTokenAdapter = null
     this.realtimeAdapter = null
@@ -176,6 +177,9 @@ class QiscusSDK {
     }
 
     if (config.syncInterval != null) this.syncInterval = config.syncInterval
+    if (config.syncOnConnect != null) this.syncOnConnect = config.syncOnConnect
+    if (config.syncOnlyWhenDisconnected != null)
+      this.syncOnlyWhenDisconnected = config.syncOnlyWhenDisconnected
     // this._customHeader = {}
 
     // set appConfig
@@ -389,15 +393,14 @@ class QiscusSDK {
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
       getToken: () => this.userData.token,
       syncInterval: () => this.syncInterval,
-      getShouldSync: () =>
-        this._forceEnableSync &&
-        this.isLogin &&
-        !this.realtimeAdapter.connected,
+      getShouldSync: () => this._forceEnableSync && this.isLogin,
       syncOnConnect: () => this.syncOnConnect,
       lastCommentId: () => this.last_received_comment_id,
       statusLogin: () => this.isLogin,
       enableSync: () => this.enableSync,
       enableSyncEvent: () => this.enableSyncEvent,
+      isRealtimeConnected: () => this.realtimeAdapter?.connected === true,
+      syncOnlyWhenDisconnected: () => this.syncOnlyWhenDisconnected,
     })
     this.syncAdapter.on('message.new', async (message) => {
       message = await this._hookAdapter.trigger(
