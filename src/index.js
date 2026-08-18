@@ -19,6 +19,7 @@ import {
   findCommentIndex,
   GroupChatBuilder,
   isCustomBrokerLbUrl,
+  resolveEnableLb,
 } from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
@@ -143,22 +144,26 @@ class QiscusSDK {
     const isDifferentBrokerLbUrl =
       config.brokerLbURL != null && this.brokerLbUrl !== config.brokerLbURL
     // disable realtime lb if user change baseUrl or mqttUrl but did not change
-    // broker lb url
+    // broker lb url — unless the user explicitly told us what to do via
+    // `enableRealtimeLB`, which always wins over this guess.
     // Whether the guess below — rather than the caller — is what turned the
     // load balancer off, so the app config can still overrule it later on.
-    let lbDisabledByGuess = false
-    if ((isDifferentBaseUrl || isDifferentMqttUrl) && !isDifferentBrokerLbUrl) {
+    const { enableLb, disabledByGuess: lbDisabledByGuess } = resolveEnableLb({
+      hasCustomBaseUrl: isDifferentBaseUrl,
+      hasCustomMqttUrl: isDifferentMqttUrl,
+      hasCustomBrokerLbUrl: isDifferentBrokerLbUrl,
+      enableRealtimeLB: config.enableRealtimeLB,
+      currentEnableLb: this.enableLb,
+    })
+    if (lbDisabledByGuess) {
       this.logger(
         '' +
           'force disable load balancing for realtime server, because ' +
           '`baseURL` or `mqttURL` get changed but ' +
           'did not provide `brokerLbURL`'
       )
-      this.enableLb = false
-      lbDisabledByGuess = config.enableRealtimeLB == null
-    } else if (config.enableRealtimeLB != null) {
-      this.enableLb = config.enableRealtimeLB
     }
+    this.enableLb = enableLb
 
     if (config.updateCommentStatusMode != null)
       this.updateCommentStatusMode = config.updateCommentStatusMode

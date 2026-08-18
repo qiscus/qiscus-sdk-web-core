@@ -148,3 +148,33 @@ export function isCustomBrokerLbUrl(url) {
   if (trimmed.length === 0) return false
   return trimmed !== DEFAULT_BROKER_LB_URL
 }
+
+/**
+ * Decide whether the realtime load balancer should be enabled for this
+ * `init()` call.
+ *
+ * A custom `baseURL`/`mqttURL` without a matching custom `brokerLbURL` is a
+ * strong hint the app is self-hosted and the shared lb would hand out nodes
+ * it cannot reach, so we guess the lb should be off. But that is only a
+ * guess — an explicit `enableRealtimeLB` from the caller always wins over it,
+ * in either direction.
+ */
+export function resolveEnableLb({
+  hasCustomBaseUrl,
+  hasCustomMqttUrl,
+  hasCustomBrokerLbUrl,
+  enableRealtimeLB,
+  currentEnableLb,
+}) {
+  if (enableRealtimeLB != null) {
+    return { enableLb: enableRealtimeLB, disabledByGuess: false }
+  }
+
+  const heuristicDisablesLb =
+    (hasCustomBaseUrl || hasCustomMqttUrl) && !hasCustomBrokerLbUrl
+  if (heuristicDisablesLb) {
+    return { enableLb: false, disabledByGuess: true }
+  }
+
+  return { enableLb: currentEnableLb, disabledByGuess: false }
+}
