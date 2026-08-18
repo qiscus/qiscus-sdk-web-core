@@ -13,7 +13,13 @@ import RoomAdapter from './lib/adapters/room'
 import MqttAdapter from './lib/adapters/mqtt'
 import CustomEventAdapter from './lib/adapters/custom-event'
 import SyncAdapter from './lib/adapters/sync'
-import { delayed, findCommentIndex, GroupChatBuilder } from './lib/utils'
+import {
+  DEFAULT_BROKER_LB_URL,
+  delayed,
+  findCommentIndex,
+  GroupChatBuilder,
+  isCustomBrokerLbUrl,
+} from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
@@ -55,7 +61,7 @@ class QiscusSDK {
     this.AppId = null
     this.baseURL = 'https://api.qiscus.com'
     this.mqttURL = 'wss://realtime-jogja.qiscus.com:1886/mqtt'
-    this.brokerLbUrl = 'https://realtime-lb.qiscus.com'
+    this.brokerLbUrl = DEFAULT_BROKER_LB_URL
     this.syncOnConnect = 10000
     this.enableEventReport = false
     this.enableRealtime = true
@@ -138,6 +144,9 @@ class QiscusSDK {
       config.brokerLbURL != null && this.brokerLbUrl !== config.brokerLbURL
     // disable realtime lb if user change baseUrl or mqttUrl but did not change
     // broker lb url
+    // Whether the guess below — rather than the caller — is what turned the
+    // load balancer off, so the app config can still overrule it later on.
+    let lbDisabledByGuess = false
     if ((isDifferentBaseUrl || isDifferentMqttUrl) && !isDifferentBrokerLbUrl) {
       this.logger(
         '' +
@@ -146,6 +155,7 @@ class QiscusSDK {
           'did not provide `brokerLbURL`'
       )
       this.enableLb = false
+      lbDisabledByGuess = config.enableRealtimeLB == null
     } else if (config.enableRealtimeLB != null) {
       this.enableLb = config.enableRealtimeLB
     }
@@ -297,6 +307,21 @@ class QiscusSDK {
             cfg.auto_refresh_token,
             false
           )
+
+          // The guess above had to run before the app config arrived, so it
+          // assumed a custom `baseURL` meant the lb would not fit. Now that
+          // the app config names its own `broker_lb_url`, that assumption is
+          // settled and the lb can be turned back on — without it,
+          // MqttAdapter never asks for a new broker node when a connection
+          // drops, and the client keeps retrying whichever node it was
+          // already stuck on.
+          if (lbDisabledByGuess && isCustomBrokerLbUrl(cfg.broker_lb_url)) {
+            this.logger(
+              'reenable load balancing for realtime server, because the app ' +
+                `config provides its own brokerLbURL (${this.brokerLbUrl})`
+            )
+            this.enableLb = true
+          }
         })
         .catch((err) => {
           this.logger('got error when trying to get app config', err)

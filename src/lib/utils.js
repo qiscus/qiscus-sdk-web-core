@@ -130,3 +130,21 @@ export function delayed(cb, timeout) {
     }, timeout)
   }
 }
+
+export const DEFAULT_BROKER_LB_URL = 'https://realtime-lb.qiscus.com'
+
+/**
+ * Whether an app config's `broker_lb_url` points at a load balancer we can
+ * trust for this app.
+ *
+ * A blank value means the backend has nothing configured, and the shared
+ * default means it was never set for this app — pointing an on-premise app at
+ * the public lb would hand out broker nodes it cannot reach. Anything else is
+ * the app's own lb.
+ */
+export function isCustomBrokerLbUrl(url) {
+  if (typeof url !== 'string') return false
+  const trimmed = url.trim().replace(/\/+$/, '')
+  if (trimmed.length === 0) return false
+  return trimmed !== DEFAULT_BROKER_LB_URL
+}
