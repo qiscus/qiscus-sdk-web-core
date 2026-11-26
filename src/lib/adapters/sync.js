@@ -157,6 +157,40 @@ function synchronizeEventFactory(getHttp, getInterval, getSync, getId, logger) {
   }
 }
 
+/**
+ * Decides how often to poll, and whether to poll at all.
+ *
+ * Realtime picks the polling *speed*, not whether we poll: a live mqtt
+ * connection is not proof the broker delivered every message, so the poll
+ * stays on as the safety net and only backs off to `syncOnConnect`. Pass
+ * `syncOnlyWhenDisconnected` to opt back into stopping while connected.
+ */
+export function syncPolicy({
+  statusLogin,
+  syncInterval,
+  syncOnConnect,
+  getShouldSync,
+  enableSync,
+  enableSyncEvent,
+  isRealtimeConnected = () => false,
+  syncOnlyWhenDisconnected = () => false,
+}) {
+  const getInterval = () => {
+    if (!statusLogin()) return 0
+    if (isRealtimeConnected()) return syncOnConnect()
+    return syncInterval()
+  }
+
+  const shouldPoll = () =>
+    getShouldSync() && !(syncOnlyWhenDisconnected() && isRealtimeConnected())
+
+  return {
+    getInterval,
+    shouldSync: () => shouldPoll() && enableSync(),
+    shouldSyncEvent: () => shouldPoll() && enableSyncEvent(),
+  }
+}
+
 export default function SyncAdapter(
   getHttpAdapter,
   {
@@ -168,6 +202,8 @@ export default function SyncAdapter(
     statusLogin,
     enableSync,
     enableSyncEvent,
+    isRealtimeConnected = () => false,
+    syncOnlyWhenDisconnected = () => false,
   }
 ) {
   const emitter = mitt()
@@ -176,15 +212,18 @@ export default function SyncAdapter(
   let lastMessageId = 0
   let lastEventId = 0
 
-  const getInterval = () => {
-    if (statusLogin()) {
-      if (getShouldSync()) return syncInterval()
-      return syncOnConnect()
-    }
-    return 0
-  }
+  const { getInterval, shouldSync, shouldSyncEvent } = syncPolicy({
+    statusLogin,
+    syncInterval,
+    syncOnConnect,
+    getShouldSync,
+    enableSync,
+    enableSyncEvent,
+    isRealtimeConnected,
+    syncOnlyWhenDisconnected,
+  })
 
-  const _getShouldSync = () => getShouldSync() && enableSync()
+  const _getShouldSync = shouldSync
   const syncFactory = synchronizeFactory(
     getHttpAdapter,
     getInterval,
@@ -197,7 +236,7 @@ export default function SyncAdapter(
   syncFactory.on('synchronize', (m) => emitter.emit('synchronize', m))
   syncFactory.run().catch((err) => logger('got error when sync', err))
 
-  const _getShouldSyncEvent = () => getShouldSync() && enableSyncEvent()
+  const _getShouldSyncEvent = shouldSyncEvent
   const syncEventFactory = synchronizeEventFactory(
     getHttpAdapter,
     getInterval,

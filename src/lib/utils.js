@@ -130,3 +130,51 @@ export function delayed(cb, timeout) {
     }, timeout)
   }
 }
+
+export const DEFAULT_BROKER_LB_URL = 'https://realtime-lb.qiscus.com'
+
+/**
+ * Whether an app config's `broker_lb_url` points at a load balancer we can
+ * trust for this app.
+ *
+ * A blank value means the backend has nothing configured, and the shared
+ * default means it was never set for this app — pointing an on-premise app at
+ * the public lb would hand out broker nodes it cannot reach. Anything else is
+ * the app's own lb.
+ */
+export function isCustomBrokerLbUrl(url) {
+  if (typeof url !== 'string') return false
+  const trimmed = url.trim().replace(/\/+$/, '')
+  if (trimmed.length === 0) return false
+  return trimmed !== DEFAULT_BROKER_LB_URL
+}
+
+/**
+ * Decide whether the realtime load balancer should be enabled for this
+ * `init()` call.
+ *
+ * A custom `baseURL`/`mqttURL` without a matching custom `brokerLbURL` is a
+ * strong hint the app is self-hosted and the shared lb would hand out nodes
+ * it cannot reach, so we guess the lb should be off. But that is only a
+ * guess — an explicit `enableRealtimeLB` from the caller always wins over it,
+ * in either direction.
+ */
+export function resolveEnableLb({
+  hasCustomBaseUrl,
+  hasCustomMqttUrl,
+  hasCustomBrokerLbUrl,
+  enableRealtimeLB,
+  currentEnableLb,
+}) {
+  if (enableRealtimeLB != null) {
+    return { enableLb: enableRealtimeLB, disabledByGuess: false }
+  }
+
+  const heuristicDisablesLb =
+    (hasCustomBaseUrl || hasCustomMqttUrl) && !hasCustomBrokerLbUrl
+  if (heuristicDisablesLb) {
+    return { enableLb: false, disabledByGuess: true }
+  }
+
+  return { enableLb: currentEnableLb, disabledByGuess: false }
+}

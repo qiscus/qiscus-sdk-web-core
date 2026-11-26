@@ -13,7 +13,14 @@ import RoomAdapter from './lib/adapters/room'
 import MqttAdapter from './lib/adapters/mqtt'
 import CustomEventAdapter from './lib/adapters/custom-event'
 import SyncAdapter from './lib/adapters/sync'
-import { delayed, findCommentIndex, GroupChatBuilder } from './lib/utils'
+import {
+  DEFAULT_BROKER_LB_URL,
+  delayed,
+  findCommentIndex,
+  GroupChatBuilder,
+  isCustomBrokerLbUrl,
+  resolveEnableLb,
+} from './lib/utils'
 import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
@@ -59,13 +66,14 @@ class QiscusSDK {
     this.AppId = null
     this.baseURL = 'https://api.qiscus.com'
     this.mqttURL = 'wss://realtime-jogja.qiscus.com:1886/mqtt'
-    this.brokerLbUrl = 'https://realtime-lb.qiscus.com'
+    this.brokerLbUrl = DEFAULT_BROKER_LB_URL
     this.syncOnConnect = 10000
     this.enableEventReport = false
     this.enableRealtime = true
     this.enableRealtimeCheck = true
     this.enableSync = true
     this.enableSyncEvent = false
+    this.syncOnlyWhenDisconnected = false
     // Fetch broker credentials from `api/v2/sdk/mqtt_config` after login.
     // If the endpoint fails or returns no username, the SDK keeps connecting
     // anonymously exactly like before.
@@ -146,18 +154,26 @@ class QiscusSDK {
     const isDifferentBrokerLbUrl =
       config.brokerLbURL != null && this.brokerLbUrl !== config.brokerLbURL
     // disable realtime lb if user change baseUrl or mqttUrl but did not change
-    // broker lb url
-    if ((isDifferentBaseUrl || isDifferentMqttUrl) && !isDifferentBrokerLbUrl) {
+    // broker lb url — unless the user explicitly told us what to do via
+    // `enableRealtimeLB`, which always wins over this guess.
+    // Whether the guess below — rather than the caller — is what turned the
+    // load balancer off, so the app config can still overrule it later on.
+    const { enableLb, disabledByGuess: lbDisabledByGuess } = resolveEnableLb({
+      hasCustomBaseUrl: isDifferentBaseUrl,
+      hasCustomMqttUrl: isDifferentMqttUrl,
+      hasCustomBrokerLbUrl: isDifferentBrokerLbUrl,
+      enableRealtimeLB: config.enableRealtimeLB,
+      currentEnableLb: this.enableLb,
+    })
+    if (lbDisabledByGuess) {
       this.logger(
         '' +
           'force disable load balancing for realtime server, because ' +
           '`baseURL` or `mqttURL` get changed but ' +
           'did not provide `brokerLbURL`'
       )
-      this.enableLb = false
-    } else if (config.enableRealtimeLB != null) {
-      this.enableLb = config.enableRealtimeLB
     }
+    this.enableLb = enableLb
 
     if (config.updateCommentStatusMode != null)
       this.updateCommentStatusMode = config.updateCommentStatusMode
@@ -188,6 +204,9 @@ class QiscusSDK {
     }
 
     if (config.syncInterval != null) this.syncInterval = config.syncInterval
+    if (config.syncOnConnect != null) this.syncOnConnect = config.syncOnConnect
+    if (config.syncOnlyWhenDisconnected != null)
+      this.syncOnlyWhenDisconnected = config.syncOnlyWhenDisconnected
     // this._customHeader = {}
 
     // set appConfig
@@ -305,6 +324,21 @@ class QiscusSDK {
             cfg.auto_refresh_token,
             false
           )
+
+          // The guess above had to run before the app config arrived, so it
+          // assumed a custom `baseURL` meant the lb would not fit. Now that
+          // the app config names its own `broker_lb_url`, that assumption is
+          // settled and the lb can be turned back on — without it,
+          // MqttAdapter never asks for a new broker node when a connection
+          // drops, and the client keeps retrying whichever node it was
+          // already stuck on.
+          if (lbDisabledByGuess && isCustomBrokerLbUrl(cfg.broker_lb_url)) {
+            this.logger(
+              'reenable load balancing for realtime server, because the app ' +
+                `config provides its own brokerLbURL (${this.brokerLbUrl})`
+            )
+            this.enableLb = true
+          }
         })
         .catch((err) => {
           this.logger('got error when trying to get app config', err)
@@ -401,15 +435,14 @@ class QiscusSDK {
     this.syncAdapter = SyncAdapter(() => this.HTTPAdapter, {
       getToken: () => this.userData.token,
       syncInterval: () => this.syncInterval,
-      getShouldSync: () =>
-        this._forceEnableSync &&
-        this.isLogin &&
-        !this.realtimeAdapter.connected,
+      getShouldSync: () => this._forceEnableSync && this.isLogin,
       syncOnConnect: () => this.syncOnConnect,
       lastCommentId: () => this.last_received_comment_id,
       statusLogin: () => this.isLogin,
       enableSync: () => this.enableSync,
       enableSyncEvent: () => this.enableSyncEvent,
+      isRealtimeConnected: () => this.realtimeAdapter?.connected === true,
+      syncOnlyWhenDisconnected: () => this.syncOnlyWhenDisconnected,
     })
     this.syncAdapter.on('message.new', async (message) => {
       message = await this._hookAdapter.trigger(
