@@ -59,6 +59,29 @@ qiscus.init({
 });
 ```
 
+## Authenticated realtime (MQTT) connection
+
+After login the SDK calls `GET api/v2/sdk/mqtt_config`. With `setUser`, the
+post-login realtime connection waits for this response: when it contains a
+`username`, the SDK connects with that username/password (and every later
+reconnect keeps using them); when the request fails, times out (3s), or
+returns an empty `username`, the SDK connects anonymously exactly as before.
+With `setUserWithIdentityToken`, the existing connection is kept and only
+reconnects when credentials are returned.
+
+The broker URL does not change: the SDK keeps using `mqttURL` / app config /
+realtime LB as before. `setUser()` resolves without waiting for this request,
+and a failing request never fails login.
+
+To opt out:
+
+```javascript
+qiscus.init({
+  AppId: "sdksample",
+  enableMqttAuth: false, // default: true
+});
+```
+
 ## Authentication with `UserId` and `UserKey`
 
 ```javascript

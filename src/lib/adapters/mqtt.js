@@ -36,6 +36,9 @@ export default class MqttAdapter {
     this.getClientId = getClientId
     this.enableLb = enableLb
     this.shouldConnect = shouldConnect
+    // null = connect anonymously (behavior before mqtt_config support)
+    /** @type {{ username: string, password: string } | null} */
+    this.credentials = null
     this.matcher = match({
       [when(this.reNewMessage)]: (topic) =>
         this.newMessageHandler.bind(this, topic),
@@ -111,6 +114,12 @@ export default class MqttAdapter {
       // reconnectPeriod: 0,
       // connectTimeout: 1 * 1000,
     }
+    // Only send credentials when we actually have them, so an anonymous
+    // CONNECT stays byte-for-byte what it was before.
+    if (this.credentials != null) {
+      opts.username = this.credentials.username
+      opts.password = this.credentials.password
+    }
 
     if (brokerUrl == null) brokerUrl = this.cacheRealtimeURL
     if (this.mqtt != null) {
@@ -182,6 +191,29 @@ export default class MqttAdapter {
 
   connect() {
     this.mqtt = this.__mqtt_conneck()
+  }
+
+  /**
+   * Set the credentials used by every subsequent (re)connect, including the
+   * LB failover in `_on_close_handler` and `openConnection()`.
+   *
+   * @param {{ username: string, password: string } | null} credentials
+   * @return {boolean} true when the value changed (caller should reconnect)
+   */
+  setCredentials(credentials) {
+    const next =
+      credentials == null
+        ? null
+        : { username: credentials.username, password: credentials.password }
+    const prev = this.credentials
+    const same =
+      (prev == null && next == null) ||
+      (prev != null &&
+        next != null &&
+        prev.username === next.username &&
+        prev.password === next.password)
+    this.credentials = next
+    return !same
   }
 
   /**
