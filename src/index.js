@@ -18,6 +18,10 @@ import { tryCatch } from './lib/util'
 import Package from '../package.json'
 import { Hooks, hookAdapterFactory } from './lib/adapters/hook'
 import { ExpiredTokenAdapter } from './lib/adapters/expired-token'
+import {
+  MQTT_CONFIG_PATH,
+  fetchMqttCredentials,
+} from './lib/mqtt-credentials'
 
 // helper for setup publishOnlinePresence status
 let setBackToOnline
@@ -62,6 +66,12 @@ class QiscusSDK {
     this.enableRealtimeCheck = true
     this.enableSync = true
     this.enableSyncEvent = false
+    // Fetch broker credentials from `api/v2/sdk/mqtt_config` after login.
+    // If the endpoint fails or returns no username, the SDK keeps connecting
+    // anonymously exactly like before.
+    this.enableMqttAuth = true
+    this._loginGeneration = 0
+    this._mqttCredentialsReady = null
     this.HTTPAdapter = null
     this.expiredTokenAdapter = null
     this.realtimeAdapter = null
@@ -159,6 +169,8 @@ class QiscusSDK {
     if (config.mqttURL) this.brokerUrl = config.brokerUrl || config.mqttURL
     if (config.brokerLbURL) this.brokerLbUrl = config.brokerLbURL
     if (config.uploadURL) this.uploadURL = config.uploadURL
+    if (config.enableMqttAuth != null)
+      this.enableMqttAuth = config.enableMqttAuth === true
     if (config.sync) this.sync = config.sync
     if (config.mode) this.mode = config.mode
     if (config.syncInterval) this.syncInterval = config.syncInterval || 5000
@@ -682,6 +694,10 @@ class QiscusSDK {
       this.roomAdapter = new RoomAdapter(this.HTTPAdapter)
 
       this.realtimeAdapter.subscribeUserChannel()
+      this._loginGeneration += 1
+      this._mqttCredentialsReady = this._loadMqttCredentials(
+        this._loginGeneration
+      )
       if (this.presensePublisherId != null && this.presensePublisherId !== -1) {
         clearInterval(this.presensePublisherId)
       }
@@ -986,7 +1002,7 @@ class QiscusSDK {
               self.isInit = true
               self.refresh_token = response.user.refresh_token
               self.events.emit('login-success', response)
-              this.realtimeAdapter.connect()
+              this._connectRealtimeAfterLogin()
               resolve(response)
             },
             (error) => {
@@ -1018,12 +1034,84 @@ class QiscusSDK {
         clearInterval(waitingConfig)
         this.logger('Config Success!')
         this.events.emit('login-success', data)
+        this._upgradeRealtimeAfterLogin()
       }
     }, 300)
   }
 
   refreshAuthToken() {
     return this.expiredTokenAdapter.refreshAuthToken()
+  }
+
+  /**
+   * Fetch broker credentials from `api/v2/sdk/mqtt_config` and store them on
+   * the realtime adapter. Never throws and never blocks login.
+   *
+   * - endpoint error / timeout / malformed body: credentials left untouched
+   * - no username in the response: anonymous (credentials = null)
+   *
+   * @param {number} loginGeneration login-success counter, so a late
+   *   response from a previous session is ignored
+   * @return {Promise<{ stale: boolean, changed: boolean }>}
+   */
+  async _loadMqttCredentials(loginGeneration) {
+    if (this.enableMqttAuth !== true) return { stale: false, changed: false }
+    const http = this.HTTPAdapter
+    const result = await fetchMqttCredentials(() => http.get(MQTT_CONFIG_PATH))
+    const realtime = this.realtimeAdapter
+    if (
+      loginGeneration !== this._loginGeneration ||
+      !this.isLogin ||
+      realtime == null
+    ) {
+      return { stale: true, changed: false }
+    }
+    if (!result.ok) {
+      this.logger(
+        'realtime: mqtt_config unavailable, connecting anonymously',
+        result.error?.message ?? result.error
+      )
+      return { stale: false, changed: false }
+    }
+    this.logger(
+      result.credentials != null
+        ? 'realtime: using authenticated broker credentials from mqtt_config'
+        : 'realtime: mqtt_config has no credentials, connecting anonymously'
+    )
+    return { stale: false, changed: realtime.setCredentials(result.credentials) }
+  }
+
+  /**
+   * `setUser` path: open the post-login connection only after mqtt_config is
+   * settled, so an auth-required broker never sees a rejected anonymous
+   * CONNECT. On error / empty username it connects anonymously, exactly like
+   * before (just one HTTP round-trip later, bounded by the timeout).
+   */
+  _connectRealtimeAfterLogin() {
+    const generation = this._loginGeneration
+    if (this.enableMqttAuth !== true || this._mqttCredentialsReady == null) {
+      this.realtimeAdapter.connect()
+      return
+    }
+    this._mqttCredentialsReady.then(({ stale }) => {
+      if (stale || generation !== this._loginGeneration) return
+      this.realtimeAdapter.connect()
+    })
+  }
+
+  /**
+   * `setUserWithIdentityToken` path: this path never reconnected after login
+   * (it keeps the connection opened in `init`), so only reconnect when
+   * credentials actually changed. Without credentials nothing changes.
+   */
+  _upgradeRealtimeAfterLogin() {
+    if (this._mqttCredentialsReady == null) return
+    const generation = this._loginGeneration
+    this._mqttCredentialsReady.then(({ stale, changed }) => {
+      if (stale || !changed || generation !== this._loginGeneration) return
+      const realtime = this.realtimeAdapter
+      if (realtime.shouldConnect !== false) realtime.connect()
+    })
   }
 
   publishOnlinePresence(val) {
