@@ -3,7 +3,11 @@ import mitt from 'mitt'
 import connect from 'mqtt/lib/connect'
 import request from 'superagent'
 import debounce from 'lodash.debounce'
-import { wrapP } from '../util'
+import { sleep, wrapP } from '../util'
+import {
+  DEFAULT_RECONNECT_BACKOFF,
+  reconnectDelay,
+} from '../reconnect-backoff'
 
 export default class MqttAdapter {
   /**
@@ -16,6 +20,8 @@ export default class MqttAdapter {
    * @property {string} brokerLbUrl
    * @property {boolean} enableLb
    * @property {GetClientId} getClientId
+   * @property {Partial<import('../reconnect-backoff').ReconnectBackoff>} [reconnectBackoff]
+   *   retry rhythm after a failed connection; internal, meant for tests
    */
   /**
    * @param {string} url
@@ -27,11 +33,15 @@ export default class MqttAdapter {
     url,
     core,
     login,
-    { shouldConnect = true, brokerLbUrl, enableLb, getClientId }
+    { shouldConnect = true, brokerLbUrl, enableLb, getClientId, reconnectBackoff }
   ) {
     this.emitter = mitt()
     this.core = core
     this.mqtt = null
+    this.reconnectBackoff = { ...DEFAULT_RECONNECT_BACKOFF, ...reconnectBackoff }
+    // Retries started since the connection was last up. Read by
+    // `__mqtt_conneck`, so it has to exist before the first client is created.
+    this._reconnectAttempts = 0
     this.brokerLbUrl = brokerLbUrl
     this.getClientId = getClientId
     this.enableLb = enableLb
@@ -82,10 +92,35 @@ export default class MqttAdapter {
     return this.getClientId()
   }
 
+  /**
+   * Period mqtt.js waits before its next retry. It reads
+   * `options.reconnectPeriod` each time it arms the retry timer, which happens
+   * after every failed attempt, so changing the option is enough to back off.
+   *
+   * Never 0: mqtt.js records a subscription for resubscribing only while
+   * `reconnectPeriod > 0`, and `__mqtt_conneck` carries those topics over to
+   * the next client.
+   */
+  _currentReconnectPeriod() {
+    if (this._reconnectAttempts === 0) return this.reconnectBackoff.baseMs
+    return reconnectDelay(this._reconnectAttempts, this.reconnectBackoff)
+  }
+
   __mqtt_connected_handler = () => {
+    // The connection is up: the next drop starts again from the base period.
+    this._reconnectAttempts = 0
+    if (this.mqtt != null) {
+      this.mqtt.options.reconnectPeriod = this._currentReconnectPeriod()
+    }
     this.emitter.emit('connected')
   }
   __mqtt_reconnect_handler = () => {
+    // A retry is starting. If it fails too, the timer is armed again with the
+    // period set here, so each failed retry waits longer than the one before.
+    this._reconnectAttempts += 1
+    if (this.mqtt != null) {
+      this.mqtt.options.reconnectPeriod = this._currentReconnectPeriod()
+    }
     this.emitter.emit('reconnect')
   }
   __mqtt_closed_handler = (...args) => {
@@ -111,7 +146,10 @@ export default class MqttAdapter {
         retain: true,
       },
       clientId: this._getClientId(),
-      // reconnectPeriod: 0,
+      // A client created while the connection keeps failing (load balancer
+      // failover, credentials reconnect) continues the backoff instead of
+      // starting over at the base period.
+      reconnectPeriod: this._currentReconnectPeriod(),
       // connectTimeout: 1 * 1000,
     }
     // Only send credentials when we actually have them, so an anonymous
@@ -147,11 +185,21 @@ export default class MqttAdapter {
 
     return mqtt
   }
-  _on_close_handler = debounce(async () => {
-    const shouldReconnect =
+  /**
+   * Whether a closed connection should be replaced by one to a node the load
+   * balancer hands out.
+   */
+  _shouldFailover() {
+    return (
       this.enableLb === true && // appConfig enabling realtime lb
       this.core.isLogin === true && // is logged in
-      this.shouldConnect === true && // should reconnect?
+      this.shouldConnect === true // should reconnect?
+    )
+  }
+
+  _on_close_handler = debounce(async () => {
+    const shouldReconnect =
+      this._shouldFailover() &&
       !this.willConnectToRealtime // is there still reconnect process in progress?
 
     if (this.logEnabled) {
@@ -166,6 +214,22 @@ export default class MqttAdapter {
 
     if (!shouldReconnect) return
     this.willConnectToRealtime = true
+
+    // The first failover after a drop is immediate. When the connection keeps
+    // failing, each further failover waits longer, so a broker that refuses us
+    // is not asked for a new node (and hit with a new CONNECT) every second.
+    if (this._reconnectAttempts > 0) {
+      const wait = reconnectDelay(this._reconnectAttempts, this.reconnectBackoff)
+      this.logger(`waiting ${wait}ms before asking for a new broker node`)
+      await sleep(wait)
+      // The world moved on while we waited: the old client's own retry got
+      // through, or the user logged out / closed the connection.
+      if (!this._shouldFailover() || this.connected) {
+        this.willConnectToRealtime = false
+        return
+      }
+    }
+    this._reconnectAttempts += 1
 
     const [url, err] = await wrapP(this.getMqttNode())
     if (err) {
@@ -221,6 +285,8 @@ export default class MqttAdapter {
    */
   async openConnection() {
     this.shouldConnect = true
+    // Asked for explicitly: start from the base period.
+    this._reconnectAttempts = 0
     this.mqtt = this.__mqtt_conneck()
   }
 
